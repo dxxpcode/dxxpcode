@@ -15,6 +15,43 @@ function escapeResult(path: string): { content: string; isError: true } {
   return { content: `path escapes project root: ${path}`, isError: true };
 }
 
+const DIFF_CTX = 2;
+const DIFF_MAX_LINES = 30;
+
+/**
+ * Minimal unified-diff preview: common prefix/suffix trimmed, the differing
+ * middle shown with DIFF_CTX context lines. Returns "" when unchanged.
+ */
+export function previewDiff(path: string, oldContent: string | null, newContent: string): string {
+  const a = oldContent === null ? [] : oldContent.split("\n");
+  const b = newContent.split("\n");
+  let pre = 0;
+  while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
+  let suf = 0;
+  while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
+  if (pre === a.length && pre === b.length) return ""; // identical
+  const del = a.slice(pre, a.length - suf);
+  const add = b.slice(pre, b.length - suf);
+  const oldStart = Math.max(0, pre - DIFF_CTX);
+  const newStart = oldStart;
+  const oldEnd = Math.min(a.length, pre + del.length + DIFF_CTX);
+  const newEnd = Math.min(b.length, pre + add.length + DIFF_CTX);
+  const lines: string[] = [
+    `--- a/${path}`,
+    `+++ b/${path}`,
+    `@@ -${oldStart + 1},${oldEnd - oldStart} +${newStart + 1},${newEnd - newStart} @@`,
+  ];
+  for (const l of a.slice(oldStart, pre)) lines.push(` ${l}`);
+  for (const l of del) lines.push(`-${l}`);
+  for (const l of add) lines.push(`+${l}`);
+  for (const l of a.slice(pre + del.length, oldEnd)) lines.push(` ${l}`);
+  if (lines.length > DIFF_MAX_LINES) {
+    lines.length = DIFF_MAX_LINES;
+    lines.push(`… ${add.length + del.length + 2 * DIFF_CTX - DIFF_MAX_LINES + 3} more lines`);
+  }
+  return lines.join("\n");
+}
+
 export const listDirectory: AgentTool = {
   name: "list_directory",
   description: "List files and directories under a path inside the project. Use '.' for the project root.",
@@ -100,10 +137,12 @@ export const writeFile: AgentTool = {
     const content = str(input, "content");
     mkdirSync(dirname(abs), { recursive: true });
     const existed = existsSync(abs);
+    const prev = existed ? readFileSync(abs, "utf8") : null;
     writeFileSync(abs, content, "utf8");
     return {
       content: `${existed ? "updated" : "created"} ${r} (${content.split("\n").length} lines)`,
       changedFile: r,
+      diff: previewDiff(r, prev, content),
     };
   },
 };
@@ -144,7 +183,11 @@ export const editFile: AgentTool = {
     }
     const updated = replaceAll ? raw.split(oldStr).join(newStr) : raw.replace(oldStr, newStr);
     writeFileSync(abs, updated, "utf8");
-    return { content: `edited ${r} (${occurrences} replacement${occurrences > 1 ? "s" : ""})`, changedFile: r };
+    return {
+      content: `edited ${r} (${occurrences} replacement${occurrences > 1 ? "s" : ""})`,
+      changedFile: r,
+      diff: previewDiff(r, raw, updated),
+    };
   },
 };
 

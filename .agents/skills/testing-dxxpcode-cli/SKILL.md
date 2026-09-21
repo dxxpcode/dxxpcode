@@ -23,7 +23,7 @@ CRITICAL: do NOT feed all input at once (`printf 'n\ny\n' | script ...`). When t
 { printf 'n\n'; sleep 0.7; printf 'y\n'; sleep 0.7; printf 'y\n'; sleep 0.7; } | script -qec "node .../cli.js task" out.log
 ```
 
-`expect` is also installed; if you use it, glob-match on `y/N]` — patterns containing `[y/N]` literally fail because `[]` is a glob character class.
+`expect` is also installed; if you use it, glob-match on `y/N` (no closing bracket — approval prompts are `[y/N/a]` since "always allow" was added; plan prompts are `[y/N]`), or escape the brackets — patterns containing `[y/N]` literally fail because `[]` is a glob character class. Answering `a` adds the exact `tool:arg` to a session-scoped allowlist; later identical actions print `allowed earlier this session` and skip the prompt.
 
 ## Non-interactive paths (no PTY needed)
 - Positional task or `echo task | dxxpcode` → `stdin.isTTY` false → plan prompts print the plan then auto-deny with "non-interactive run — re-run with --yes"; tool approvals deny with "…re-run with --yes to allow".
