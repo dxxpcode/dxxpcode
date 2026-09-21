@@ -3,6 +3,8 @@ import * as readline from "node:readline";
 export interface Prompter {
   ask(question: string): Promise<string>;
   confirm(question: string, defaultYes?: boolean): Promise<boolean>;
+  /** yes / always / no picker — 'a' answers return "a". */
+  pick(question: string): Promise<"y" | "a" | "n">;
   close(): void;
   readonly interactive: boolean;
   /** True once the underlying readline interface is closed (EOF/ctrl-D/ctrl-C). */
@@ -49,6 +51,13 @@ export function createPrompter(opts: { interactive: boolean }): Prompter {
       if (!rl || closed) return defaultYes;
       if (!answer) return defaultYes;
       return answer === "y" || answer === "yes";
+    },
+    pick: async (q) => {
+      const answer = (await question(q)).trim().toLowerCase();
+      if (!rl || closed) return "n";
+      if (answer === "a" || answer === "always") return "a";
+      if (answer === "y" || answer === "yes") return "y";
+      return "n";
     },
     close: () => rl?.close(),
     get closed() {

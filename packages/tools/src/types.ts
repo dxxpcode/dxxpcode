@@ -6,6 +6,8 @@ export interface ToolResult {
   isError?: boolean;
   /** Set for file-mutating tools so the runtime can report changed files. */
   changedFile?: string;
+  /** Unified-diff preview of the change, for terminal display. */
+  diff?: string;
 }
 
 export interface ToolContext {

@@ -183,6 +183,9 @@ async function main(): Promise<number> {
     }
   }
 
+  // "Always allow" approvals persist across tasks for the whole process.
+  const allowlist = new Set<string>();
+
   const runOnce = async (task: string) => {
     const result = await runAndRender({
       task,
@@ -195,6 +198,7 @@ async function main(): Promise<number> {
       prompter,
       session,
       signal: controller.signal,
+      allowlist,
     });
     // Continue the same conversation for subsequent REPL inputs.
     if (result.sessionId) {

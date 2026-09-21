@@ -5,8 +5,8 @@ import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider } from "@dxxpcode/providers";
 import type { Prompter } from "./prompt.ts";
 import {
-  FANCY, SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, resultLine, rule,
-  toolLine, write, yellow,
+  FANCY, SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, renderDiff,
+  resultLine, rule, toolLine, write, yellow,
 } from "./render.ts";
 
 export interface RunCliOptions {
@@ -20,6 +20,8 @@ export interface RunCliOptions {
   prompter: Prompter;
   session?: SessionRecord;
   signal?: AbortSignal;
+  /** Session-scoped "always allow" keys — `tool:arg` pairs the user approved. */
+  allowlist?: Set<string>;
 }
 
 /** Consume a runTask event stream and render it to the terminal. */
@@ -56,8 +58,13 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   };
 
   const approveTool = async (req: ApprovalRequest): Promise<boolean> => {
+    const key = `${req.tool}:${describe(req)}`;
     nl();
     spin.stop();
+    if (opts.allowlist?.has(key)) {
+      line(`  ${dim(SYM.sub)}  ${dim("allowed earlier this session")}`);
+      return true;
+    }
     const body = [`The agent wants to run: ${bold(describe(req))}`];
     const reason = req.reason ?? req.decision.reason;
     if (reason) body.push(dim(`Reason: ${reason}`));
@@ -71,8 +78,14 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
       return false;
     }
+    body.push(dim("[a]lways allows this exact action for the session"));
     for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
-    return prompter.confirm(`${cyan("❯")} Allow? ${dim("[y/N]")} `);
+    const pick = await prompter.pick(`${cyan("❯")} Allow? ${dim("[y/N/a]")} `);
+    if (pick === "a") {
+      opts.allowlist?.add(key);
+      return true;
+    }
+    return pick === "y";
   };
 
   // Events that precede a provider call restart the spinner; anything the
@@ -116,10 +129,14 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       case "tool_start":
         line(toolLine(ev.tool, ev.input));
         break;
-      case "tool_end":
+      case "tool_end": {
         line(resultLine(ev.result.content, ev.result.isError === true));
+        if (ev.result.diff) {
+          for (const l of renderDiff(ev.result.diff).split("\n")) line(`    ${l}`);
+        }
         spin.start("Thinking…");
         break;
+      }
       case "denied":
         line(`  ${red(SYM.sub)}  ${red(`Denied: ${ev.reason}`)}`);
         spin.start("Thinking…");
@@ -173,8 +190,12 @@ function renderResult(r: RunResult, elapsedMs: number): void {
   const secs = (elapsedMs / 1000).toFixed(1);
   const mark =
     r.status === "completed" ? green(SYM.ok) : r.status === "error" ? red(SYM.fail) : yellow(SYM.warn);
+  const tokens =
+    r.usage && (r.usage.inputTokens || r.usage.outputTokens)
+      ? ` · ${fmtTokens(r.usage.inputTokens + r.usage.outputTokens)} tokens`
+      : "";
   line(rule());
-  line(`${mark} ${bold(r.status === "completed" ? "Completed" : r.status)} ${dim(`· ${secs}s`)}`);
+  line(`${mark} ${bold(r.status === "completed" ? "Completed" : r.status)} ${dim(`· ${secs}s${tokens}`)}`);
   if (r.summary && r.status !== "completed") line(dim(r.summary));
   if (r.filesChanged.length) {
     line(`  ${dim("Changed:")}`);
@@ -185,4 +206,8 @@ function renderResult(r: RunResult, elapsedMs: number): void {
     for (const l of r.diffStat.split("\n")) line(`    ${dim(l)}`);
   }
   if (r.error) errLine(red(r.error));
+}
+
+function fmtTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }

@@ -43,6 +43,8 @@ export interface RunResult {
   diffStat?: string;
   error?: string;
   sessionId: string;
+  /** Total provider token usage across the run. */
+  usage?: Usage;
 }
 
 export interface RunOptions {
@@ -108,6 +110,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
   const stats = { toolCalls: 0 };
   const usage: Usage = { inputTokens: 0, outputTokens: 0 };
   const finish = (result: RunResult): { type: "done"; result: RunResult } => {
+    result.usage = { ...usage };
     session.result = result.summary;
     persist();
     return { type: "done", result };
