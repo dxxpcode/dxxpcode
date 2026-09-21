@@ -50,3 +50,19 @@ test("--review runs without a provider configured", () => {
   assert.equal(code, 0);
   assert.match(out, /not a git repository|No changes|untracked|##/i);
 });
+
+test("banner renders name, version, model, and project context", async () => {
+  const { renderBanner, renderTips } = await import("../apps/cli/src/banner.ts");
+  const lines = renderBanner({
+    version: "0.1.0",
+    provider: "mock",
+    model: "mock-model",
+    project: { name: "demo", languages: ["TypeScript"], root: "/tmp/demo", git: null, packageManager: "npm", testCommand: "npm test", buildCommand: null },
+    cwd: "/tmp/demo",
+  });
+  const text = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+  assert.match(text, /DxxpCode/);
+  assert.match(text, /v0\.1\.0 · mock · mock-model/);
+  assert.match(text, /demo \(TypeScript\)/);
+  assert.equal(renderTips().length, 6); // title + 5 tips
+});
