@@ -23,7 +23,9 @@ export function createPrompter(opts: { interactive: boolean }): Prompter {
   rl?.on("close", () => {
     closed = true;
     // EOF/ctrl-D resolves a pending prompt with "" so confirms fall back
-    // to their default instead of hanging.
+    // to their default instead of hanging. The line the prompt occupied
+    // never got a newline, so emit one (bash does the same on ctrl-d).
+    if (pending) process.stdout.write("\n");
     pending?.("");
     pending = null;
   });

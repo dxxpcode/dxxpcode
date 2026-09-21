@@ -27,7 +27,7 @@ export const yellow = (s: string) => color(s, C.yellow);
 export const red = (s: string) => color(s, C.red);
 export const cyan = (s: string) => color(s, C.cyan);
 
-export const SYM = { ok: "✓", warn: "⚠", fail: "✗", run: "→" };
+export const SYM = { ok: "✓", warn: "⚠", fail: "✗", run: "→", bullet: "⏺", sub: "⎿" };
 
 export function write(s: string): void {
   process.stdout.write(s);
@@ -113,6 +113,7 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 
 export interface Spinner {
   start(label: string): void;
+  setLabel(label: string): void;
   stop(): void;
 }
 
@@ -135,6 +136,9 @@ export function createSpinner(): Spinner {
       timer = setInterval(draw, 80);
       timer.unref?.();
     },
+    setLabel(l: string) {
+      label = l;
+    },
     stop() {
       if (timer) {
         clearInterval(timer);
@@ -145,13 +149,41 @@ export function createSpinner(): Spinner {
   };
 }
 
-/** Short one-line label for a tool call (path, command, or pattern). */
-export function toolLabel(tool: string, input: Record<string, unknown>): string {
+/** PascalCase display names for tools (Claude Code-style). */
+export const TOOL_DISPLAY: Record<string, string> = {
+  read_file: "Read",
+  write_file: "Write",
+  edit_file: "Edit",
+  delete_file: "Delete",
+  list_directory: "List",
+  search_files: "Search",
+  run_command: "Bash",
+  git_status: "Git",
+  git_diff: "Git",
+  git_log: "Git",
+  propose_plan: "Plan",
+};
+
+/** Short one-line label for a tool call's argument (path, command, or pattern). */
+export function toolArg(input: Record<string, unknown>): string {
   const cand = input["path"] ?? input["command"] ?? input["pattern"] ?? input["summary"];
-  if (typeof cand === "string" && cand.length) {
-    return `${tool} ${dim(cand.slice(0, 80))}`;
-  }
-  return tool;
+  return typeof cand === "string" && cand.length ? cand.slice(0, 80) : "";
+}
+
+/** `⏺ Read(src/math.js)` — Claude-style tool invocation line. */
+export function toolLine(tool: string, input: Record<string, unknown>): string {
+  const name = TOOL_DISPLAY[tool] ?? tool;
+  const arg = toolArg(input);
+  return arg ? `${cyan(SYM.bullet)} ${bold(name)}${dim(`(${arg})`)}` : `${cyan(SYM.bullet)} ${bold(name)}`;
+}
+
+/** `  ⎿  result summary` — collapsed tool result (first line + count). */
+export function resultLine(content: string, isError: boolean): string {
+  const lines = content.split("\n").filter((l) => l.length > 0);
+  const first = (lines[0] ?? "").slice(0, 120);
+  const more = lines.length > 1 ? dim(`  +${lines.length - 1} more lines`) : "";
+  if (isError) return `  ${red(SYM.sub)}  ${red(first)}${more}`;
+  return `  ${dim(SYM.sub)}  ${dim(first)}${more}`;
 }
 
 /** Render a unified diff with colored +/- lines and a dim line-number gutter. */
