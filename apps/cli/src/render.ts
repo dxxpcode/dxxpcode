@@ -27,7 +27,7 @@ export const yellow = (s: string) => color(s, C.yellow);
 export const red = (s: string) => color(s, C.red);
 export const cyan = (s: string) => color(s, C.cyan);
 
-export const SYM = { ok: "✓", warn: "⚠", fail: "✗", run: "→", bullet: "⏺", sub: "⎿" };
+export const SYM = { ok: "✓", warn: "⚠", fail: "✗", run: "→", bullet: "⏺", sub: "⎿", info: "◆" };
 
 export function write(s: string): void {
   process.stdout.write(s);
@@ -109,6 +109,59 @@ export function card(title: string, body: string[], accent = cyan): string[] {
   return [top, ...mid, bot];
 }
 
+/** Raised pill echoing the submitted task back into the transcript. */
+export function pill(text: string): string[] {
+  if (!FANCY) return [`${SYM.run} ${text}`];
+  const w = Math.max(20, Math.min(WIDTH, 76));
+  const cw = w - 4;
+  const dash = (n: number) => "─".repeat(Math.max(0, n));
+  const top = dim("╭" + dash(w - 2) + "╮");
+  const mid = wrap(`${cyan("❯")} ${text}`, cw).map(
+    (l) => dim("│") + " " + l + " ".repeat(Math.max(0, cw - visibleLen(l))) + " " + dim("│"),
+  );
+  const bot = dim("╰" + dash(w - 2) + "╯");
+  return [top, ...mid, bot];
+}
+
+/**
+ * Tabbed file-viewer panel: `╭── name ──── ×╮` header, body lines
+ * optionally numbered (dim gutter), rounded bottom border. Used for
+ * plans and tool diffs so they read as documents, not dumps.
+ */
+export function panel(name: string, body: string[], numbered = true): string[] {
+  if (!FANCY) return [name, ...body.map((l) => `  ${l}`)];
+  const w = Math.max(30, Math.min(WIDTH, 76));
+  const cw = w - 4 - (numbered ? 5 : 0);
+  const dash = (n: number) => "─".repeat(Math.max(0, n));
+  const top =
+    dim("╭── ") +
+    bold(name) +
+    dim(" " + dash(w - 6 - visibleLen(name) - 2) + " ×") +
+    dim("╮");
+  const rows = body.flatMap((l) => wrap(l, cw));
+  const mid = rows.map((l, i) => {
+    const num = numbered ? dim(String(i + 1).padStart(4)) + " " : "";
+    const inner = num + l + " ".repeat(Math.max(0, cw - visibleLen(l)));
+    return dim("│") + " " + inner + " " + dim("│");
+  });
+  const bot = dim("╰" + dash(w - 2) + "╯");
+  return [top, ...mid, bot];
+}
+
+/** Right-aligned dim status line, e.g. `model · mode`. */
+export function statusBar(right: string): string {
+  const pad = Math.max(1, Math.min(WIDTH, 76) - visibleLen(right));
+  return " ".repeat(pad) + dim(right);
+}
+
+/** Path a unified diff applies to (`+++ b/x` wins), else null. */
+export function diffTarget(diff: string): string | null {
+  const add = /^\+\+\+ b\/(\S+)/m.exec(diff);
+  if (add) return add[1];
+  const del = /^--- a\/(\S+)/m.exec(diff);
+  return del ? del[1] : null;
+}
+
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export interface Spinner {
@@ -123,13 +176,17 @@ export interface Spinner {
  */
 export function createSpinner(): Spinner {
   let timer: ReturnType<typeof setInterval> | null = null;
+  // True while the spinner's line is on screen and needs erasing.
+  let drawn = false;
   let i = 0;
   let label = "";
   const draw = () => {
-    if (TTY)
+    if (TTY) {
       write(
         `\r\x1b[2K  ${cyan(SPINNER_FRAMES[i++ % SPINNER_FRAMES.length])} ${dim(label)}${dim("  ·  esc to interrupt")}`,
       );
+      drawn = true;
+    }
   };
   return {
     start(l: string) {
@@ -147,7 +204,10 @@ export function createSpinner(): Spinner {
         clearInterval(timer);
         timer = null;
       }
-      if (TTY) write("\r\x1b[2K");
+      if (drawn) {
+        drawn = false;
+        write("\r\x1b[2K");
+      }
     },
   };
 }

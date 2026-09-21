@@ -6,8 +6,8 @@ import type { ModelProvider } from "@dxxpcode/providers";
 import { createMdStyler } from "./md.ts";
 import type { Prompter } from "./prompt.ts";
 import {
-  FANCY, SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, renderDiff,
-  resultLine, rule, toolLine, write, yellow,
+  FANCY, SYM, bold, card, createSpinner, cyan, diffTarget, dim, errLine, green, line, panel,
+  red, renderDiff, resultLine, rule, toolLine, write, yellow,
 } from "./render.ts";
 
 export interface RunCliOptions {
@@ -43,6 +43,18 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       midText = false;
     }
     textOpen = false;
+  };
+  // Each thinking phase collapses to `◆ Thought for Ns` when output lands.
+  let thinkAt = 0;
+  const think = (label: string) => {
+    thinkAt = Date.now();
+    spin.start(label);
+  };
+  const emitThought = () => {
+    if (!thinkAt) return;
+    const secs = (Date.now() - thinkAt) / 1000;
+    thinkAt = 0;
+    if (secs >= 1) line(dim(`  ${SYM.info} Thought for ${secs.toFixed(1)}s`));
   };
 
   const approvePlan = async (_plan: ProposedPlan): Promise<boolean> => {
@@ -99,6 +111,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       // line so structural output never collides with it.
       nl();
       spin.stop();
+      emitThought();
     }
     switch (ev.type) {
       case "status": {
@@ -106,7 +119,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         const label = /[.…]$/.test(ev.message) ? ev.message : `${ev.message}…`;
         if (FANCY) {
           spin.setLabel(label);
-          spin.start(label);
+          think(label);
         } else {
           line(dim(`· ${ev.message}`));
         }
@@ -114,6 +127,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       }
       case "text":
         spin.stop();
+        emitThought();
         if (!textOpen) {
           write(`${cyan(SYM.bullet)} `);
           textOpen = true;
@@ -126,7 +140,8 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
           ...(ev.plan.summary ? [dim(ev.plan.summary)] : []),
           ...ev.plan.steps.map((s, i) => `${cyan(String(i + 1))}. ${s}`),
         ];
-        for (const l of card("Plan", body)) line(l);
+        // Steps carry their own numbers — no gutter numbering.
+        for (const l of panel("plan", body, false)) line(l);
         break;
       }
       case "tool_start":
@@ -135,14 +150,15 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       case "tool_end": {
         line(resultLine(ev.result.content, ev.result.isError === true));
         if (ev.result.diff) {
-          for (const l of renderDiff(ev.result.diff).split("\n")) line(`    ${l}`);
+          const diffLines = renderDiff(ev.result.diff).split("\n");
+          for (const l of panel(diffTarget(ev.result.diff) ?? "diff", diffLines, false)) line(l);
         }
-        spin.start("Thinking…");
+        think("Thinking…");
         break;
       }
       case "denied":
         line(`  ${red(SYM.sub)}  ${red(`Denied: ${ev.reason}`)}`);
-        spin.start("Thinking…");
+        think("Thinking…");
         break;
       case "approval_request":
         break; // rendered inside approveTool
@@ -164,7 +180,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
     signal: opts.signal,
   });
 
-  spin.start("Thinking…");
+  think("Thinking…");
   let result: RunResult | undefined;
   try {
     for await (const ev of events) {
