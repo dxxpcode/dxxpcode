@@ -6,7 +6,7 @@ import { latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { createPrompter } from "./prompt.ts";
 import { runAndRender } from "./run.ts";
-import { bold, cyan, dim, errLine, green, line, red, renderDiff } from "./render.ts";
+import { bold, cyan, dim, errLine, green, line, red, renderDiff, rule } from "./render.ts";
 
 const VERSION = "0.1.0";
 
@@ -151,9 +151,11 @@ async function main(): Promise<number> {
   const controller = new AbortController();
   process.on("SIGINT", () => controller.abort());
 
-  const header = `${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
+  const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
   line(header);
-  line(dim(`provider: ${provider.provider.name}  model: ${provider.model}`));
+  line(dim(`${provider.provider.name} · ${provider.model}`));
+  const ruleStr = rule();
+  if (ruleStr) line(ruleStr);
 
   let session: SessionRecord | undefined;
   if (args.resume) {
@@ -206,9 +208,9 @@ async function main(): Promise<number> {
   }
 
   // Interactive REPL
-  line(dim("Ready. Describe a task; ctrl-c to exit."));
+  line(dim("Ready — describe a task (ctrl-c to exit, /review for diff)"));
   while (true) {
-    const input = (await prompter.ask(`${green(">")} `)).trim();
+    const input = (await prompter.ask(`${cyan("❯")} `)).trim();
     if (prompter.closed || controller.signal.aborted) break;
     if (!input) continue;
     if (input === "exit" || input === "quit") break;
@@ -218,7 +220,7 @@ async function main(): Promise<number> {
     } catch (e) {
       errLine(red(e instanceof Error ? e.message : String(e)));
     }
-    line("");
+    if (ruleStr) line(ruleStr);
   }
   prompter.close();
   return 0;

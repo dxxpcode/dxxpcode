@@ -4,7 +4,10 @@ import type { SessionRecord } from "@dxxpcode/sessions";
 import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider } from "@dxxpcode/providers";
 import type { Prompter } from "./prompt.ts";
-import { SYM, bold, cyan, dim, errLine, green, line, red, toolLabel, write, yellow } from "./render.ts";
+import {
+  SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, rule, toolLabel, write,
+  yellow,
+} from "./render.ts";
 
 export interface RunCliOptions {
   task: string;
@@ -22,6 +25,8 @@ export interface RunCliOptions {
 /** Consume a runTask event stream and render it to the terminal. */
 export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   const { prompter } = opts;
+  const t0 = Date.now();
+  const spin = createSpinner();
   // Model text streams without guaranteed trailing newlines; structural
   // output (tool lines, plans, prompts) must start on a fresh line.
   let midText = false;
@@ -33,6 +38,8 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   };
 
   const approvePlan = async (_plan: ProposedPlan): Promise<boolean> => {
+    nl();
+    spin.stop();
     if (opts.autoApprove) {
       line(dim("auto-approved (--yes)"));
       return true;
@@ -42,58 +49,69 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       return false;
     }
     nl();
-    return prompter.confirm("Proceed? [y/N] ");
+    return prompter.confirm(`${cyan("❯")} Proceed? ${dim("[y/N]")} `);
   };
 
   const approveTool = async (req: ApprovalRequest): Promise<boolean> => {
     nl();
-    line();
-    line(`${yellow(SYM.warn)} The agent wants to run: ${bold(describe(req))}`);
+    spin.stop();
+    const body = [`The agent wants to run: ${bold(describe(req))}`];
     const reason = req.reason ?? req.decision.reason;
-    if (reason) line(`  ${dim("Reason:")} ${reason}`);
+    if (reason) body.push(dim(`Reason: ${reason}`));
     if (opts.autoApprove) {
-      line(dim("  auto-approved (--yes)"));
+      body.push(dim("auto-approved (--yes)"));
+      for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
       return true;
     }
     if (!prompter.interactive) {
-      line(dim("  non-interactive run — denied; re-run with --yes to allow"));
+      body.push(dim("non-interactive run — denied; re-run with --yes to allow"));
+      for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
       return false;
     }
-    return prompter.confirm("  Allow? [y/N] ");
+    for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
+    return prompter.confirm(`${cyan("❯")} Allow? ${dim("[y/N]")} `);
   };
 
+  // Events that precede a provider call restart the spinner; anything the
+  // model produces stops it.
   const render = (ev: AgentEvent): void => {
+    if (ev.type !== "text") {
+      // Commit any partially-streamed text line, then clear the spinner's
+      // line so structural output never collides with it.
+      nl();
+      spin.stop();
+    }
     switch (ev.type) {
       case "status":
-        nl();
-        line(dim(`→ ${ev.message}`));
+        line(dim(`· ${ev.message}`));
+        spin.start("Thinking…");
         break;
       case "text":
+        spin.stop();
         write(ev.text);
         midText = true;
         break;
       case "plan": {
-        nl();
-        line();
-        line(bold("Plan"));
-        if (ev.plan.summary) line(dim(ev.plan.summary));
-        ev.plan.steps.forEach((s, i) => line(`  ${cyan(String(i + 1))}. ${s}`));
+        const body = [
+          ...(ev.plan.summary ? [dim(ev.plan.summary)] : []),
+          ...ev.plan.steps.map((s, i) => `${cyan(String(i + 1))}. ${s}`),
+        ];
+        for (const l of card("Plan", body)) line(l);
         break;
       }
       case "tool_start":
-        nl();
         line(`  ${cyan(SYM.run)} ${toolLabel(ev.tool, ev.input)}`);
         break;
       case "tool_end": {
-        nl();
         const first = ev.result.content.split("\n")[0] ?? "";
         const mark = ev.result.isError ? red(SYM.fail) : green(SYM.ok);
         line(`  ${mark} ${dim(first.slice(0, 120))}`);
+        spin.start("Thinking…");
         break;
       }
       case "denied":
-        nl();
         line(`  ${red(SYM.fail)} ${dim(`denied: ${ev.reason}`)}`);
+        spin.start("Thinking…");
         break;
       case "approval_request":
         break; // rendered inside approveTool
@@ -115,14 +133,19 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
     signal: opts.signal,
   });
 
+  spin.start("Thinking…");
   let result: RunResult | undefined;
-  for await (const ev of events) {
-    render(ev);
-    if (ev.type === "done") result = ev.result;
+  try {
+    for await (const ev of events) {
+      render(ev);
+      if (ev.type === "done") result = ev.result;
+    }
+  } finally {
+    spin.stop();
   }
   nl();
   line();
-  if (result) renderResult(result);
+  if (result) renderResult(result, Date.now() - t0);
   return result ?? { status: "error", summary: "no result", filesChanged: [], commands: [], toolCalls: 0, sessionId: "" };
 }
 
@@ -132,13 +155,15 @@ function describe(req: ApprovalRequest): string {
   return typeof target === "string" ? `${req.tool} ${target}` : req.tool;
 }
 
-function renderResult(r: RunResult): void {
+function renderResult(r: RunResult, elapsedMs: number): void {
   if (r.status === "plan_only") {
     return;
   }
+  const secs = (elapsedMs / 1000).toFixed(1);
   const mark =
     r.status === "completed" ? green(SYM.ok) : r.status === "error" ? red(SYM.fail) : yellow(SYM.warn);
-  line(`${mark} ${bold(r.status === "completed" ? "Completed" : r.status)}`);
+  line(rule());
+  line(`${mark} ${bold(r.status === "completed" ? "Completed" : r.status)} ${dim(`· ${secs}s`)}`);
   if (r.summary && r.status !== "completed") line(dim(r.summary));
   if (r.filesChanged.length) {
     line(`  ${dim("Changed:")}`);
