@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 import { detectProject } from "@dxxpcode/project";
 import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
-import { latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
+import { homeDir, latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { renderBanner, renderTips } from "./banner.ts";
 import { createPrompter } from "./prompt.ts";
@@ -147,7 +148,10 @@ async function main(): Promise<number> {
   }
 
   const interactive = process.stdin.isTTY === true;
-  const prompter = createPrompter({ interactive });
+  const prompter = createPrompter({
+    interactive,
+    historyFile: interactive ? join(homeDir(), "history") : undefined,
+  });
   const autoApprove = args.yes || config.approvalMode === "auto";
   const controller = new AbortController();
   process.on("SIGINT", () => controller.abort());
@@ -186,20 +190,39 @@ async function main(): Promise<number> {
   // "Always allow" approvals persist across tasks for the whole process.
   const allowlist = new Set<string>();
 
-  const runOnce = async (task: string) => {
-    const result = await runAndRender({
-      task,
-      provider: provider.provider,
-      model: provider.model,
-      projectRoot: root,
-      planOnly: args.plan,
-      autoApprove,
-      maxIterations: args.maxIterations ?? config.maxIterations,
-      prompter,
-      session,
-      signal: controller.signal,
-      allowlist,
+  // esc interrupts the active run or resolves a pending prompt; ctrl-c
+  // keeps its kill-the-process semantics via the global controller.
+  let runCtl: AbortController | null = null;
+  if (interactive) {
+    process.stdin.on("keypress", (_s, key) => {
+      if (key?.name !== "escape" || !runCtl) return;
+      prompter.cancelPending();
+      runCtl.abort();
     });
+  }
+
+  const runOnce = async (task: string) => {
+    runCtl = new AbortController();
+    if (controller.signal.aborted) runCtl.abort();
+    else controller.signal.addEventListener("abort", () => runCtl?.abort(), { once: true });
+    let result;
+    try {
+      result = await runAndRender({
+        task,
+        provider: provider.provider,
+        model: provider.model,
+        projectRoot: root,
+        planOnly: args.plan,
+        autoApprove,
+        maxIterations: args.maxIterations ?? config.maxIterations,
+        prompter,
+        session,
+        signal: runCtl.signal,
+        allowlist,
+      });
+    } finally {
+      runCtl = null;
+    }
     // Continue the same conversation for subsequent REPL inputs.
     if (result.sessionId) {
       session = loadSession(result.sessionId) ?? session;

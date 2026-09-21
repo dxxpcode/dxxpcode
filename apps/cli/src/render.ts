@@ -126,7 +126,10 @@ export function createSpinner(): Spinner {
   let i = 0;
   let label = "";
   const draw = () => {
-    if (TTY) write(`\r\x1b[2K  ${cyan(SPINNER_FRAMES[i++ % SPINNER_FRAMES.length])} ${dim(label)}`);
+    if (TTY)
+      write(
+        `\r\x1b[2K  ${cyan(SPINNER_FRAMES[i++ % SPINNER_FRAMES.length])} ${dim(label)}${dim("  ·  esc to interrupt")}`,
+      );
   };
   return {
     start(l: string) {
