@@ -1,0 +1,36 @@
+{
+  "name": "dxxpcode",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DxxpCode — a terminal-native AI coding agent",
+  "license": "Apache-2.0",
+  "bin": {
+    "dxxpcode": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --conditions=development src/cli.ts"
+  },
+  "dependencies": {
+    "@dxxpcode/agent": "^0.1.0",
+    "@dxxpcode/project": "^0.1.0",
+    "@dxxpcode/providers": "^0.1.0",
+    "@dxxpcode/sessions": "^0.1.0",
+    "@dxxpcode/tools": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.2"
+  }
+}

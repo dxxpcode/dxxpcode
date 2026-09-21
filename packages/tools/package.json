@@ -1,0 +1,25 @@
+{
+  "name": "@dxxpcode/tools",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DxxpCode agent tools — filesystem, search, shell, git",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@dxxpcode/permissions": "^0.1.0",
+    "@dxxpcode/providers": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.2"
+  }
+}
