@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@dxxpcode/permissions": ["./packages/permissions/src/index.ts"],
+      "@dxxpcode/project": ["./packages/project/src/index.ts"],
+      "@dxxpcode/providers": ["./packages/providers/src/index.ts"],
+      "@dxxpcode/tools": ["./packages/tools/src/index.ts"],
+      "@dxxpcode/sessions": ["./packages/sessions/src/index.ts"],
+      "@dxxpcode/agent": ["./packages/agent/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src", "apps/*/src", "test"]
+}

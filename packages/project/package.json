@@ -1,0 +1,21 @@
+{
+  "name": "@dxxpcode/project",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DxxpCode project detection — language, package manager, git state, instructions",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.2"
+  }
+}

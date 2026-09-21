@@ -1,0 +1,67 @@
+export type JsonObject = Record<string, unknown>;
+
+/** JSON Schema (subset) for tool inputs. */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: JsonObject;
+}
+
+export interface TextBlock {
+  type: "text";
+  text: string;
+}
+
+export interface ToolUseBlock {
+  type: "tool_use";
+  id: string;
+  name: string;
+  input: JsonObject;
+}
+
+export interface ToolResultBlock {
+  type: "tool_result";
+  toolUseId: string;
+  content: string;
+  isError?: boolean;
+}
+
+export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
+
+export interface Message {
+  role: "user" | "assistant";
+  content: ContentBlock[];
+}
+
+export interface Usage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export type ProviderEvent =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; call: ToolUseBlock }
+  | { type: "done"; stopReason: string; usage?: Usage };
+
+export interface ChatRequest {
+  system: string;
+  messages: Message[];
+  tools: ToolDefinition[];
+  model: string;
+  maxTokens?: number;
+}
+
+export interface ModelProvider {
+  name: string;
+  chat(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ProviderEvent>;
+}
+
+export class ProviderError extends Error {
+  readonly status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "ProviderError";
+    this.status = status;
+  }
+}
