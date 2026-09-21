@@ -5,8 +5,8 @@ import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider } from "@dxxpcode/providers";
 import type { Prompter } from "./prompt.ts";
 import {
-  SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, rule, toolLabel, write,
-  yellow,
+  FANCY, SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, resultLine, rule,
+  toolLine, write, yellow,
 } from "./render.ts";
 
 export interface RunCliOptions {
@@ -30,11 +30,14 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   // Model text streams without guaranteed trailing newlines; structural
   // output (tool lines, plans, prompts) must start on a fresh line.
   let midText = false;
+  // Each contiguous burst of model text opens with a ⏺ bullet.
+  let textOpen = false;
   const nl = () => {
     if (midText) {
       write("\n");
       midText = false;
     }
+    textOpen = false;
   };
 
   const approvePlan = async (_plan: ProposedPlan): Promise<boolean> => {
@@ -82,12 +85,23 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       spin.stop();
     }
     switch (ev.type) {
-      case "status":
-        line(dim(`· ${ev.message}`));
-        spin.start("Thinking…");
+      case "status": {
+        // Status feeds the live spinner label (plain line off-TTY).
+        const label = /[.…]$/.test(ev.message) ? ev.message : `${ev.message}…`;
+        if (FANCY) {
+          spin.setLabel(label);
+          spin.start(label);
+        } else {
+          line(dim(`· ${ev.message}`));
+        }
         break;
+      }
       case "text":
         spin.stop();
+        if (!textOpen) {
+          write(`${cyan(SYM.bullet)} `);
+          textOpen = true;
+        }
         write(ev.text);
         midText = true;
         break;
@@ -100,17 +114,14 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         break;
       }
       case "tool_start":
-        line(`  ${cyan(SYM.run)} ${toolLabel(ev.tool, ev.input)}`);
+        line(toolLine(ev.tool, ev.input));
         break;
-      case "tool_end": {
-        const first = ev.result.content.split("\n")[0] ?? "";
-        const mark = ev.result.isError ? red(SYM.fail) : green(SYM.ok);
-        line(`  ${mark} ${dim(first.slice(0, 120))}`);
+      case "tool_end":
+        line(resultLine(ev.result.content, ev.result.isError === true));
         spin.start("Thinking…");
         break;
-      }
       case "denied":
-        line(`  ${red(SYM.fail)} ${dim(`denied: ${ev.reason}`)}`);
+        line(`  ${red(SYM.sub)}  ${red(`Denied: ${ev.reason}`)}`);
         spin.start("Thinking…");
         break;
       case "approval_request":
