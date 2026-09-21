@@ -3,6 +3,7 @@ import type { ProposedPlan } from "@dxxpcode/tools";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider } from "@dxxpcode/providers";
+import { createMdStyler } from "./md.ts";
 import type { Prompter } from "./prompt.ts";
 import {
   FANCY, SYM, bold, card, createSpinner, cyan, dim, errLine, green, line, red, renderDiff,
@@ -34,9 +35,11 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   let midText = false;
   // Each contiguous burst of model text opens with a ⏺ bullet.
   let textOpen = false;
+  // Streaming-safe markdown styler for model text (no-op without color).
+  const md = createMdStyler();
   const nl = () => {
     if (midText) {
-      write("\n");
+      write(md.flush() + "\n");
       midText = false;
     }
     textOpen = false;
@@ -115,7 +118,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
           write(`${cyan(SYM.bullet)} `);
           textOpen = true;
         }
-        write(ev.text);
+        write(md.push(ev.text));
         midText = true;
         break;
       case "plan": {

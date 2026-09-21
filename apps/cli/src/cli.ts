@@ -6,6 +6,7 @@ import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
 import { homeDir, latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { renderBanner, renderTips } from "./banner.ts";
+import { expandMentions } from "./mentions.ts";
 import { createPrompter } from "./prompt.ts";
 import { runAndRender } from "./run.ts";
 import { bold, cyan, dim, errLine, line, red, renderDiff, rule } from "./render.ts";
@@ -40,6 +41,9 @@ Environment:
   DXXPCODE_PROVIDER            Force a provider
   DXXPCODE_MODEL               Force a model
   DXXPCODE_MOCK_SCRIPT         Path to a JSON array of mock turns (offline dev/e2e)
+
+Mentions:
+  @path/to/file.ts           Attach a file's contents as task context
 `;
 
 interface Args {
@@ -202,13 +206,16 @@ async function main(): Promise<number> {
   }
 
   const runOnce = async (task: string) => {
+    const mentions = expandMentions(task, root);
+    for (const a of mentions.attached) line(dim(`  attached ${a}`));
+    for (const s of mentions.skipped) line(dim(`  skipped @${s.path}: ${s.reason}`));
     runCtl = new AbortController();
     if (controller.signal.aborted) runCtl.abort();
     else controller.signal.addEventListener("abort", () => runCtl?.abort(), { once: true });
     let result;
     try {
       result = await runAndRender({
-        task,
+        task: mentions.text,
         provider: provider.provider,
         model: provider.model,
         projectRoot: root,

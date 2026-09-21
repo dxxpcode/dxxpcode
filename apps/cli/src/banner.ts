@@ -14,6 +14,7 @@ export interface BannerInfo {
 
 const TIPS = [
   `Describe a task in plain language — ${dim('"fix the failing test in math.js"')}`,
+  `Attach files as context inline: ${cyan("@src/math.js")} in your task`,
   `Preview without changes: ${cyan("dxxpcode --plan \"<task>\"")}`,
   `Review diffs anytime: ${cyan("/review")} in-session, or ${cyan("dxxpcode --review")}`,
   `Pick up where you left off: ${cyan("dxxpcode --resume")}`,
@@ -45,7 +46,7 @@ export function renderBanner(info: BannerInfo): string[] {
   ];
 }
 
-/** "Tips for getting started" section lines (5 tips, numbered). */
+/** "Tips for getting started" section lines (6 tips, numbered). */
 export function renderTips(): string[] {
   return [
     dim(bold("Tips for getting started")),
