@@ -137,7 +137,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
 
       const planCall = turn.toolCalls.find((c) => c.name === "propose_plan");
       if (planCall) {
-        const results = await runPlanPhaseTools(turn.toolCalls, planCall, ctx, session, stats);
+        const results = yield* runPlanPhaseTools(turn.toolCalls, planCall, ctx, session, stats);
         appendToolResults(messages, results);
         plan = parsePlan(planCall.input);
         yield { type: "plan", plan };
@@ -153,7 +153,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
           return;
         }
       } else if (turn.toolCalls.length > 0) {
-        const results = await runPlanPhaseTools(turn.toolCalls, undefined, ctx, session, stats);
+        const results = yield* runPlanPhaseTools(turn.toolCalls, undefined, ctx, session, stats);
         appendToolResults(messages, results);
       } else {
         yield finish({ ...base("completed"), summary: lastAssistantText(messages) || "Done" });
@@ -165,6 +165,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
       }
     }
 
+    iterations = 0;
     if (opts.planOnly) {
       yield finish({ ...base("plan_only"), summary: plan?.summary ?? "Done", plan });
       return;
@@ -196,6 +197,8 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         stats.toolCalls++;
         const tool = findTool(call.name);
         if (!tool || tool.name === "propose_plan") {
+          yield { type: "denied", tool: call.name, reason: "unknown tool" };
+          session.toolCalls.push(record(call, true, false));
           results.push({ type: "tool_result", toolUseId: call.id, content: `unknown tool: ${call.name}`, isError: true });
           continue;
         }
@@ -327,13 +330,13 @@ function repairTail(messages: Message[]): void {
 }
 
 /** Execute plan-phase tool calls; the propose_plan call gets an ack result. */
-async function runPlanPhaseTools(
+async function* runPlanPhaseTools(
   toolCalls: ToolUseBlock[],
   planCall: ToolUseBlock | undefined,
   ctx: ToolContext,
   session: SessionRecord,
   stats: { toolCalls: number },
-): Promise<ContentBlock[]> {
+): AsyncGenerator<AgentEvent, ContentBlock[]> {
   const results: ContentBlock[] = [];
   for (const call of toolCalls) {
     if (call === planCall) {
@@ -343,17 +346,21 @@ async function runPlanPhaseTools(
     stats.toolCalls++;
     const tool: AgentTool | undefined = findTool(call.name);
     if (!tool || !tool.planPhase) {
+      yield { type: "denied", tool: call.name, reason: "not available while planning" };
       results.push({ type: "tool_result", toolUseId: call.id, content: `tool not available while planning: ${call.name}`, isError: true });
       continue;
     }
     const decision = tool.permission(call.input, ctx);
     if (decision.level !== "safe") {
       session.toolCalls.push(record(call, true, true));
+      yield { type: "denied", tool: call.name, reason: decision.reason };
       results.push({ type: "tool_result", toolUseId: call.id, content: `denied: ${decision.reason}`, isError: true });
       continue;
     }
+    yield { type: "tool_start", tool: call.name, input: call.input };
     const result = await executeTool(tool, call.input, ctx);
     session.toolCalls.push({ name: call.name, input: call.input, isError: result.isError });
+    yield { type: "tool_end", tool: call.name, result };
     results.push({ type: "tool_result", toolUseId: call.id, content: result.content, isError: result.isError });
   }
   return results;

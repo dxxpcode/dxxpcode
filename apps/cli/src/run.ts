@@ -22,13 +22,8 @@ export interface RunCliOptions {
 /** Consume a runTask event stream and render it to the terminal. */
 export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   const { prompter } = opts;
-  let lastToolHeader = "";
 
-  const approvePlan = async (plan: ProposedPlan): Promise<boolean> => {
-    line();
-    line(bold("Plan"));
-    if (plan.summary) line(dim(plan.summary));
-    plan.steps.forEach((s, i) => line(`  ${cyan(String(i + 1))}. ${s}`));
+  const approvePlan = async (_plan: ProposedPlan): Promise<boolean> => {
     if (opts.autoApprove) {
       line(dim("auto-approved (--yes)"));
       return true;
@@ -64,11 +59,15 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       case "text":
         write(ev.text);
         break;
-      case "plan":
-        break; // approval handled by approvePlan callback
+      case "plan": {
+        line();
+        line(bold("Plan"));
+        if (ev.plan.summary) line(dim(ev.plan.summary));
+        ev.plan.steps.forEach((s, i) => line(`  ${cyan(String(i + 1))}. ${s}`));
+        break;
+      }
       case "tool_start":
-        lastToolHeader = `  ${cyan(SYM.run)} ${toolLabel(ev.tool, ev.input)}`;
-        line(lastToolHeader);
+        line(`  ${cyan(SYM.run)} ${toolLabel(ev.tool, ev.input)}`);
         break;
       case "tool_end": {
         const first = ev.result.content.split("\n")[0] ?? "";

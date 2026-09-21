@@ -15,13 +15,24 @@ export function createPrompter(opts: { interactive: boolean }): Prompter {
   const rl = opts.interactive
     ? readline.createInterface({ input: process.stdin, output: process.stdout })
     : null;
+  let pending: ((answer: string) => void) | null = null;
+  rl?.on("close", () => {
+    // stdin EOF (or ctrl-C closing the interface) resolves a pending prompt
+    // with "" so confirms fall back to their default instead of hanging.
+    pending?.("");
+    pending = null;
+  });
   const question = (q: string): Promise<string> =>
     new Promise((resolve) => {
       if (!rl) {
         resolve("");
         return;
       }
-      rl.question(q, (answer) => resolve(answer));
+      pending = resolve;
+      rl.question(q, (answer) => {
+        pending = null;
+        resolve(answer);
+      });
     });
   return {
     interactive: opts.interactive,

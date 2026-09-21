@@ -35,7 +35,21 @@ export const runCommand: AgentTool = {
         cwd: ctx.root,
         env,
         stdio: ["ignore", "pipe", "pipe"],
+        // Own process group so kill() reaches grandchildren too.
+        detached: true,
       });
+      const killTree = () => {
+        try {
+          if (child.pid != null) process.kill(-child.pid, "SIGKILL");
+          else child.kill("SIGKILL");
+        } catch {
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            /* already dead */
+          }
+        }
+      };
       let out = "";
       let timedOut = false;
       const onData = (chunk: Buffer) => {
@@ -45,10 +59,10 @@ export const runCommand: AgentTool = {
       child.stderr.on("data", onData);
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        killTree();
       }, timeout);
       const onAbort = () => {
-        child.kill("SIGKILL");
+        killTree();
       };
       ctx.signal?.addEventListener("abort", onAbort, { once: true });
       child.on("close", (code) => {
