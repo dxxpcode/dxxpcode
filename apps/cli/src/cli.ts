@@ -4,9 +4,10 @@ import { detectProject } from "@dxxpcode/project";
 import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
 import { latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
+import { renderBanner, renderTips } from "./banner.ts";
 import { createPrompter } from "./prompt.ts";
 import { runAndRender } from "./run.ts";
-import { bold, cyan, dim, errLine, green, line, red, renderDiff, rule } from "./render.ts";
+import { bold, cyan, dim, errLine, line, red, renderDiff, rule } from "./render.ts";
 
 const VERSION = "0.1.0";
 
@@ -151,20 +152,34 @@ async function main(): Promise<number> {
   const controller = new AbortController();
   process.on("SIGINT", () => controller.abort());
 
-  const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
-  line(header);
-  line(dim(`${provider.provider.name} · ${provider.model}`));
   const ruleStr = rule();
-  if (ruleStr) line(ruleStr);
 
   let session: SessionRecord | undefined;
   if (args.resume) {
-    const prev = latestSessionFor(root);
-    if (prev) {
-      session = prev;
-      line(dim(`resumed session ${prev.id} (${prev.messages.length} messages)`));
-    } else {
-      line(dim("no previous session for this directory"));
+    session = latestSessionFor(root) ?? undefined;
+  }
+
+  const startRepl = interactive && !args.task;
+  if (startRepl) {
+    for (const l of renderBanner({
+      version: VERSION,
+      provider: provider.provider.name,
+      model: provider.model,
+      project,
+      cwd: root,
+      resumedSession: session,
+    })) line(l);
+    if (ruleStr) line(ruleStr);
+    for (const l of renderTips()) line(l);
+    if (ruleStr) line(ruleStr);
+    if (args.resume && !session) line(dim("no previous session for this directory"));
+  } else {
+    const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
+    line(header);
+    line(dim(`${provider.provider.name} · ${provider.model}`));
+    if (ruleStr) line(ruleStr);
+    if (args.resume) {
+      line(dim(session ? `resumed session ${session.id} (${session.messages.length} messages)` : "no previous session for this directory"));
     }
   }
 
@@ -208,7 +223,6 @@ async function main(): Promise<number> {
   }
 
   // Interactive REPL
-  line(dim("Ready — describe a task (ctrl-c to exit, /review for diff)"));
   while (true) {
     const input = (await prompter.ask(`${cyan("❯")} `)).trim();
     if (prompter.closed || controller.signal.aborted) break;
