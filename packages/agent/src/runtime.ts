@@ -132,6 +132,11 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         yield finish({ ...base("cancelled"), summary: "Cancelled" });
         return;
       }
+      if (iterations >= maxIterations) {
+        yield finish({ ...base("max_iterations"), summary: "Planning iteration limit reached" });
+        return;
+      }
+      iterations++;
       const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "plan", opts.signal);
       mergeUsage(usage, turn.usage);
 
@@ -157,10 +162,6 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         appendToolResults(messages, results);
       } else {
         yield finish({ ...base("completed"), summary: lastAssistantText(messages) || "Done" });
-        return;
-      }
-      if (++iterations >= maxIterations) {
-        yield finish({ ...base("max_iterations"), summary: "Planning iteration limit reached" });
         return;
       }
     }

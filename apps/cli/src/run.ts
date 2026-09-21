@@ -22,6 +22,15 @@ export interface RunCliOptions {
 /** Consume a runTask event stream and render it to the terminal. */
 export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   const { prompter } = opts;
+  // Model text streams without guaranteed trailing newlines; structural
+  // output (tool lines, plans, prompts) must start on a fresh line.
+  let midText = false;
+  const nl = () => {
+    if (midText) {
+      write("\n");
+      midText = false;
+    }
+  };
 
   const approvePlan = async (_plan: ProposedPlan): Promise<boolean> => {
     if (opts.autoApprove) {
@@ -32,10 +41,12 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       line(dim("non-interactive run — re-run with --yes to approve"));
       return false;
     }
+    nl();
     return prompter.confirm("Proceed? [y/N] ");
   };
 
   const approveTool = async (req: ApprovalRequest): Promise<boolean> => {
+    nl();
     line();
     line(`${yellow(SYM.warn)} The agent wants to run: ${bold(describe(req))}`);
     const reason = req.reason ?? req.decision.reason;
@@ -54,12 +65,15 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
   const render = (ev: AgentEvent): void => {
     switch (ev.type) {
       case "status":
+        nl();
         line(dim(`→ ${ev.message}`));
         break;
       case "text":
         write(ev.text);
+        midText = true;
         break;
       case "plan": {
+        nl();
         line();
         line(bold("Plan"));
         if (ev.plan.summary) line(dim(ev.plan.summary));
@@ -67,15 +81,18 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         break;
       }
       case "tool_start":
+        nl();
         line(`  ${cyan(SYM.run)} ${toolLabel(ev.tool, ev.input)}`);
         break;
       case "tool_end": {
+        nl();
         const first = ev.result.content.split("\n")[0] ?? "";
         const mark = ev.result.isError ? red(SYM.fail) : green(SYM.ok);
         line(`  ${mark} ${dim(first.slice(0, 120))}`);
         break;
       }
       case "denied":
+        nl();
         line(`  ${red(SYM.fail)} ${dim(`denied: ${ev.reason}`)}`);
         break;
       case "approval_request":
@@ -103,6 +120,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
     render(ev);
     if (ev.type === "done") result = ev.result;
   }
+  nl();
   line();
   if (result) renderResult(result);
   return result ?? { status: "error", summary: "no result", filesChanged: [], commands: [], toolCalls: 0, sessionId: "" };

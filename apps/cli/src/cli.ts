@@ -209,7 +209,7 @@ async function main(): Promise<number> {
   line(dim("Ready. Describe a task; ctrl-c to exit."));
   while (true) {
     const input = (await prompter.ask(`${green(">")} `)).trim();
-    if (controller.signal.aborted) break;
+    if (prompter.closed || controller.signal.aborted) break;
     if (!input) continue;
     if (input === "exit" || input === "quit") break;
     if (input === "/review") { review(root); continue; }
