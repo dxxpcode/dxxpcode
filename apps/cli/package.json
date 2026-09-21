@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@dxxpcode/agent": "^0.1.0",
+    "@dxxpcode/permissions": "^0.1.0",
     "@dxxpcode/project": "^0.1.0",
     "@dxxpcode/providers": "^0.1.0",
     "@dxxpcode/sessions": "^0.1.0",

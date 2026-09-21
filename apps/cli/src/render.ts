@@ -1,5 +1,5 @@
 const TTY = process.stdout.isTTY === true;
-const COLOR = TTY && !process.env.NO_COLOR;
+export const COLOR = TTY && !process.env.NO_COLOR;
 /** Rich output (cards, spinner, rules) only on an interactive terminal. */
 export const FANCY = TTY;
 

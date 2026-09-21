@@ -64,5 +64,5 @@ test("banner renders name, version, model, and project context", async () => {
   assert.match(text, /DxxpCode/);
   assert.match(text, /v0\.1\.0 · mock · mock-model/);
   assert.match(text, /demo \(TypeScript\)/);
-  assert.equal(renderTips().length, 6); // title + 5 tips
+  assert.equal(renderTips().length, 7); // title + 6 tips
 });
