@@ -9,7 +9,7 @@ import { renderBanner, renderTips } from "./banner.ts";
 import { expandMentions } from "./mentions.ts";
 import { createPrompter } from "./prompt.ts";
 import { runAndRender } from "./run.ts";
-import { bold, cyan, dim, errLine, line, red, renderDiff, rule } from "./render.ts";
+import { bold, cyan, dim, errLine, line, pill, red, renderDiff, rule, statusBar } from "./render.ts";
 
 const VERSION = "0.1.0";
 
@@ -157,6 +157,8 @@ async function main(): Promise<number> {
     historyFile: interactive ? join(homeDir(), "history") : undefined,
   });
   const autoApprove = args.yes || config.approvalMode === "auto";
+  // Mode shown in the status bar: plan | always-approve | ask.
+  const mode = args.plan ? "plan" : autoApprove ? "always-approve" : "ask";
   const controller = new AbortController();
   process.on("SIGINT", () => controller.abort());
 
@@ -184,7 +186,7 @@ async function main(): Promise<number> {
   } else {
     const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
     line(header);
-    line(dim(`${provider.provider.name} · ${provider.model}`));
+    line(dim(`${provider.provider.name} · ${provider.model} · ${mode}`));
     if (ruleStr) line(ruleStr);
     if (args.resume) {
       line(dim(session ? `resumed session ${session.id} (${session.messages.length} messages)` : "no previous session for this directory"));
@@ -206,6 +208,7 @@ async function main(): Promise<number> {
   }
 
   const runOnce = async (task: string) => {
+    for (const l of pill(task)) line(l);
     const mentions = expandMentions(task, root);
     for (const a of mentions.attached) line(dim(`  attached ${a}`));
     for (const s of mentions.skipped) line(dim(`  skipped @${s.path}: ${s.reason}`));
@@ -258,6 +261,7 @@ async function main(): Promise<number> {
 
   // Interactive REPL
   while (true) {
+    line(statusBar(`${provider.model} · ${mode}`));
     const input = (await prompter.ask(`${cyan("❯")} `)).trim();
     if (prompter.closed || controller.signal.aborted) break;
     if (!input) continue;

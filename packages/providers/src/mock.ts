@@ -4,6 +4,8 @@ export interface MockTurn {
   text?: string;
   toolCalls?: Array<{ name: string; input: JsonObject }>;
   stopReason?: string;
+  /** Artificial latency (ms) before this turn streams — for testing thinking UI. */
+  delayMs?: number;
 }
 
 export type MockScript = MockTurn[] | ((req: ChatRequest, turn: number) => MockTurn);
@@ -32,6 +34,7 @@ export class MockProvider implements ModelProvider {
       yield { type: "done", stopReason: "end_turn" };
       return;
     }
+    if (t.delayMs) await new Promise((r) => setTimeout(r, t.delayMs));
     if (t.text) {
       for (const chunk of t.text.match(/.{1,24}/gs) ?? []) {
         yield { type: "text", text: chunk };
