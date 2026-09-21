@@ -37,6 +37,7 @@ Environment:
   OPENAI_BASE_URL              OpenAI-compatible endpoint (OpenRouter, local)
   DXXPCODE_PROVIDER            Force a provider
   DXXPCODE_MODEL               Force a model
+  DXXPCODE_MOCK_SCRIPT         Path to a JSON array of mock turns (offline dev/e2e)
 `;
 
 interface Args {

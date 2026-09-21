@@ -1,8 +1,9 @@
+import { readFileSync } from "node:fs";
 import { AnthropicProvider } from "./anthropic.ts";
 import { OpenAIProvider } from "./openai.ts";
 import { MockProvider } from "./mock.ts";
 import type { ModelProvider } from "./types.ts";
-import type { MockScript } from "./mock.ts";
+import type { MockScript, MockTurn } from "./mock.ts";
 
 export const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-5",
@@ -29,12 +30,27 @@ export class ProviderConfigError extends Error {
   }
 }
 
+/** DXXPCODE_MOCK_SCRIPT points at a JSON file of MockTurn[] for offline demos/e2e. */
+function loadMockScript(path: string | undefined): MockTurn[] | undefined {
+  if (!path) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    if (!Array.isArray(parsed)) throw new Error("expected a JSON array");
+    return parsed as MockTurn[];
+  } catch (e) {
+    throw new ProviderConfigError(
+      `DXXPCODE_MOCK_SCRIPT ${path}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
+
 export function resolveProvider(opts: SelectOptions = {}): ProviderSelection {
   const env = opts.env ?? process.env;
   const name = (opts.provider ?? env.DXXPCODE_PROVIDER ?? "").toLowerCase();
 
   if (name === "mock" || opts.mockScript) {
-    return { provider: new MockProvider(opts.mockScript ?? [{ text: "mock" }]), model: opts.model ?? "mock" };
+    const script = opts.mockScript ?? loadMockScript(env.DXXPCODE_MOCK_SCRIPT) ?? [{ text: "mock" }];
+    return { provider: new MockProvider(script), model: opts.model ?? "mock" };
   }
 
   if (name === "anthropic" || (!name && env.ANTHROPIC_API_KEY)) {
