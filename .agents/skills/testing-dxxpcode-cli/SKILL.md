@@ -10,7 +10,7 @@ description: How to end-to-end test the dxxpcode terminal AI-agent CLI — mock 
 
 ## Deterministic agent runs (no API keys needed)
 - `DXXPCODE_PROVIDER=mock DXXPCODE_MOCK_SCRIPT=/path/script.json` — script is a JSON array of turns consumed one per provider call: `{text?, toolCalls?: [{name, input}], stopReason?}`.
-- A turn with `propose_plan` (`input: {summary, steps: [...], trivial}`) ends the plan phase. `trivial: true` skips the approval prompt entirely (and, note, never prints the plan). Use `trivial:false` when you need to drive the `Proceed? [y/N]` prompt.
+- A turn with `propose_plan` (`input: {summary, steps: [...], trivial}`) ends the plan phase. `trivial: true` skips the approval prompt entirely but still prints the plan. Use `trivial:false` when you need to drive the `Proceed? [y/N]` prompt.
 - Tools: `read_file`, `write_file`, `edit_file`, `list_directory`, `search_files`, `run_command`, `git_status/diff/log`, `delete_file`. Plan phase only allows read-only tools.
 - `DXXPCODE_HOME=/tmp/somewhere` isolates sessions/config from `~/.dxxpcode` — always set it in tests.
 
@@ -34,4 +34,4 @@ CRITICAL: do NOT feed all input at once (`printf 'n\ny\n' | script ...`). When t
 Sessions persist to `$DXXPCODE_HOME/sessions/<slug>-<ts>-<rand>.json` keyed by absolute `projectRoot`. `dxxpcode --resume` picks the most recently updated one for the cwd and prints `resumed session <id> (N messages)`.
 
 ## Signals
-SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 1 — but only the `/bin/sh -c` wrapper is killed; grandchildren survive orphaned holding stdout/stderr pipes, so the CLI can hang until they exit naturally (observed ~28s on `sleep 30`). Ctrl-C at the REPL `>` prompt exits cleanly (readline close path).
+SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 1. `run_command` spawns detached (`detached:true`) and kills the whole process group (`kill(-pid, SIGKILL)`), so grandchildren die too — observed exit ~8ms after SIGINT on `sleep 30`, zero orphans (verify with `pgrep -x sleep`). Ctrl-C/ctrl-D at the REPL `>` prompt exit cleanly with code 0. EOF mid-approval resolves the pending prompt as "" → denied, and subsequent prompts deny cleanly (the readline-close path is guarded — no ERR_USE_AFTER_CLOSE).
