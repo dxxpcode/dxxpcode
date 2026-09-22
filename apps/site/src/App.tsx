@@ -89,7 +89,7 @@ export default function App() {
     <div className="min-h-screen bg-background">
       <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="DxxpCode" className="h-6 w-auto" />
+          <img src="/logo.png" alt="DxxpCode" className="h-[17px] w-auto" />
           <span className="text-[15px] font-semibold tracking-tight">DxxpCode</span>
         </div>
         <a
