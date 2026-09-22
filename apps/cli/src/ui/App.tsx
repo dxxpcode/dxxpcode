@@ -57,6 +57,8 @@ export interface AppProps {
   onExit: (code: number) => void;
   /** Called with the session id after each run so `--resume` chains. */
   onSession: (id: string) => void;
+  /** Resolves to a newer published version, if one exists. */
+  updateCheck?: Promise<string | null>;
 }
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -177,6 +179,23 @@ export function App(props: AppProps) {
     const t = setInterval(() => setFrame((f) => f + 1), 80);
     return () => clearInterval(t);
   }, [spinLabel]);
+
+  // One-time update notice once the background check resolves.
+  useEffect(() => {
+    let cancelled = false;
+    props.updateCheck?.then((latest) => {
+      if (latest && !cancelled) {
+        push({
+          kind: "note",
+          text: `⎿ update available: v${props.version} → v${latest} — npm i -g dxxpcode to upgrade`,
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Live turn meter while a run is in flight.
   useEffect(() => {
