@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Copy, Moon, Sun } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { cn } from "./lib/utils";
 
@@ -85,28 +85,48 @@ function TerminalShot() {
 
 
 export default function App() {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="DxxpCode" className="h-[17px] w-auto" />
+          <img
+            src={dark ? "/logo-dark.png" : "/logo.png"}
+            alt="DxxpCode"
+            className="h-[17px] w-auto"
+          />
           <span className="text-[15px] font-semibold tracking-tight">DxxpCode</span>
         </div>
-        <a
-          href={GITHUB_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="text-[15px] text-[#6e6e73] transition-colors hover:text-foreground"
-        >
-          GitHub
-        </a>
+        <div className="flex items-center gap-5">
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[15px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            GitHub
+          </a>
+          <button
+            onClick={() => setDark((d) => !d)}
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+          </button>
+        </div>
       </nav>
 
       <header className="mx-auto max-w-3xl px-6 pb-16 pt-16 text-center md:pt-24">
         <h1 className="text-5xl font-semibold leading-[1.05] tracking-[-0.02em] md:text-6xl">
           The AI coding agent that lives in your terminal.
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-xl leading-7 text-[#6e6e73]">
+        <p className="mx-auto mt-6 max-w-xl text-xl leading-7 text-muted-foreground">
           Describe a task. DxxpCode plans it, asks permission, edits code, runs your tests, and shows
           you the diff.
         </p>
@@ -136,7 +156,7 @@ export default function App() {
       </section>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-8 text-sm text-[#6e6e73]">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-8 text-sm text-muted-foreground">
           <span>© 2026 DxxpCode</span>
           <span>Terminal-native. Bring your own key.</span>
         </div>
