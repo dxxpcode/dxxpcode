@@ -20,6 +20,7 @@ type Item =
   | { id: number; kind: "text"; text: string }
   | { id: number; kind: "tool"; name: string; arg: string }
   | { id: number; kind: "result"; text: string; isError: boolean }
+  | { id: number; kind: "tree"; lines: string[] }
   | { id: number; kind: "plan"; summary?: string; steps: string[] }
   | { id: number; kind: "diff"; path: string; rows: DiffRow[] }
   | { id: number; kind: "denied"; reason: string }
@@ -140,6 +141,10 @@ export function App(props: AppProps) {
   histRef.current = hist;
   const [histIdx, setHistIdx] = useState(-1);
   const [exited, setExited] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [tok, setTok] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const runStartRef = useRef(0);
 
   const thinkAt = useRef(0);
   const running = useRef(false);
@@ -165,6 +170,16 @@ export function App(props: AppProps) {
     return () => clearInterval(t);
   }, [spinLabel]);
 
+  // Live turn meter while a run is in flight.
+  useEffect(() => {
+    if (!isRunning) return;
+    const t = setInterval(
+      () => setElapsed((Date.now() - runStartRef.current) / 1000),
+      100,
+    );
+    return () => clearInterval(t);
+  }, [isRunning]);
+
   const finish = useCallback(
     (code: number) => {
       saveHistory(props.historyFile, histRef.current);
@@ -185,6 +200,10 @@ export function App(props: AppProps) {
       const ctl = new AbortController();
       runCtl.current = ctl;
       running.current = true;
+      setIsRunning(true);
+      setTok(0);
+      setElapsed(0);
+      runStartRef.current = Date.now();
       thinkAt.current = Date.now();
       setSpinLabel("Thinking…");
 
@@ -276,10 +295,14 @@ export function App(props: AppProps) {
             case "tool_end": {
               stopSpin();
               const lines = ev.result.content.split("\n").filter((l) => l.length > 0);
-              const summary =
-                (lines[0] ?? "").slice(0, 120) +
-                (lines.length > 1 ? `  +${lines.length - 1} more lines` : "");
-              push({ kind: "result", text: summary, isError: ev.result.isError === true });
+              if (ev.tool === "list_directory" && ev.result.isError !== true) {
+                push({ kind: "tree", lines });
+              } else {
+                const summary =
+                  (lines[0] ?? "").slice(0, 120) +
+                  (lines.length > 1 ? `  +${lines.length - 1} more lines` : "");
+                push({ kind: "result", text: summary, isError: ev.result.isError === true });
+              }
               if (ev.result.diff) {
                 push({
                   kind: "diff",
@@ -299,6 +322,9 @@ export function App(props: AppProps) {
               break;
             case "approval_request":
               break;
+            case "usage":
+              setTok(ev.usage.inputTokens + ev.usage.outputTokens);
+              break;
             case "done":
               result = ev.result;
               break;
@@ -307,6 +333,7 @@ export function App(props: AppProps) {
       } finally {
         stopSpin();
         running.current = false;
+        setIsRunning(false);
         runCtl.current = null;
         setPending({ kind: "input" });
       }
@@ -518,7 +545,9 @@ export function App(props: AppProps) {
             />
           </Box>
           <Text dimColor>
-            {props.model} · {mode}
+            {isRunning
+              ? `turn ${elapsed.toFixed(1)}s${tok ? ` · ↓${fmtTokens(tok)} tok` : ""}`
+              : `${props.model} · ${mode}`}
           </Text>
         </Box>
       )}
@@ -579,6 +608,76 @@ function Menu({
   );
 }
 
+const TABLE_LINE = /^\s*\|.*\|\s*$/;
+const TABLE_SEP = /^:?-+:?$/;
+
+/** Rendered markdown table: header bold, `│` separators become dim, rows aligned. */
+function Table({ rows }: { rows: string[][] }) {
+  const cols = Math.max(...rows.map((r) => r.length));
+  const w = Array.from({ length: cols }, (_, c) =>
+    Math.max(...rows.map((r) => r[c]?.length ?? 0)),
+  );
+  const row = (r: string[], bold: boolean, key: number) => (
+    <Text key={key}>
+      {"  "}
+      {r.map((cell, c) => (
+        <React.Fragment key={c}>
+          {c > 0 ? "  " : ""}
+          <Text bold={bold}>{(cell ?? "").padEnd(w[c])}</Text>
+        </React.Fragment>
+      ))}
+    </Text>
+  );
+  const out: React.ReactNode[] = [];
+  let i = 0;
+  let headerDone = false;
+  while (i < rows.length) {
+    const r = rows[i];
+    if (r.every((c) => TABLE_SEP.test(c))) {
+      out.push(
+        <Text key={`sep${i}`} dimColor>
+          {"  "}{w.map((x) => "─".repeat(x)).join("  ")}
+        </Text>,
+      );
+      i++;
+      continue;
+    }
+    out.push(row(r, !headerDone, i));
+    headerDone = true;
+    i++;
+  }
+  return <Box flexDirection="column">{out}</Box>;
+}
+
+/** Streamed text burst: normal lines via mdLine, `|…|` runs become Tables. */
+function TextBlock({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const out: React.ReactNode[] = [];
+  let i = 0;
+  let k = 0;
+  while (i < lines.length) {
+    if (TABLE_LINE.test(lines[i])) {
+      const rows: string[][] = [];
+      while (i < lines.length && TABLE_LINE.test(lines[i])) {
+        rows.push(
+          lines[i].split("|").slice(1, -1).map((c) => c.trim()),
+        );
+        i++;
+      }
+      out.push(<Table key={k++} rows={rows} />);
+      continue;
+    }
+    out.push(
+      <Text key={k++}>
+        {i === 0 ? <Text color="cyan">⏺ </Text> : "  "}
+        {mdLine(lines[i])}
+      </Text>,
+    );
+    i++;
+  }
+  return <Box flexDirection="column">{out}</Box>;
+}
+
 function ItemView({ it, props }: { it: Item; props: AppProps }) {
   switch (it.kind) {
     case "banner":
@@ -633,14 +732,19 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
         </Text>
       );
     case "text":
+      return <TextBlock text={it.text} />;
+    case "tree":
       return (
         <Box flexDirection="column">
-          {it.text.split("\n").map((l, i) => (
-            <Text key={i}>
-              {i === 0 ? <Text color="cyan">⏺ </Text> : "  "}
-              {mdLine(l)}
+          <Text dimColor>{"  ⎿  "}Listed {it.lines.length} entries</Text>
+          {it.lines.slice(0, 40).map((l, i) => (
+            <Text key={i} dimColor>
+              {"     "}{i === it.lines.length - 1 || i === 39 ? "└─" : "├─"} {l}
             </Text>
           ))}
+          {it.lines.length > 40 ? (
+            <Text dimColor>{"     "}… {it.lines.length - 40} more</Text>
+          ) : null}
         </Box>
       );
     case "tool": {

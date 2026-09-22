@@ -31,6 +31,7 @@ export type AgentEvent =
   | { type: "tool_start"; tool: string; input: JsonObject }
   | { type: "tool_end"; tool: string; result: ToolResult }
   | { type: "denied"; tool: string; reason: string }
+  | { type: "usage"; usage: Usage }
   | { type: "done"; result: RunResult };
 
 export interface RunResult {
@@ -142,6 +143,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
       iterations++;
       const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "plan", opts.signal);
       mergeUsage(usage, turn.usage);
+      yield { type: "usage", usage: { ...usage } };
 
       const planCall = turn.toolCalls.find((c) => c.name === "propose_plan");
       if (planCall) {
@@ -186,6 +188,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
       }
       const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "execute", opts.signal);
       mergeUsage(usage, turn.usage);
+      yield { type: "usage", usage: { ...usage } };
 
       if (turn.toolCalls.length === 0) {
         yield finish({

@@ -6,6 +6,8 @@ export interface MockTurn {
   stopReason?: string;
   /** Artificial latency (ms) before this turn streams — for testing thinking UI. */
   delayMs?: number;
+  /** Reported token usage for this turn (drives the live token meter). */
+  usage?: { inputTokens?: number; outputTokens?: number };
 }
 
 export type MockScript = MockTurn[] | ((req: ChatRequest, turn: number) => MockTurn);
@@ -47,6 +49,15 @@ export class MockProvider implements ModelProvider {
         call: { type: "tool_use", id: `mock_${turn}_${n++}`, name: call.name, input: call.input },
       };
     }
-    yield { type: "done", stopReason: t.stopReason ?? (t.toolCalls?.length ? "tool_use" : "end_turn") };
+    yield {
+      type: "done",
+      stopReason: t.stopReason ?? (t.toolCalls?.length ? "tool_use" : "end_turn"),
+      usage: t.usage
+        ? {
+            inputTokens: t.usage.inputTokens ?? 0,
+            outputTokens: t.usage.outputTokens ?? 0,
+          }
+        : undefined,
+    };
   }
 }
