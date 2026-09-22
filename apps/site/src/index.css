@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 96%;
+    --card: 240 8% 8%;
+    --card-foreground: 0 0% 96%;
+    --primary: 187 92% 55%;
+    --primary-foreground: 240 10% 4%;
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 240 6% 14%;
+    --muted-foreground: 240 5% 60%;
+    --accent: 270 80% 66%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 16%;
+    --radius: 0.5rem;
+  }
+  body { @apply bg-background text-foreground font-[Inter]; }
+}

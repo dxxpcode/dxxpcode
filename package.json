@@ -11,7 +11,8 @@
     "packages/tools",
     "packages/sessions",
     "packages/agent",
-    "apps/cli"
+    "apps/cli",
+    "apps/site"
   ],
   "engines": {
     "node": ">=22.6.0"
