@@ -17,6 +17,16 @@ export class AnthropicProvider implements ModelProvider {
     this.apiKey = apiKey;
   }
 
+  async listModels(signal?: AbortSignal): Promise<string[]> {
+    const res = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+      headers: { "x-api-key": this.apiKey, "anthropic-version": API_VERSION },
+      signal,
+    });
+    if (!res.ok) throw new ProviderError(`Anthropic API error ${res.status}`, res.status);
+    const body = (await res.json()) as { data?: { id?: string }[] };
+    return (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
+  }
+
   async *chat(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ProviderEvent> {
     const res = await fetch(API_URL, {
       method: "POST",

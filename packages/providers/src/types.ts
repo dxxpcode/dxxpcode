@@ -58,6 +58,8 @@ export interface ChatRequest {
 export interface ModelProvider {
   name: string;
   chat(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ProviderEvent>;
+  /** Live model list from the provider API, newest first where the API supports it. */
+  listModels?(signal?: AbortSignal): Promise<string[]>;
 }
 
 export class ProviderError extends Error {

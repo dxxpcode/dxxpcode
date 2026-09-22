@@ -13,6 +13,21 @@ export class OpenAIProvider implements ModelProvider {
     this.baseUrl = baseUrl;
   }
 
+  async listModels(signal?: AbortSignal): Promise<string[]> {
+    const res = await fetch(`${this.baseUrl}/models`, {
+      headers: { authorization: `Bearer ${this.apiKey}` },
+      signal,
+    });
+    if (!res.ok) throw new ProviderError(`OpenAI API error ${res.status}`, res.status);
+    const body = (await res.json()) as { data?: { id?: string }[] };
+    const NON_CHAT = /embed|whisper|dall-e|tts|moderation|babbage|davinci|audio|image|transcribe/i;
+    return (body.data ?? [])
+      .map((m) => m.id ?? "")
+      .filter((id) => id && !NON_CHAT.test(id))
+      .sort()
+      .reverse(); // newest version numbers first (gpt-6 > gpt-5 > gpt-4o)
+  }
+
   async *chat(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ProviderEvent> {
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",

@@ -397,12 +397,25 @@ export function App(props: AppProps) {
 
   const openModelMenu = useCallback(() => {
     const name = provRef.current.provider.name;
-    const known = [...(KNOWN_MODELS[name] ?? [])];
+    const fallback = [...(KNOWN_MODELS[name] ?? [])];
     // OpenAI-compatible endpoints (xAI Grok, Google Gemini, local) get their models too.
     if (name === "openai" && loadConfig().openaiBaseUrl) {
-      known.push("grok-4", "gemini-3-pro");
+      fallback.push("grok-4", "gemini-3-pro");
     }
     const cur = provRef.current.model;
+    const listModels = provRef.current.provider.listModels?.bind(provRef.current.provider);
+    if (listModels) {
+      setSpinLabel("Fetching models…");
+      listModels()
+        .catch(() => fallback)
+        .then((known) => {
+          setSpinLabel(null);
+          showMenu(known.length > 0 ? known : fallback);
+        });
+    } else {
+      showMenu(fallback);
+    }
+    function showMenu(known: string[]) {
     const opts = cur && !known.includes(cur) ? [cur, ...known] : known;
     const applyModel = (m: string) => {
       setProv({ ...provRef.current, model: m });
@@ -429,6 +442,7 @@ export function App(props: AppProps) {
         else applyModel(opts[i]);
       },
     });
+    }
   }, [push]);
 
   const openConfigMenu = useCallback(() => {
