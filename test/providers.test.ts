@@ -18,13 +18,13 @@ function cleanEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
 test("resolveProvider picks anthropic when ANTHROPIC_API_KEY is set", () => {
   const { provider, model } = resolveProvider({ env: cleanEnv({ ANTHROPIC_API_KEY: "sk-x" }) });
   assert.equal(provider.name, "anthropic");
-  assert.equal(model, "claude-sonnet-4-5");
+  assert.equal(model, "claude-opus-5-5");
 });
 
 test("resolveProvider picks openai when only OPENAI_API_KEY is set", () => {
   const { provider, model } = resolveProvider({ env: cleanEnv({ OPENAI_API_KEY: "sk-x" }) });
   assert.equal(provider.name, "openai");
-  assert.equal(model, "gpt-4o");
+  assert.equal(model, "gpt-6");
 });
 
 test("resolveProvider errors when nothing is configured", () => {
