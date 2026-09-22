@@ -22,5 +22,5 @@
       "@dxxpcode/agent": ["./packages/agent/src/index.ts"]
     }
   },
-  "include": ["packages/*/src", "apps/*/src", "test"]
+  "include": ["packages/*/src", "apps/cli/src", "test"]
 }
