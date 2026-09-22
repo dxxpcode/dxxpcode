@@ -208,6 +208,10 @@ async function main(): Promise<number> {
   const allowlist = new Set<string>();
 
   if (interactive) {
+    // Background update check — resolved inside the TUI as a note.
+    const updateCheck = import("./update.ts").then((m) =>
+      m.checkForUpdate(VERSION).catch(() => null),
+    );
     // Full TUI: boxed input, arrow-key approvals, scrollable transcript.
     const { startInkApp } = await import("./ui/App.tsx");
     return startInkApp({
@@ -223,6 +227,7 @@ async function main(): Promise<number> {
       task: args.task,
       allowlist,
       historyFile: join(homeDir(), "history"),
+      updateCheck,
       onSession: (id) => {
         session = loadSession(id) ?? session;
       },
