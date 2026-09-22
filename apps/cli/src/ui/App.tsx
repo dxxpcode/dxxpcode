@@ -11,6 +11,7 @@ import { expandMentions } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff, type DiffRow } from "./diff.ts";
+import { LOGO_ROWS } from "./logo.ts";
 
 type Item =
   | { id: number; kind: "banner" }
@@ -457,10 +458,25 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
   switch (it.kind) {
     case "banner":
       return (
-        <Box flexDirection="column">
-          <Text bold color="cyan">
-            DxxpCode
-          </Text>
+        <Box flexDirection="row" columnGap={3}>
+          <Box flexDirection="column" marginTop={1}>
+            {LOGO_ROWS.map((row, i) => (
+              <Text key={i}>
+                {row.map((cell, j) => {
+                  const [fg, bg] = cell.split(":");
+                  return (
+                    <Text key={j} color={fg} backgroundColor={bg}>
+                      ▀
+                    </Text>
+                  );
+                })}
+              </Text>
+            ))}
+          </Box>
+          <Box flexDirection="column">
+            <Text bold color="cyan">
+              DxxpCode
+            </Text>
           <Text dimColor>
             v{props.version} · {props.provider.name} · {props.model}
           </Text>
@@ -492,7 +508,8 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
               {`. ${t}`}
             </Text>
           ))}
-          <Text> </Text>
+            <Text> </Text>
+          </Box>
         </Box>
       );
     case "pill":
