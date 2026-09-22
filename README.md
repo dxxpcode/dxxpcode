@@ -18,7 +18,7 @@ Fix session expiry handling and cover it with tests
   2. Handle expired sessions
   3. Add regression tests
   4. Run authentication tests
-Proceed? [y/N]
+Proceed?  ❯ Yes / No   (↑/↓ navigate · Enter select)
 ```
 
 ## Install
@@ -75,7 +75,7 @@ Every task runs **Context → Plan → Tools → Verify → Result**:
 Actions are classified **safe** / **approval** / **restricted**:
 
 - Reads, searches, `git status/diff`, and test/build commands run freely.
-- Deletes, git mutations, dependency installs, config writes, and unrecognized commands prompt `Allow? [y/N]`.
+- Deletes, git mutations, dependency installs, config writes, and unrecognized commands open an approval menu (Yes / Always / No — arrows or `y`/`a`/`n`).
 - Anything outside the project root, `.env*`, SSH keys, and credential stores are always denied — no flag unlocks them.
 
 See [SECURITY.md](SECURITY.md) for the full policy and known limitations.
@@ -103,7 +103,7 @@ npm run typecheck # strict tsc across the workspace
 npm run build     # emits dist/ per package
 ```
 
-Run the CLI from source: `node --conditions=development apps/cli/src/cli.ts`.
+Run the CLI from source: `node --conditions=development apps/cli/src/cli.ts` (non-interactive). The interactive UI is [ink](https://github.com/vadimdemedes/ink)/React under `apps/cli/src/ui/` — run it with `npm run dev -w apps/cli` (tsx) or the built `dist/`. Piped/non-TTY output keeps the plain renderer.
 
 Layout — the agent runtime is independent of the terminal UI:
 

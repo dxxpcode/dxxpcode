@@ -5,11 +5,11 @@ import { detectProject } from "@dxxpcode/project";
 import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
 import { homeDir, latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
-import { renderBanner, renderTips } from "./banner.ts";
+import { renderBanner, renderTips } from "./banner.ts"; // kept for non-interactive/tests
 import { expandMentions } from "./mentions.ts";
 import { createPrompter } from "./prompt.ts";
 import { runAndRender } from "./run.ts";
-import { bold, cyan, dim, errLine, line, pill, red, renderDiff, rule, statusBar } from "./render.ts";
+import { bold, cyan, dim, errLine, line, pill, red, renderDiff, rule } from "./render.ts";
 
 const VERSION = "0.1.0";
 
@@ -152,59 +152,52 @@ async function main(): Promise<number> {
   }
 
   const interactive = process.stdin.isTTY === true;
-  const prompter = createPrompter({
-    interactive,
-    historyFile: interactive ? join(homeDir(), "history") : undefined,
-  });
   const autoApprove = args.yes || config.approvalMode === "auto";
   // Mode shown in the status bar: plan | always-approve | ask.
   const mode = args.plan ? "plan" : autoApprove ? "always-approve" : "ask";
   const controller = new AbortController();
   process.on("SIGINT", () => controller.abort());
 
-  const ruleStr = rule();
-
   let session: SessionRecord | undefined;
   if (args.resume) {
     session = latestSessionFor(root) ?? undefined;
   }
 
-  const startRepl = interactive && !args.task;
-  if (startRepl) {
-    for (const l of renderBanner({
-      version: VERSION,
-      provider: provider.provider.name,
-      model: provider.model,
-      project,
-      cwd: root,
-      resumedSession: session,
-    })) line(l);
-    if (ruleStr) line(ruleStr);
-    for (const l of renderTips()) line(l);
-    if (ruleStr) line(ruleStr);
-    if (args.resume && !session) line(dim("no previous session for this directory"));
-  } else {
-    const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
-    line(header);
-    line(dim(`${provider.provider.name} · ${provider.model} · ${mode}`));
-    if (ruleStr) line(ruleStr);
-    if (args.resume) {
-      line(dim(session ? `resumed session ${session.id} (${session.messages.length} messages)` : "no previous session for this directory"));
-    }
-  }
-
   // "Always allow" approvals persist across tasks for the whole process.
   const allowlist = new Set<string>();
 
-  // esc interrupts the active run or resolves a pending prompt; ctrl-c
-  // keeps its kill-the-process semantics via the global controller.
-  let runCtl: AbortController | null = null;
   if (interactive) {
-    process.stdin.on("keypress", (_s, key) => {
-      if (key?.name !== "escape" || !runCtl) return;
-      prompter.cancelPending();
-      runCtl.abort();
+    // Full TUI: boxed input, arrow-key approvals, scrollable transcript.
+    const { startInkApp } = await import("./ui/App.tsx");
+    return startInkApp({
+      version: VERSION,
+      provider: provider.provider,
+      model: provider.model,
+      project,
+      root,
+      session,
+      planOnly: args.plan,
+      autoApprove,
+      maxIterations: args.maxIterations ?? config.maxIterations,
+      task: args.task,
+      allowlist,
+      historyFile: join(homeDir(), "history"),
+      onSession: (id) => {
+        session = loadSession(id) ?? session;
+      },
+      getReviewDiff: () => git(root, ["diff"]) + git(root, ["diff", "--cached"]),
     });
+  }
+
+  // Non-interactive: plain renderer (piped stdin, CI logs).
+  const prompter = createPrompter({ interactive: false });
+  const ruleStr = rule();
+  const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
+  line(header);
+  line(dim(`${provider.provider.name} · ${provider.model} · ${mode}`));
+  if (ruleStr) line(ruleStr);
+  if (args.resume) {
+    line(dim(session ? `resumed session ${session.id} (${session.messages.length} messages)` : "no previous session for this directory"));
   }
 
   const runOnce = async (task: string) => {
@@ -212,28 +205,22 @@ async function main(): Promise<number> {
     const mentions = expandMentions(task, root);
     for (const a of mentions.attached) line(dim(`  attached ${a}`));
     for (const s of mentions.skipped) line(dim(`  skipped @${s.path}: ${s.reason}`));
-    runCtl = new AbortController();
+    const runCtl = new AbortController();
     if (controller.signal.aborted) runCtl.abort();
-    else controller.signal.addEventListener("abort", () => runCtl?.abort(), { once: true });
-    let result;
-    try {
-      result = await runAndRender({
-        task: mentions.text,
-        provider: provider.provider,
-        model: provider.model,
-        projectRoot: root,
-        planOnly: args.plan,
-        autoApprove,
-        maxIterations: args.maxIterations ?? config.maxIterations,
-        prompter,
-        session,
-        signal: runCtl.signal,
-        allowlist,
-      });
-    } finally {
-      runCtl = null;
-    }
-    // Continue the same conversation for subsequent REPL inputs.
+    else controller.signal.addEventListener("abort", () => runCtl.abort(), { once: true });
+    const result = await runAndRender({
+      task: mentions.text,
+      provider: provider.provider,
+      model: provider.model,
+      projectRoot: root,
+      planOnly: args.plan,
+      autoApprove,
+      maxIterations: args.maxIterations ?? config.maxIterations,
+      prompter,
+      session,
+      signal: runCtl.signal,
+      allowlist,
+    });
     if (result.sessionId) {
       session = loadSession(result.sessionId) ?? session;
     }
@@ -247,35 +234,15 @@ async function main(): Promise<number> {
   }
 
   // Piped stdin reads as the task (e.g. `echo "fix tests" | dxxpcode`).
-  if (!interactive) {
-    const input = (await readStdin()).trim();
-    if (!input) {
-      errLine(red("no task given — pass one as an argument or pipe it on stdin"));
-      prompter.close();
-      return 2;
-    }
-    const result = await runOnce(input);
+  const input = (await readStdin()).trim();
+  if (!input) {
+    errLine(red("no task given — pass one as an argument or pipe it on stdin"));
     prompter.close();
-    return result.status === "completed" || result.status === "plan_only" ? 0 : 1;
+    return 2;
   }
-
-  // Interactive REPL
-  while (true) {
-    line(statusBar(`${provider.model} · ${mode}`));
-    const input = (await prompter.ask(`${cyan("❯")} `)).trim();
-    if (prompter.closed || controller.signal.aborted) break;
-    if (!input) continue;
-    if (input === "exit" || input === "quit") break;
-    if (input === "/review") { review(root); continue; }
-    try {
-      await runOnce(input);
-    } catch (e) {
-      errLine(red(e instanceof Error ? e.message : String(e)));
-    }
-    if (ruleStr) line(ruleStr);
-  }
+  const result = await runOnce(input);
   prompter.close();
-  return 0;
+  return result.status === "completed" || result.status === "plan_only" ? 0 : 1;
 }
 
 main()
