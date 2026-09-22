@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -70,6 +70,15 @@ test("config roundtrip via DXXPCODE_HOME", () => {
   assert.equal(loaded.provider, "anthropic");
   assert.equal(loaded.model, "claude-sonnet-4-5");
   assert.ok(configPath(env).endsWith("config.json"));
+});
+
+test("config is written owner-only and roundtrips provider keys", () => {
+  const env = tmpEnv();
+  saveConfig({ provider: "openai", openaiApiKey: "sk-x", openaiBaseUrl: "https://x.test/v1" }, env);
+  assert.equal(statSync(configPath(env)).mode & 0o777, 0o600);
+  const loaded = loadConfig(env);
+  assert.equal(loaded.openaiApiKey, "sk-x");
+  assert.equal(loaded.openaiBaseUrl, "https://x.test/v1");
 });
 
 test("corrupt session files are skipped", () => {

@@ -21,6 +21,8 @@ export interface SelectOptions {
   /** For tests: inject a mock script. */
   mockScript?: MockScript;
   env?: NodeJS.ProcessEnv;
+  /** Keys saved in ~/.dxxpcode/config.json — used when the env var is absent. */
+  keys?: { anthropic?: string; openai?: string };
 }
 
 export class ProviderConfigError extends Error {
@@ -53,8 +55,8 @@ export function resolveProvider(opts: SelectOptions = {}): ProviderSelection {
     return { provider: new MockProvider(script), model: opts.model ?? "mock" };
   }
 
-  if (name === "anthropic" || (!name && env.ANTHROPIC_API_KEY)) {
-    const key = env.ANTHROPIC_API_KEY;
+  if (name === "anthropic" || (!name && (env.ANTHROPIC_API_KEY || opts.keys?.anthropic))) {
+    const key = env.ANTHROPIC_API_KEY ?? opts.keys?.anthropic;
     if (!key) throw new ProviderConfigError("DXXPCODE_PROVIDER=anthropic requires ANTHROPIC_API_KEY");
     return {
       provider: new AnthropicProvider(key),
@@ -62,8 +64,8 @@ export function resolveProvider(opts: SelectOptions = {}): ProviderSelection {
     };
   }
 
-  if (name === "openai" || (!name && env.OPENAI_API_KEY)) {
-    const key = env.OPENAI_API_KEY;
+  if (name === "openai" || (!name && (env.OPENAI_API_KEY || opts.keys?.openai))) {
+    const key = env.OPENAI_API_KEY ?? opts.keys?.openai;
     if (!key) throw new ProviderConfigError("DXXPCODE_PROVIDER=openai requires OPENAI_API_KEY");
     return {
       provider: new OpenAIProvider(key, env.OPENAI_BASE_URL),
@@ -75,7 +77,7 @@ export function resolveProvider(opts: SelectOptions = {}): ProviderSelection {
     throw new ProviderConfigError(`Unknown provider "${name}". Supported: anthropic, openai`);
   }
   throw new ProviderConfigError(
-    "No model provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY " +
-      "(or DXXPCODE_PROVIDER/DXXPCODE_MODEL).",
+    "No model provider configured. Run `dxxpcode` in a terminal to connect " +
+      "one, or set ANTHROPIC_API_KEY / OPENAI_API_KEY.",
   );
 }

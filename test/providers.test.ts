@@ -31,6 +31,22 @@ test("resolveProvider errors when nothing is configured", () => {
   assert.throws(() => resolveProvider({ env: cleanEnv() }), ProviderConfigError);
 });
 
+test("resolveProvider uses saved keys when env vars are absent", () => {
+  const { provider } = resolveProvider({
+    env: cleanEnv(),
+    keys: { anthropic: "sk-saved" },
+  });
+  assert.equal(provider.name, "anthropic");
+});
+
+test("env vars take precedence over saved keys", () => {
+  const { provider } = resolveProvider({
+    env: cleanEnv({ ANTHROPIC_API_KEY: "sk-env" }),
+    keys: { openai: "sk-saved" },
+  });
+  assert.equal(provider.name, "anthropic");
+});
+
 test("resolveProvider honors explicit provider + model overrides", () => {
   const { model } = resolveProvider({
     provider: "openai",

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { detectProject } from "@dxxpcode/project";
 import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
-import { homeDir, latestSessionFor, loadConfig, loadSession } from "@dxxpcode/sessions";
+import { homeDir, latestSessionFor, loadConfig, loadSession, saveConfig } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { renderBanner, renderTips } from "./banner.ts"; // kept for non-interactive/tests
 import { expandMentions } from "./mentions.ts";
@@ -136,22 +136,63 @@ async function main(): Promise<number> {
 
   if (args.review) return review(root);
 
+  const interactive = process.stdin.isTTY === true;
+
   const config = loadConfig();
+  // Saved provider config feeds resolution; env vars still win.
+  const providerEnv = { ...process.env };
+  if (!providerEnv.OPENAI_BASE_URL && config.openaiBaseUrl) {
+    providerEnv.OPENAI_BASE_URL = config.openaiBaseUrl;
+  }
+  const keys = { anthropic: config.anthropicApiKey, openai: config.openaiApiKey };
+
   let provider;
   try {
     provider = resolveProvider({
       provider: args.provider ?? config.provider,
       model: args.model ?? config.model,
+      env: providerEnv,
+      keys,
     });
   } catch (e) {
     if (e instanceof ProviderConfigError) {
-      errLine(red(e.message));
-      return 1;
+      // First-run connect flow: pick a provider + paste a key in the TUI.
+      if (interactive) {
+        const { runProviderSetup } = await import("./ui/setup.tsx");
+        const setup = await runProviderSetup();
+        if (!setup) {
+          errLine(red(e.message));
+          return 1;
+        }
+        const cfg = { ...loadConfig(), provider: setup.provider };
+        if (setup.provider === "anthropic") {
+          cfg.anthropicApiKey = setup.apiKey;
+          providerEnv.ANTHROPIC_API_KEY = setup.apiKey;
+        } else {
+          cfg.openaiApiKey = setup.apiKey;
+          providerEnv.OPENAI_API_KEY = setup.apiKey;
+          if (setup.baseUrl) {
+            cfg.openaiBaseUrl = setup.baseUrl;
+            providerEnv.OPENAI_BASE_URL = setup.baseUrl;
+          }
+        }
+        saveConfig(cfg);
+        config.provider = setup.provider;
+        provider = resolveProvider({
+          provider: args.provider ?? config.provider,
+          model: args.model ?? config.model,
+          env: providerEnv,
+          keys,
+        });
+      } else {
+        errLine(red(e.message));
+        return 1;
+      }
+    } else {
+      throw e;
     }
-    throw e;
   }
 
-  const interactive = process.stdin.isTTY === true;
   const autoApprove = args.yes || config.approvalMode === "auto";
   // Mode shown in the status bar: plan | always-approve | ask.
   const mode = args.plan ? "plan" : autoApprove ? "always-approve" : "ask";
