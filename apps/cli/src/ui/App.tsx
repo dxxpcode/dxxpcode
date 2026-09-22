@@ -349,16 +349,20 @@ export function App(props: AppProps) {
   return (
     <Box flexDirection="column">
       <Static items={items}>
-        {(it) => <ItemView key={it.id} it={it} props={props} />}
+        {(it) => (
+          <Box key={it.id} marginTop={MAJOR_ITEMS.has(it.kind) ? 1 : 0}>
+            <ItemView it={it} props={props} />
+          </Box>
+        )}
       </Static>
       {spinLabel !== null && (
-        <Text>
-          {"  "}
-          <Text color="cyan">{FRAMES[frame % FRAMES.length]}</Text>{" "}
-          <Text dimColor>
-            {spinLabel}  ·  esc to interrupt
+        <Box marginTop={1}>
+          <Text>
+            <Text color="cyan">{FRAMES[frame % FRAMES.length]}</Text>{" "}
+            <Text dimColor>{spinLabel}</Text>
+            <Text dimColor>  ·  esc to interrupt</Text>
           </Text>
-        </Text>
+        </Box>
       )}
       {liveText.length > 0 && (
         <Text>
@@ -375,12 +379,13 @@ export function App(props: AppProps) {
         <Menu
           title="Execute this plan?"
           options={["Yes", "No"]}
+          descriptions={["run the plan as approved", "discard and stop the task"]}
           sel={menuSel}
         />
       )}
       {pending.kind === "tool" && (
         <Box flexDirection="column">
-          <Box borderStyle="round" borderColor="yellow" flexDirection="column" paddingX={1}>
+          <Box borderStyle="round" borderColor="yellow" flexDirection="column" paddingX={1} marginTop={1}>
             <Text>
               ⚠ Approval required — <Text bold>{describe(pending.req)}</Text>
             </Text>
@@ -388,11 +393,21 @@ export function App(props: AppProps) {
               <Text dimColor>Reason: {pending.req.reason ?? pending.req.decision.reason}</Text>
             )}
           </Box>
-          <Menu options={["Yes", "Always (this session)", "No"]} sel={menuSel} />
+          <Menu
+            options={["Yes", "Always (this session)", "No"]}
+            descriptions={["allow once", "allow this action for the rest of the session", "deny and stop the task"]}
+            sel={menuSel}
+          />
         </Box>
       )}
       {pending.kind === "input" && !exited && (
-        <Box borderStyle="round" borderColor="gray" paddingX={1} justifyContent="space-between">
+        <Box
+          borderStyle="round"
+          borderColor="gray"
+          paddingX={1}
+          marginTop={1}
+          justifyContent="space-between"
+        >
           <Box>
             <Text color="cyan">❯ </Text>
             <TextInput value={input} onChange={setInput} onSubmit={submit} />
@@ -406,16 +421,34 @@ export function App(props: AppProps) {
   );
 }
 
-function Menu({ title, options, sel }: { title?: string; options: string[]; sel: number }) {
+const MAJOR_ITEMS = new Set(["banner", "pill", "plan", "diff", "footer"]);
+
+function Menu({
+  title,
+  options,
+  sel,
+  descriptions,
+}: {
+  title?: string;
+  options: string[];
+  sel: number;
+  descriptions?: string[];
+}) {
   return (
-    <Box flexDirection="column" marginTop={0}>
+    <Box flexDirection="column" marginTop={1}>
       {title ? <Text dimColor>{title}</Text> : null}
       {options.map((o, i) => (
-        <Text key={o} inverse={i === sel} dimColor={i !== sel}>
-          {i === sel ? `  ❯ ${o}` : `    ${o}`}
-        </Text>
+        <Box key={o} flexDirection="column">
+          <Text dimColor={i !== sel}>
+            {i === sel ? " ● " : " ◯ "}
+            <Text bold={i === sel}>{o}</Text>
+          </Text>
+          {descriptions?.[i] ? (
+            <Text dimColor>{"      "}{descriptions[i]}</Text>
+          ) : null}
+        </Box>
       ))}
-      <Text dimColor>↑/↓ navigate · Enter select · esc cancel</Text>
+      <Text dimColor>{"  "}↑/↓ navigate · Enter select · esc cancel</Text>
     </Box>
   );
 }
@@ -474,7 +507,12 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
     case "note":
       return <Text dimColor>  {it.text}</Text>;
     case "thought":
-      return <Text dimColor>  ◆ Thought for {it.secs.toFixed(1)}s</Text>;
+      return (
+        <Text dimColor>
+          {"  "}
+          <Text color="magenta">◆</Text> Thought for {it.secs.toFixed(1)}s
+        </Text>
+      );
     case "text":
       return (
         <Box flexDirection="column">
@@ -507,7 +545,13 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
       );
     case "plan":
       return (
-        <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1}>
+        <Box
+          borderStyle="round"
+          borderColor="gray"
+          flexDirection="column"
+          paddingX={2}
+          paddingTop={0}
+        >
           <Text dimColor>── plan ──────────────────────</Text>
           {it.summary ? <Text dimColor>{it.summary}</Text> : null}
           {it.steps.map((s, i) => (
@@ -520,7 +564,12 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
       );
     case "diff":
       return (
-        <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1}>
+        <Box
+          borderStyle="round"
+          borderColor="gray"
+          flexDirection="column"
+          paddingX={1}
+        >
           <Text>
             <Text dimColor>── </Text>
             <Text bold>{it.path}</Text>
@@ -571,7 +620,7 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
             <Text dimColor>  Changed: {r.filesChanged.join(", ")}</Text>
           )}
           {r.error ? <Text color="red">{r.error}</Text> : null}
-          <Text> </Text>
+          <Text dimColor>{"─".repeat(24)}</Text>
         </Box>
       );
     }
