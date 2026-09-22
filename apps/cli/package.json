@@ -2,7 +2,7 @@
   "name": "dxxpcode",
   "version": "0.1.0",
   "type": "module",
-  "description": "DxxpCode — a terminal-native AI coding agent",
+  "description": "DxxpCode \u2014 a terminal-native AI coding agent",
   "license": "Apache-2.0",
   "bin": {
     "dxxpcode": "./dist/cli.js"
@@ -23,7 +23,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node --conditions=development src/cli.ts",
-    "dev": "NODE_OPTIONS=--conditions=development tsx src/cli.ts"
+    "dev": "NODE_OPTIONS=--conditions=development tsx src/cli.ts",
+    "prepublishOnly": "npm --prefix ../.. run clean && npm --prefix ../.. run build && npm --prefix ../.. test"
   },
   "dependencies": {
     "@dxxpcode/agent": "^0.1.0",
@@ -41,5 +42,21 @@
     "@types/react": "^19.3.0",
     "tsx": "^4.23.15",
     "typescript": "^5.8.2"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thenextdeveloper/DxxpCode-Terminal.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/thenextdeveloper/DxxpCode-Terminal",
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "cli",
+    "terminal",
+    "llm"
+  ]
 }

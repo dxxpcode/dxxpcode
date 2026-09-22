@@ -10,7 +10,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
@@ -20,5 +22,14 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.8.2"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thenextdeveloper/DxxpCode-Terminal.git",
+    "directory": "packages/sessions"
   }
 }
