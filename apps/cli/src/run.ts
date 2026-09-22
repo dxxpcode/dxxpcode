@@ -2,7 +2,7 @@ import type { AgentEvent, ApprovalRequest, RunResult } from "@dxxpcode/agent";
 import type { ProposedPlan } from "@dxxpcode/tools";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { runTask } from "@dxxpcode/agent";
-import type { ModelProvider } from "@dxxpcode/providers";
+import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
 import { createMdStyler } from "./md.ts";
 import type { Prompter } from "./prompt.ts";
 import {
@@ -14,6 +14,7 @@ export interface RunCliOptions {
   task: string;
   provider: ModelProvider;
   model: string;
+  effort?: ReasoningEffort;
   projectRoot: string;
   planOnly?: boolean;
   autoApprove?: boolean;
@@ -174,6 +175,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
     task: opts.task,
     provider: opts.provider,
     model: opts.model,
+    effort: opts.effort,
     projectRoot: opts.projectRoot,
     planOnly: opts.planOnly,
     maxIterations: opts.maxIterations,

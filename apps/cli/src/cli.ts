@@ -27,11 +27,12 @@ Usage:
 Options:
   --provider <name>            anthropic | openai | mock
   --model <name>               Model override (DXXPCODE_MODEL)
+  --effort <level>             Reasoning effort: low | medium | high (DXXPCODE_EFFORT)
   --yes, -y                    Auto-approve actions needing confirmation
   --max-iterations <n>         Agent iteration cap (default 40)
 
 Configuration:
-  ~/.dxxpcode/config.json      { "provider", "model", "approvalMode", "maxIterations" }
+  ~/.dxxpcode/config.json      { "provider", "model", "approvalMode", "effort", "maxIterations" }
   .dxxpcode/instructions.md    Per-project instructions (AGENTS.md also honored)
 
 Environment:
@@ -40,6 +41,7 @@ Environment:
   OPENAI_BASE_URL              OpenAI-compatible endpoint (OpenRouter, local)
   DXXPCODE_PROVIDER            Force a provider
   DXXPCODE_MODEL               Force a model
+  DXXPCODE_EFFORT              Reasoning effort: low | medium | high
   DXXPCODE_MOCK_SCRIPT         Path to a JSON array of mock turns (offline dev/e2e)
 
 Mentions:
@@ -56,6 +58,7 @@ interface Args {
   yes: boolean;
   provider?: string;
   model?: string;
+  effort?: "low" | "medium" | "high";
   maxIterations?: number;
 }
 
@@ -73,6 +76,12 @@ function parseArgs(argv: string[]): Args {
       case "--yes": case "-y": args.yes = true; break;
       case "--provider": args.provider = argv[++i]; break;
       case "--model": args.model = argv[++i]; break;
+      case "--effort": {
+        const e = argv[++i];
+        if (e === "low" || e === "medium" || e === "high") args.effort = e;
+        else { errLine("--effort must be low, medium, or high"); process.exit(2); }
+        break;
+      }
       case "--max-iterations": {
         const n = Number(argv[++i]);
         if (Number.isFinite(n) && n > 0) args.maxIterations = Math.floor(n);
@@ -81,6 +90,11 @@ function parseArgs(argv: string[]): Args {
       default:
         if (a.startsWith("--provider=")) args.provider = a.slice(11);
         else if (a.startsWith("--model=")) args.model = a.slice(8);
+        else if (a.startsWith("--effort=")) {
+          const e = a.slice(9);
+          if (e === "low" || e === "medium" || e === "high") args.effort = e;
+          else { errLine("--effort must be low, medium, or high"); process.exit(2); }
+        }
         else if (a.startsWith("--")) { errLine(`unknown option: ${a}`); process.exit(2); }
         else positional.push(a);
     }
@@ -193,6 +207,9 @@ async function main(): Promise<number> {
     }
   }
 
+  const envEffort = process.env.DXXPCODE_EFFORT;
+  const effort = args.effort
+    ?? (envEffort === "low" || envEffort === "medium" || envEffort === "high" ? envEffort : config.effort);
   const autoApprove = args.yes || config.approvalMode === "auto";
   // Mode shown in the status bar: plan | always-approve | ask.
   const mode = args.plan ? "plan" : autoApprove ? "always-approve" : "ask";
@@ -218,6 +235,7 @@ async function main(): Promise<number> {
       version: VERSION,
       provider: provider.provider,
       model: provider.model,
+      effort,
       project,
       root,
       session,
@@ -258,6 +276,7 @@ async function main(): Promise<number> {
       task: mentions.text,
       provider: provider.provider,
       model: provider.model,
+      effort,
       projectRoot: root,
       planOnly: args.plan,
       autoApprove,

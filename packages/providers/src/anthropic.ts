@@ -5,6 +5,9 @@ import { readSse } from "./sse.ts";
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 
+/** thinking.budget_tokens per effort level; the API requires max_tokens > budget. */
+const EFFORT_BUDGET = { low: 2048, medium: 8192, high: 32768 } as const;
+
 export class AnthropicProvider implements ModelProvider {
   readonly name = "anthropic";
 
@@ -24,11 +27,17 @@ export class AnthropicProvider implements ModelProvider {
       },
       body: JSON.stringify({
         model: req.model,
-        max_tokens: req.maxTokens ?? 8192,
+        max_tokens: Math.max(
+          req.maxTokens ?? 8192,
+          req.effort ? EFFORT_BUDGET[req.effort] + 4096 : 0,
+        ),
         system: req.system,
         messages: req.messages.map(toApiMessage),
         tools: req.tools.map(toApiTool),
         stream: true,
+        ...(req.effort
+          ? { thinking: { type: "enabled", budget_tokens: EFFORT_BUDGET[req.effort] } }
+          : {}),
       }),
       signal,
     });
