@@ -58,6 +58,51 @@ export interface AppProps {
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+const SURFACE = "#1a1b26";
+const SURFACE_HI = "#262838";
+
+type Seg = { t: string; c?: string; bg?: string; bold?: boolean; dim?: boolean };
+const segWidth = (l: Seg[]) => l.reduce((n, s) => n + s.t.length, 0);
+
+function SurfaceLine({ segs, w, bg }: { segs: Seg[]; w: number; bg?: string }) {
+  return (
+    <Text backgroundColor={bg ?? SURFACE}>
+      {" "}
+      {segs.map((s, i) => (
+        <Text key={i} color={s.c} backgroundColor={s.bg} bold={s.bold} dimColor={s.dim}>
+          {s.t}
+        </Text>
+      ))}
+      {" ".repeat(Math.max(0, w - segWidth(segs)) + 1)}
+    </Text>
+  );
+}
+
+/** Tinted surface card — subtle bg fill instead of a border. */
+function Card({
+  lines,
+  accent,
+  fills,
+}: {
+  lines: Seg[][];
+  accent?: string;
+  fills?: (string | undefined)[];
+}) {
+  const w = Math.max(0, ...lines.map(segWidth));
+  return (
+    <Box flexDirection="row">
+      {accent ? (
+        <Text backgroundColor={accent}>{Array(lines.length).fill("  ").join("\n")}</Text>
+      ) : null}
+      <Box flexDirection="column">
+        {lines.map((l, i) => (
+          <SurfaceLine key={i} segs={l} w={w} bg={fills?.[i]} />
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 function describe(req: ApprovalRequest): string {
   if (req.tool === "run_command") return String(req.input["command"] ?? req.tool);
   const target = req.input["path"];
@@ -385,13 +430,19 @@ export function App(props: AppProps) {
       )}
       {pending.kind === "tool" && (
         <Box flexDirection="column">
-          <Box borderStyle="round" borderColor="yellow" flexDirection="column" paddingX={1} marginTop={1}>
-            <Text>
-              ⚠ Approval required — <Text bold>{describe(pending.req)}</Text>
-            </Text>
-            {(pending.req.reason ?? pending.req.decision.reason) && (
-              <Text dimColor>Reason: {pending.req.reason ?? pending.req.decision.reason}</Text>
-            )}
+          <Box marginTop={1}>
+            <Card
+              accent="yellow"
+              lines={[
+                [
+                  { t: "⚠ Approval required — " },
+                  { t: describe(pending.req), bold: true },
+                ],
+                ...(pending.req.reason ?? pending.req.decision.reason
+                  ? [[{ t: `Reason: ${pending.req.reason ?? pending.req.decision.reason}`, dim: true }]]
+                  : []),
+              ]}
+            />
           </Box>
           <Menu
             options={["Yes", "Always (this session)", "No"]}
@@ -439,9 +490,14 @@ function Menu({
       {title ? <Text dimColor>{title}</Text> : null}
       {options.map((o, i) => (
         <Box key={o} flexDirection="column">
-          <Text dimColor={i !== sel}>
-            {i === sel ? " ● " : " ◯ "}
-            <Text bold={i === sel}>{o}</Text>
+          <Text backgroundColor={i === sel ? SURFACE_HI : undefined}>
+            <Text dimColor={i !== sel} bold={i === sel}>
+              {i === sel ? " ● " : " ◯ "}
+              {o}
+            </Text>
+            {i === sel
+              ? " ".repeat(Math.max(0, Math.max(...options.map((x) => x.length)) - o.length) + 1)
+              : ""}
           </Text>
           {descriptions?.[i] ? (
             <Text dimColor>{"      "}{descriptions[i]}</Text>
@@ -496,14 +552,7 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
         </Box>
       );
     case "pill":
-      return (
-        <Box borderStyle="round" borderColor="gray" paddingX={1}>
-          <Text>
-            <Text color="cyan">❯ </Text>
-            {it.text}
-          </Text>
-        </Box>
-      );
+      return <Card lines={[[{ t: "❯ ", c: "cyan" }, { t: it.text }]]} />;
     case "note":
       return <Text dimColor>  {it.text}</Text>;
     case "thought":
@@ -543,54 +592,43 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
           </Text>
         </Text>
       );
-    case "plan":
-      return (
-        <Box
-          borderStyle="round"
-          borderColor="gray"
-          flexDirection="column"
-          paddingX={2}
-          paddingTop={0}
-        >
-          <Text dimColor>── plan ──────────────────────</Text>
-          {it.summary ? <Text dimColor>{it.summary}</Text> : null}
-          {it.steps.map((s, i) => (
-            <Text key={i}>
-              <Text color="cyan">{i + 1}</Text>
-              {`. ${s}`}
-            </Text>
-          ))}
-        </Box>
-      );
-    case "diff":
-      return (
-        <Box
-          borderStyle="round"
-          borderColor="gray"
-          flexDirection="column"
-          paddingX={1}
-        >
-          <Text>
-            <Text dimColor>── </Text>
-            <Text bold>{it.path}</Text>
-            <Text dimColor> ── ×</Text>
-          </Text>
-          {it.rows
-            .filter((r) => r.kind !== "meta")
-            .map((r, i) => (
-              <Text
-                key={i}
-                color={r.kind === "hunk" ? "cyan" : r.kind === "add" ? "green" : r.kind === "del" ? "red" : undefined}
-                dimColor={r.kind === "ctx"}
-                backgroundColor={r.kind === "add" ? "#0c2b16" : r.kind === "del" ? "#3b0f12" : undefined}
-              >
-                {r.num !== null ? String(r.num).padStart(4) + "  " : "      "}
-                {r.kind === "add" ? "+" : r.kind === "del" ? "−" : " "}
-                {r.text}
-              </Text>
-            ))}
-        </Box>
-      );
+    case "plan": {
+      const lines: Seg[][] = [
+        [{ t: "plan", bold: true }, { t: "  ×", dim: true }],
+        ...(it.summary ? [[{ t: it.summary, dim: true }]] : []),
+        ...it.steps.map((s, i) => [{ t: `${i + 1}`, c: "cyan" }, { t: `. ${s}` }]),
+      ];
+      return <Card lines={lines} />;
+    }
+    case "diff": {
+      const rows = it.rows.filter((r) => r.kind !== "meta");
+      const lines: Seg[][] = [
+        [{ t: it.path, bold: true }, { t: "  ×", dim: true }],
+        ...rows.map((r) => [
+          {
+            t: `${r.num !== null ? String(r.num).padStart(4) : "    "}  ${
+              r.kind === "add" ? "+" : r.kind === "del" ? "−" : " "
+            } ${r.text}`,
+            c:
+              r.kind === "hunk"
+                ? "cyan"
+                : r.kind === "add"
+                  ? "green"
+                  : r.kind === "del"
+                    ? "red"
+                    : undefined,
+            dim: r.kind === "ctx",
+          },
+        ]),
+      ];
+      const fills = [
+        undefined,
+        ...rows.map((r) =>
+          r.kind === "add" ? "#0c2b16" : r.kind === "del" ? "#3b0f12" : undefined,
+        ),
+      ];
+      return <Card lines={lines} fills={fills} />;
+    }
     case "denied":
       return (
         <Text color="red">
