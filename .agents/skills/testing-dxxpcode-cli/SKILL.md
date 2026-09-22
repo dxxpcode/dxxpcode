@@ -8,9 +8,11 @@ description: How to end-to-end test the dxxpcode terminal AI-agent CLI — mock 
 ## Build first — dist is often stale
 `apps/cli/dist/cli.js` is NOT rebuilt on edit and `dist/` is gitignored. Always run `npm run build` before testing the compiled binary, or run from source: `node --conditions=development apps/cli/src/cli.ts`. Check staleness with `grep -c DXXPCODE_MOCK_SCRIPT packages/providers/dist/select.js` (>0 = current).
 
+IMPORTANT for interactive runs: the TTY UI is ink/React (`apps/cli/src/ui/App.tsx`) — plain `node` cannot load `.tsx`. For interactive dev runs use `npm run dev` (in apps/cli) or `NODE_OPTIONS=--conditions=development tsx apps/cli/src/cli.ts`. Built `dist/` works with plain `node`. Non-interactive paths (piped stdin, `--help`) never load the ink UI, so `node --conditions=development apps/cli/src/cli.ts` still works for them.
+
 ## Deterministic agent runs (no API keys needed)
 - `DXXPCODE_PROVIDER=mock DXXPCODE_MOCK_SCRIPT=/path/script.json` — script is a JSON array of turns consumed one per provider call: `{text?, toolCalls?: [{name, input}], stopReason?}`.
-- A turn with `propose_plan` (`input: {summary, steps: [...], trivial}`) ends the plan phase. `trivial: true` skips the approval prompt entirely but still prints the plan. Use `trivial:false` when you need to drive the `Proceed? [y/N]` prompt.
+- A turn with `propose_plan` (`input: {summary, steps: [...], trivial}`) ends the plan phase. `trivial: true` skips the approval prompt entirely but still prints the plan. Use `trivial:false` when you need to drive the plan approval menu. A turn may set `delayMs` to simulate latency (needed to see `◆ Thought for Ns` and the spinner).
 - Tools: `read_file`, `write_file`, `edit_file`, `list_directory`, `search_files`, `run_command`, `git_status/diff/log`, `delete_file`. Plan phase only allows read-only tools.
 - `DXXPCODE_HOME=/tmp/somewhere` isolates sessions/config from `~/.dxxpcode` — always set it in tests.
 
@@ -23,7 +25,7 @@ CRITICAL: do NOT feed all input at once (`printf 'n\ny\n' | script ...`). When t
 { printf 'n\n'; sleep 0.7; printf 'y\n'; sleep 0.7; printf 'y\n'; sleep 0.7; } | script -qec "node .../cli.js task" out.log
 ```
 
-`expect` is also installed; if you use it, glob-match on `y/N` (no closing bracket — approval prompts are `[y/N/a]` since "always allow" was added; plan prompts are `[y/N]`), or escape the brackets — patterns containing `[y/N]` literally fail because `[]` is a glob character class. Answering `a` adds the exact `tool:arg` to a session-scoped allowlist; later identical actions print `allowed earlier this session` and skip the prompt.
+Interactive prompts are arrow-key menus (ink): `↑/↓` + Enter, or letter shortcuts — `y`, `n`, and `a` (tool approvals: Yes / Always (this session) / No). `esc` denies the pending menu AND aborts the run. With `expect`, match on `navigate · Enter select` (there is no `[y/N]` prompt text anymore). Answering `a` adds the exact `tool:arg` to a session-scoped allowlist; later identical actions show `allowed earlier this session` and skip the menu.
 
 ## Non-interactive paths (no PTY needed)
 - Positional task or `echo task | dxxpcode` → `stdin.isTTY` false → plan prompts print the plan then auto-deny with "non-interactive run — re-run with --yes"; tool approvals deny with "…re-run with --yes to allow".
