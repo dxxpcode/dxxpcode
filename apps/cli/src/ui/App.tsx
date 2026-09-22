@@ -6,13 +6,14 @@ import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider } from "@dxxpcode/providers";
 import { resolveProvider } from "@dxxpcode/providers";
 import type { ProjectInfo } from "@dxxpcode/project";
-import { loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
+import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
 import { diffTarget, TOOL_DISPLAY, toolArg } from "../render.ts";
 import { expandMentions } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff, type DiffRow } from "./diff.ts";
+import { join } from "node:path";
 
 type Item =
   | { id: number; kind: "banner" }
@@ -26,6 +27,7 @@ type Item =
   | { id: number; kind: "plan"; summary?: string; steps: string[] }
   | { id: number; kind: "diff"; path: string; rows: DiffRow[] }
   | { id: number; kind: "denied"; reason: string }
+  | { id: number; kind: "status"; rows: [string, string][] }
   | { id: number; kind: "footer"; result: RunResult; secs: number }
   | { id: number; kind: "error"; text: string };
 
@@ -34,7 +36,8 @@ type ItemInput = Item extends infer T ? (T extends Item ? Omit<T, "id"> : never)
 type Pending =
   | { kind: "input" }
   | { kind: "plan"; resolve: (ok: boolean) => void }
-  | { kind: "tool"; req: ApprovalRequest; key: string; resolve: (v: "y" | "a" | "n") => void };
+  | { kind: "tool"; req: ApprovalRequest; key: string; resolve: (v: "y" | "a" | "n") => void }
+  | { kind: "config"; title: string; options: string[]; resolve: (i: number | null) => void };
 
 export interface AppProps {
   version: string;
@@ -111,6 +114,8 @@ function Card({
 const COMMANDS = [
   { name: "/review", desc: "show the working-tree diff" },
   { name: "/model", desc: "current provider and model" },
+  { name: "/status", desc: "session, config, and usage info" },
+  { name: "/config", desc: "change settings (approval mode)" },
   { name: "/provider", desc: "connect or switch the model provider" },
   { name: "/clear", desc: "clear the transcript" },
   { name: "/help", desc: "list available commands" },
@@ -159,6 +164,9 @@ export function App(props: AppProps) {
   const sessionRef = useRef(props.session);
   const [prov, setProv] = useState({ provider: props.provider, model: props.model });
   const provRef = useRef(prov);
+  // /config writes these; they take effect on the next run.
+  const [modeOverride, setModeOverride] = useState<string | null>(null);
+  const autoRef = useRef(props.autoApprove);
   const [setup, setSetup] = useState(false);
   const setupRef = useRef(setup);
   setupRef.current = setup;
@@ -255,7 +263,7 @@ export function App(props: AppProps) {
 
       const approvePlan = async (): Promise<boolean> => {
         stopSpin();
-        if (props.autoApprove) return true;
+        if (autoRef.current) return true;
         return new Promise((resolve) => {
           setMenuSel(0);
           setPending({ kind: "plan", resolve });
@@ -268,7 +276,7 @@ export function App(props: AppProps) {
           push({ kind: "note", text: "⎿ allowed earlier this session" });
           return true;
         }
-        if (props.autoApprove) {
+        if (autoRef.current) {
           push({ kind: "note", text: `auto-approved: ${describe(req)}` });
           return true;
         }
@@ -408,6 +416,44 @@ export function App(props: AppProps) {
         push({ kind: "note", text: `${provRef.current.provider.name} · ${provRef.current.model}` });
         return;
       }
+      if (task === "/status") {
+        const p = props.project;
+        const cur = provRef.current;
+        const effMode = modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
+        push({
+          kind: "status",
+          rows: [
+            ["provider", `${cur.provider.name} · ${cur.model}`],
+            ["mode", effMode],
+            ["version", `v${props.version}`],
+            ["project", `${p.name} — ${p.root}`],
+            ["git", p.git ? `${p.git.branch}${p.git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
+            ["session", sessionRef.current?.id ?? "—"],
+            ["usage", `${fmtTokens(tok)} tok this turn`],
+            ["config", join(homeDir(), "config.json")],
+          ],
+        });
+        return;
+      }
+      if (task === "/config") {
+        const opts = ["ask", "always-approve"];
+        const cur = autoRef.current ? 1 : 0;
+        setMenuSel(cur);
+        setPending({
+          kind: "config",
+          title: "Approval mode — applied to the next task and saved to config",
+          options: opts,
+          resolve: (i) => {
+            if (i === null) return;
+            const next = opts[i] === "always-approve";
+            autoRef.current = next;
+            setModeOverride(next ? "always-approve" : "ask");
+            saveConfig({ ...loadConfig(), approvalMode: next ? "auto" : "ask" });
+            push({ kind: "note", text: `approval mode: ${opts[i]} (saved)` });
+          },
+        });
+        return;
+      }
       if (task === "/provider") {
         setSetup(true);
         return;
@@ -461,18 +507,19 @@ export function App(props: AppProps) {
         setPending({ kind: "input" });
         if (p.kind === "plan") p.resolve(false);
         else if (p.kind === "tool") p.resolve("n");
+        else if (p.kind === "config") p.resolve(null);
       }
       if (runCtl.current) runCtl.current.abort();
       return;
     }
     const p = pendingRef.current;
-    if (p.kind === "plan" || p.kind === "tool") {
-      const opts = p.kind === "plan" ? 2 : 3;
+    if (p.kind === "plan" || p.kind === "tool" || p.kind === "config") {
+      const opts = p.kind === "config" ? p.options.length : p.kind === "plan" ? 2 : 3;
       if (key.upArrow || ch === "k") setMenuSel((s) => (s - 1 + opts) % opts);
       else if (key.downArrow || ch === "j") setMenuSel((s) => (s + 1) % opts);
-      else if (ch === "y") choose(p, 0);
+      else if (p.kind !== "config" && ch === "y") choose(p, 0);
       else if (p.kind === "tool" && ch === "a") choose(p, 1);
-      else if (ch === "n") choose(p, opts - 1);
+      else if (p.kind !== "config" && ch === "n") choose(p, opts - 1);
       else if (key.return) choose(p, menuSel);
       return;
     }
@@ -532,9 +579,10 @@ export function App(props: AppProps) {
     setPending({ kind: "input" });
     if (p.kind === "plan") p.resolve(i === 0);
     else if (p.kind === "tool") p.resolve(i === 1 ? "a" : i === 0 ? "y" : "n");
+    else if (p.kind === "config") p.resolve(i);
   }
 
-  const mode = props.planOnly ? "plan" : props.autoApprove ? "always-approve" : "ask";
+  const mode = modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
 
   return (
     <Box flexDirection="column">
@@ -570,6 +618,13 @@ export function App(props: AppProps) {
           title="Execute this plan?"
           options={["Yes", "No"]}
           descriptions={["run the plan as approved", "discard and stop the task"]}
+          sel={menuSel}
+        />
+      )}
+      {pending.kind === "config" && (
+        <Menu
+          title={pending.title}
+          options={pending.options}
           sel={menuSel}
         />
       )}
@@ -799,6 +854,15 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
       );
     case "pill":
       return <Card lines={[[{ t: "❯ ", c: "cyan" }, { t: it.text }]]} />;
+    case "status":
+      return (
+        <Card
+          lines={it.rows.map(([k, v]) => [
+            { t: `${k.padEnd(9)}`, dim: true },
+            { t: v },
+          ])}
+        />
+      );
     case "note":
       return <Text dimColor>  {it.text}</Text>;
     case "thought":
