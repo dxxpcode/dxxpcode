@@ -103,6 +103,14 @@ function Card({
   );
 }
 
+const COMMANDS = [
+  { name: "/review", desc: "show the working-tree diff" },
+  { name: "/model", desc: "current provider and model" },
+  { name: "/clear", desc: "clear the transcript" },
+  { name: "/help", desc: "list available commands" },
+  { name: "/exit", desc: "quit dxxpcode" },
+];
+
 function describe(req: ApprovalRequest): string {
   if (req.tool === "run_command") return String(req.input["command"] ?? req.tool);
   const target = req.input["path"];
@@ -126,6 +134,7 @@ export function App(props: AppProps) {
   const [pending, setPending] = useState<Pending>({ kind: "input" });
   const [menuSel, setMenuSel] = useState(0);
   const [input, setInput] = useState("");
+  const [cmdSel, setCmdSel] = useState(0);
   const [hist, setHist] = useState<string[]>(() => loadHistory(props.historyFile));
   const histRef = useRef(hist);
   histRef.current = hist;
@@ -138,6 +147,12 @@ export function App(props: AppProps) {
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
   const sessionRef = useRef(props.session);
+  const suggestions = input.startsWith("/")
+    ? COMMANDS.filter((c) => c.name.startsWith(input))
+    : [];
+  const sugSel = Math.min(cmdSel, Math.max(0, suggestions.length - 1));
+  const sugRef = useRef<{ sel: number; names: string[] }>({ sel: 0, names: [] });
+  sugRef.current = { sel: sugSel, names: suggestions.map((c) => c.name) };
 
   const push = useCallback((item: ItemInput) => {
     setItems((prev) => [...prev, { ...item, id: idRef.current++ } as Item]);
@@ -309,13 +324,39 @@ export function App(props: AppProps) {
 
   const submit = useCallback(
     (raw: string) => {
-      const task = raw.trim();
+      let task = raw.trim();
       if (!task || running.current) return;
       setInput("");
       setHistIdx(-1);
       setHist((h) => (h[0] === task ? h : [task, ...h].slice(0, 500)));
-      if (task === "exit" || task === "quit") {
+      if (task.startsWith("/")) {
+        const { sel, names } = sugRef.current;
+        if (task === names[0] || COMMANDS.some((c) => c.name === task)) {
+          // exact command — handled below
+        } else if (names.length > 0) {
+          task = names[sel];
+        } else {
+          push({ kind: "note", text: `unknown command ${task} — /help lists commands` });
+          return;
+        }
+      }
+      if (task === "/exit" || task === "exit" || task === "quit") {
         finish(0);
+        return;
+      }
+      if (task === "/model") {
+        push({ kind: "note", text: `${props.provider.name} · ${props.model}` });
+        return;
+      }
+      if (task === "/clear") {
+        setItems([]);
+        return;
+      }
+      if (task === "/help") {
+        push({
+          kind: "text",
+          text: COMMANDS.map((c) => `${c.name} — ${c.desc}`).join("\n"),
+        });
         return;
       }
       if (task === "/review") {
@@ -329,7 +370,7 @@ export function App(props: AppProps) {
       }
       void runOnce(task);
     },
-    [finish, push, runOnce],
+    [finish, push, runOnce, props],
   );
 
   // One-shot task: run once on mount, exit with the result code.
@@ -371,6 +412,12 @@ export function App(props: AppProps) {
       return;
     }
     if (p.kind === "input") {
+      const sug = sugRef.current.names;
+      if (sug.length > 0) {
+        if (key.upArrow) setCmdSel((s) => (s - 1 + sug.length) % sug.length);
+        else if (key.downArrow) setCmdSel((s) => (s + 1) % sug.length);
+        return;
+      }
       if (key.upArrow && hist.length) {
         const i = Math.min(histIdx + 1, hist.length - 1);
         setHistIdx(i);
@@ -461,13 +508,36 @@ export function App(props: AppProps) {
         >
           <Box>
             <Text color="cyan">❯ </Text>
-            <TextInput value={input} onChange={setInput} onSubmit={submit} />
+            <TextInput
+              value={input}
+              onChange={(v) => {
+                setInput(v);
+                setCmdSel(0);
+              }}
+              onSubmit={submit}
+            />
           </Box>
           <Text dimColor>
             {props.model} · {mode}
           </Text>
         </Box>
       )}
+      {pending.kind === "input" &&
+        !exited &&
+        suggestions.map((c, i) => (
+          <Text key={c.name} backgroundColor={i === sugSel ? SURFACE_HI : undefined}>
+            {"  "}
+            <Text color="cyan">{c.name}</Text>
+            <Text dimColor>{"  "}{c.desc}</Text>
+            {" ".repeat(
+              Math.max(
+                0,
+                Math.max(...suggestions.map((x) => x.name.length + x.desc.length)) -
+                  c.name.length - c.desc.length + 3,
+              ),
+            )}
+          </Text>
+        ))}
     </Box>
   );
 }
