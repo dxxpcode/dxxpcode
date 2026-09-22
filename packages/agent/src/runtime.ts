@@ -1,5 +1,6 @@
 import type { PermissionDecision } from "@dxxpcode/permissions";
 import type {
+  ReasoningEffort,
   ContentBlock,
   JsonObject,
   Message,
@@ -63,6 +64,8 @@ export interface RunOptions {
   approvePlan?: (plan: ProposedPlan) => Promise<boolean>;
   /** Resume an existing session (messages restored). */
   session?: SessionRecord;
+  /** Reasoning effort passed to the provider (low/medium/high). */
+  effort?: ReasoningEffort;
   env?: NodeJS.ProcessEnv;
   signal?: AbortSignal;
 }
@@ -144,7 +147,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
       }
       iterations++;
       yield* maybeCompact(messages);
-      const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "plan", opts.signal);
+      const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "plan", opts.signal, opts.effort);
       mergeUsage(usage, turn.usage);
       yield { type: "usage", usage: { ...usage } };
 
@@ -190,7 +193,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         return;
       }
       yield* maybeCompact(messages);
-      const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "execute", opts.signal);
+      const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "execute", opts.signal, opts.effort);
       mergeUsage(usage, turn.usage);
       yield { type: "usage", usage: { ...usage } };
 
@@ -296,6 +299,7 @@ async function* streamTurn(
   messages: Message[],
   phase: "plan" | "execute",
   signal?: AbortSignal,
+  effort?: ReasoningEffort,
 ): AsyncGenerator<AgentEvent, TurnOutcome> {
   const tools = toolsForPhase(phase).map(toDefinition);
   const toolCalls: ToolUseBlock[] = [];
@@ -303,7 +307,7 @@ async function* streamTurn(
   let stopReason = "end_turn";
   let usage: Usage | undefined;
 
-  for await (const ev of provider.chat({ system, messages, tools, model }, signal)) {
+  for await (const ev of provider.chat({ system, messages, tools, model, effort }, signal)) {
     if (ev.type === "text") {
       textParts.push(ev.text);
       yield { type: "text", text: ev.text };

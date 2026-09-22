@@ -43,12 +43,16 @@ export type ProviderEvent =
   | { type: "tool_use"; call: ToolUseBlock }
   | { type: "done"; stopReason: string; usage?: Usage };
 
+/** Reasoning effort; mapped per-provider (Anthropic thinking budget, OpenAI reasoning_effort). */
+export type ReasoningEffort = "low" | "medium" | "high";
+
 export interface ChatRequest {
   system: string;
   messages: Message[];
   tools: ToolDefinition[];
   model: string;
   maxTokens?: number;
+  effort?: ReasoningEffort;
 }
 
 export interface ModelProvider {

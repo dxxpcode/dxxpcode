@@ -3,8 +3,8 @@ import { Box, Static, Text, render, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
 import { runTask } from "@dxxpcode/agent";
-import type { ModelProvider } from "@dxxpcode/providers";
-import { resolveProvider } from "@dxxpcode/providers";
+import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
+import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
 import type { ProjectInfo } from "@dxxpcode/project";
 import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
@@ -37,12 +37,14 @@ type Pending =
   | { kind: "input" }
   | { kind: "plan"; resolve: (ok: boolean) => void }
   | { kind: "tool"; req: ApprovalRequest; key: string; resolve: (v: "y" | "a" | "n") => void }
-  | { kind: "config"; title: string; options: string[]; resolve: (i: number | null) => void };
+  | { kind: "config"; title: string; options: string[]; resolve: (i: number | null) => void }
+  | { kind: "prompt"; title: string; resolve: (v: string | null) => void };
 
 export interface AppProps {
   version: string;
   provider: ModelProvider;
   model: string;
+  effort?: ReasoningEffort;
   project: ProjectInfo;
   root: string;
   session?: SessionRecord;
@@ -167,6 +169,8 @@ export function App(props: AppProps) {
   // /config writes these; they take effect on the next run.
   const [modeOverride, setModeOverride] = useState<string | null>(null);
   const autoRef = useRef(props.autoApprove);
+  const effortRef = useRef(props.effort);
+  const [promptVal, setPromptVal] = useState("");
   const [setup, setSetup] = useState(false);
   const setupRef = useRef(setup);
   setupRef.current = setup;
@@ -299,6 +303,7 @@ export function App(props: AppProps) {
           task: mentions.text,
           provider: provRef.current.provider,
           model: provRef.current.model,
+          effort: effortRef.current,
           projectRoot: props.root,
           planOnly: props.planOnly,
           maxIterations: props.maxIterations,
@@ -390,6 +395,91 @@ export function App(props: AppProps) {
     [props, push],
   );
 
+  const openModelMenu = useCallback(() => {
+    const name = provRef.current.provider.name;
+    const known = [...(KNOWN_MODELS[name] ?? [])];
+    // OpenAI-compatible endpoints (xAI Grok, Google Gemini, local) get their models too.
+    if (name === "openai" && loadConfig().openaiBaseUrl) {
+      known.push("grok-4", "gemini-3-pro");
+    }
+    const cur = provRef.current.model;
+    const opts = cur && !known.includes(cur) ? [cur, ...known] : known;
+    const applyModel = (m: string) => {
+      setProv({ ...provRef.current, model: m });
+      saveConfig({ ...loadConfig(), model: m });
+      push({ kind: "note", text: `model: ${m} (saved)` });
+    };
+    const openCustomPrompt = () => {
+      setPending({
+        kind: "prompt",
+        title: "model name:",
+        resolve: (v) => {
+          if (v && v.trim()) applyModel(v.trim());
+        },
+      });
+    };
+    setMenuSel(Math.max(0, opts.indexOf(cur)));
+    setPending({
+      kind: "config",
+      title: `Model — ${name} · applies to the next task and is saved to config`,
+      options: [...opts, "custom…"],
+      resolve: (i) => {
+        if (i === null) return;
+        if (opts[i] === undefined) openCustomPrompt();
+        else applyModel(opts[i]);
+      },
+    });
+  }, [push]);
+
+  const openConfigMenu = useCallback(() => {
+    const openApprovalMenu = () => {
+      const opts = ["ask", "always-approve"];
+      setMenuSel(autoRef.current ? 1 : 0);
+      setPending({
+        kind: "config",
+        title: "Approval mode — applied to the next task and saved to config",
+        options: opts,
+        resolve: (i) => {
+          if (i === null) return;
+          const next = opts[i] === "always-approve";
+          autoRef.current = next;
+          setModeOverride(next ? "always-approve" : "ask");
+          saveConfig({ ...loadConfig(), approvalMode: next ? "auto" : "ask" });
+          push({ kind: "note", text: `approval mode: ${opts[i]} (saved)` });
+        },
+      });
+    };
+    const openEffortMenu = () => {
+      const opts = ["default", "low", "medium", "high"];
+      const cur = effortRef.current ?? "default";
+      setMenuSel(opts.indexOf(cur));
+      setPending({
+        kind: "config",
+        title: "Reasoning effort — applies to the next task (ignored on models without support)",
+        options: opts,
+        resolve: (i) => {
+          if (i === null) return;
+          const next = opts[i];
+          effortRef.current = next === "default" ? undefined : (next as ReasoningEffort);
+          saveConfig({ ...loadConfig(), effort: effortRef.current });
+          push({ kind: "note", text: `reasoning effort: ${next} (saved)` });
+        },
+      });
+    };
+    const entries = ["Approval mode", "Model", "Reasoning effort"];
+    setMenuSel(0);
+    setPending({
+      kind: "config",
+      title: "Settings",
+      options: entries,
+      resolve: (i) => {
+        if (i === 0) openApprovalMenu();
+        else if (i === 1) openModelMenu();
+        else if (i === 2) openEffortMenu();
+      },
+    });
+  }, [push, openModelMenu]);
+
   const submit = useCallback(
     (raw: string) => {
       let task = raw.trim();
@@ -413,7 +503,7 @@ export function App(props: AppProps) {
         return;
       }
       if (task === "/model") {
-        push({ kind: "note", text: `${provRef.current.provider.name} · ${provRef.current.model}` });
+        openModelMenu();
         return;
       }
       if (task === "/status") {
@@ -425,6 +515,7 @@ export function App(props: AppProps) {
           rows: [
             ["provider", `${cur.provider.name} · ${cur.model}`],
             ["mode", effMode],
+            ["effort", effortRef.current ?? "default"],
             ["version", `v${props.version}`],
             ["project", `${p.name} — ${p.root}`],
             ["git", p.git ? `${p.git.branch}${p.git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
@@ -436,22 +527,7 @@ export function App(props: AppProps) {
         return;
       }
       if (task === "/config") {
-        const opts = ["ask", "always-approve"];
-        const cur = autoRef.current ? 1 : 0;
-        setMenuSel(cur);
-        setPending({
-          kind: "config",
-          title: "Approval mode — applied to the next task and saved to config",
-          options: opts,
-          resolve: (i) => {
-            if (i === null) return;
-            const next = opts[i] === "always-approve";
-            autoRef.current = next;
-            setModeOverride(next ? "always-approve" : "ask");
-            saveConfig({ ...loadConfig(), approvalMode: next ? "auto" : "ask" });
-            push({ kind: "note", text: `approval mode: ${opts[i]} (saved)` });
-          },
-        });
+        openConfigMenu();
         return;
       }
       if (task === "/provider") {
@@ -508,11 +584,13 @@ export function App(props: AppProps) {
         if (p.kind === "plan") p.resolve(false);
         else if (p.kind === "tool") p.resolve("n");
         else if (p.kind === "config") p.resolve(null);
+        else if (p.kind === "prompt") p.resolve(null);
       }
       if (runCtl.current) runCtl.current.abort();
       return;
     }
     const p = pendingRef.current;
+    if (p.kind === "prompt") return; // inline TextInput owns input
     if (p.kind === "plan" || p.kind === "tool" || p.kind === "config") {
       const opts = p.kind === "config" ? p.options.length : p.kind === "plan" ? 2 : 3;
       if (key.upArrow || ch === "k") setMenuSel((s) => (s - 1 + opts) % opts);
@@ -654,6 +732,22 @@ export function App(props: AppProps) {
       {setup && !exited && (
         <Box marginTop={1}>
           <ProviderSetup onDone={onSetupDone} />
+        </Box>
+      )}
+      {pending.kind === "prompt" && (
+        <Box marginTop={1}>
+          <Text color="cyan">❯ </Text>
+          <Text dimColor>{pending.title} </Text>
+          <TextInput
+            value={promptVal}
+            onChange={setPromptVal}
+            onSubmit={(v) => {
+              const p = pending;
+              setPending({ kind: "input" });
+              setPromptVal("");
+              if (p.kind === "prompt") p.resolve(v.trim() ? v : null);
+            }}
+          />
         </Box>
       )}
       {pending.kind === "input" && !exited && !setup && (

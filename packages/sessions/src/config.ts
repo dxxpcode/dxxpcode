@@ -8,6 +8,8 @@ export interface DxxpConfig {
   provider?: string;
   model?: string;
   approvalMode?: ApprovalMode;
+  /** Reasoning effort level for reasoning-capable models. */
+  effort?: "low" | "medium" | "high";
   maxIterations?: number;
   /** Saved by the in-CLI provider setup; env vars take precedence. */
   anthropicApiKey?: string;

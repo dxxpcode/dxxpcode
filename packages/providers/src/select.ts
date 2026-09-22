@@ -5,9 +5,15 @@ import { MockProvider } from "./mock.ts";
 import type { ModelProvider } from "./types.ts";
 import type { MockScript, MockTurn } from "./mock.ts";
 
+/** Models offered in the in-CLI picker; the first entry is the default. */
+export const KNOWN_MODELS: Record<string, string[]> = {
+  anthropic: ["claude-opus-5-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+  openai: ["gpt-6", "gpt-5", "gpt-4o"],
+};
+
 export const DEFAULT_MODELS: Record<string, string> = {
-  anthropic: "claude-sonnet-4-5",
-  openai: "gpt-4o",
+  anthropic: KNOWN_MODELS.anthropic[0],
+  openai: KNOWN_MODELS.openai[0],
 };
 
 export interface ProviderSelection {

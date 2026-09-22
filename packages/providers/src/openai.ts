@@ -30,6 +30,7 @@ export class OpenAIProvider implements ModelProvider {
         ],
         tools: req.tools.map(toApiTool),
         max_tokens: req.maxTokens,
+        ...(req.effort ? { reasoning_effort: req.effort } : {}),
       }),
       signal,
     });
