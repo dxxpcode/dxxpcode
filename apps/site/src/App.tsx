@@ -36,7 +36,48 @@ function CodeChip({ code, className }: { code: string; className?: string }) {
   );
 }
 
+const TASK = 'dxxpcode "document the math helpers"';
+
+const STAGE_DELAYS = [500, 1400, 650, 500, 300, 650, 500];
+// 0: finish typing → 1: thought → 2: plan → 3: edit → 4: result → 5: diff → 6: completed
+
+function Reveal({ stage, show, children, className }: { stage: number; show: number; children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "transition-all duration-500 ease-out",
+        show >= stage ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 function TerminalShot() {
+  const [typed, setTyped] = useState(0);
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTyped(TASK.length);
+      setStage(STAGE_DELAYS.length);
+      return;
+    }
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 1; i <= TASK.length; i++) {
+      timers.push(setTimeout(() => setTyped(i), 300 + i * 38));
+    }
+    let t = 300 + TASK.length * 38;
+    for (let s = 0; s < STAGE_DELAYS.length; s++) {
+      t += STAGE_DELAYS[s];
+      const n = s + 1;
+      timers.push(setTimeout(() => setStage(n), t));
+    }
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
   return (
     <div className="overflow-hidden rounded-2xl bg-[#1d1d1f] font-mono text-[13px] leading-6 text-white/55 shadow-[0_40px_80px_-32px_rgb(0_0_0/0.45)] ring-1 ring-black/10">
       <div className="flex items-center gap-2 px-5 py-3.5">
@@ -48,35 +89,44 @@ function TerminalShot() {
       <div className="space-y-1.5 border-t border-white/10 px-5 pb-6 pt-4">
         <div>
           <span className="text-[#7ee787]">❯</span>{" "}
-          <span className="text-white/90">dxxpcode "document the math helpers"</span>
+          <span className="text-white/90">{TASK.slice(0, typed)}</span>
+          {typed < TASK.length && <span className="animate-blink text-white/70">▌</span>}
         </div>
-        <div className="text-[#b083f0]">◆ Thought for 1.4s</div>
-        <div className="my-3 inline-block rounded-lg bg-white/[0.06] px-3.5 py-2">
-          <div className="font-medium text-white/90">plan ×</div>
-          <div>1. Read src/math.ts</div>
-          <div>2. Add a docstring</div>
-        </div>
-        <div>
+        <Reveal stage={1} show={Math.max(stage, typed >= TASK.length ? 1 : 0)}>
+          <div className="text-[#b083f0]">◆ Thought for 1.4s</div>
+        </Reveal>
+        <Reveal stage={2} show={stage} className="py-1.5">
+          <div className="inline-block rounded-lg bg-white/[0.06] px-3.5 py-2">
+            <div className="font-medium text-white/90">plan ×</div>
+            <div>1. Read src/math.ts</div>
+            <div>2. Add a docstring</div>
+          </div>
+        </Reveal>
+        <Reveal stage={3} show={stage}>
           <span className="text-[#7ee787]">⏺</span>{" "}
           <span className="font-medium text-white/90">Edit</span>
           <span className="text-white/40">(src/math.ts)</span>
-        </div>
-        <div className="pl-5">⎿ edited src/math.ts (1 replacement)</div>
-        <div className="my-3 inline-block rounded-lg bg-white/[0.06] px-3.5 py-2">
-          <div className="font-medium text-white/90">src/math.ts ×</div>
-          <div>
-            <span className="text-white/30">1 </span>
-            <span className="bg-emerald-400/15 px-1 text-emerald-300">+/** Adds two numbers. */</span>
+        </Reveal>
+        <Reveal stage={4} show={stage}>
+          <div className="pl-5">⎿ edited src/math.ts (1 replacement)</div>
+        </Reveal>
+        <Reveal stage={5} show={stage} className="py-1.5">
+          <div className="inline-block rounded-lg bg-white/[0.06] px-3.5 py-2">
+            <div className="font-medium text-white/90">src/math.ts ×</div>
+            <div>
+              <span className="text-white/30">1 </span>
+              <span className="bg-emerald-400/15 px-1 text-emerald-300">+/** Adds two numbers. */</span>
+            </div>
+            <div>
+              <span className="text-white/30">2 </span>
+              <span className="px-1">export const add = …</span>
+            </div>
           </div>
-          <div>
-            <span className="text-white/30">2 </span>
-            <span className="px-1">export const add = …</span>
-          </div>
-        </div>
-        <div>
+        </Reveal>
+        <Reveal stage={6} show={stage}>
           <span className="text-emerald-400">✓</span>{" "}
           <span className="font-medium text-white/90">Completed</span> · 4.2s · 44.4k tokens
-        </div>
+        </Reveal>
       </div>
     </div>
   );
