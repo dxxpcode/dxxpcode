@@ -2,7 +2,7 @@
   "name": "@dxxpcode/agent",
   "version": "0.1.0",
   "type": "module",
-  "description": "DxxpCode agent runtime — context, planning, tool execution, verification",
+  "description": "DxxpCode agent runtime \u2014 context, planning, tool execution, verification",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -10,7 +10,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
@@ -24,5 +26,14 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.8.2"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thenextdeveloper/DxxpCode-Terminal.git",
+    "directory": "packages/agent"
   }
 }

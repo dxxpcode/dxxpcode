@@ -2,7 +2,7 @@
   "name": "@dxxpcode/providers",
   "version": "0.1.0",
   "type": "module",
-  "description": "DxxpCode model providers — normalized streaming interface over Anthropic, OpenAI, and mock adapters",
+  "description": "DxxpCode model providers \u2014 normalized streaming interface over Anthropic, OpenAI, and mock adapters",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -10,12 +10,23 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.8.2"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thenextdeveloper/DxxpCode-Terminal.git",
+    "directory": "packages/providers"
   }
 }
