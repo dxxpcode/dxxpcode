@@ -4,22 +4,29 @@
 
 @layer base {
   :root {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 96%;
-    --card: 240 8% 8%;
-    --card-foreground: 0 0% 96%;
-    --primary: 187 92% 55%;
-    --primary-foreground: 240 10% 4%;
-    --secondary: 240 6% 12%;
-    --secondary-foreground: 0 0% 90%;
-    --muted: 240 6% 14%;
-    --muted-foreground: 240 5% 60%;
-    --accent: 270 80% 66%;
-    --accent-foreground: 0 0% 98%;
+    --background: 0 0% 100%;
+    --foreground: 240 3% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 3% 11%;
+    --primary: 213 100% 44%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 240 3% 25%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 5% 44%;
+    --accent: 213 100% 44%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 16%;
-    --radius: 0.5rem;
+    --border: 220 9% 90%;
+    --radius: 0.75rem;
   }
-  body { @apply bg-background text-foreground font-[Inter]; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue",
+      "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: hsl(var(--primary) / 0.18); }
 }
