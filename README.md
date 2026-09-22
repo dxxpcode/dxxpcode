@@ -31,7 +31,7 @@ Node.js ≥ 22.6 required.
 
 ## Configure a model provider
 
-DxxpCode talks to model providers through a replaceable interface. Set one key and go:
+DxxpCode talks to model providers through a replaceable interface. The easiest way is in the app itself — run `dxxpcode` with no key configured (or `/provider` anytime) and it walks you through picking a provider and pasting a key, saved owner-only to `~/.dxxpcode/config.json`. Or set an env var and go:
 
 ```sh
 export ANTHROPIC_API_KEY=...   # default model: claude-sonnet-4-5

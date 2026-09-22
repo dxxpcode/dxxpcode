@@ -4,8 +4,10 @@ import TextInput from "ink-text-input";
 import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
 import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider } from "@dxxpcode/providers";
+import { resolveProvider } from "@dxxpcode/providers";
 import type { ProjectInfo } from "@dxxpcode/project";
-import { loadSession, type SessionRecord } from "@dxxpcode/sessions";
+import { loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
+import { ProviderSetup, type SetupResult } from "./setup.tsx";
 import { diffTarget, TOOL_DISPLAY, toolArg } from "../render.ts";
 import { expandMentions } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
@@ -107,6 +109,7 @@ function Card({
 const COMMANDS = [
   { name: "/review", desc: "show the working-tree diff" },
   { name: "/model", desc: "current provider and model" },
+  { name: "/provider", desc: "connect or switch the model provider" },
   { name: "/clear", desc: "clear the transcript" },
   { name: "/help", desc: "list available commands" },
   { name: "/exit", desc: "quit dxxpcode" },
@@ -152,6 +155,11 @@ export function App(props: AppProps) {
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
   const sessionRef = useRef(props.session);
+  const [prov, setProv] = useState({ provider: props.provider, model: props.model });
+  const provRef = useRef(prov);
+  const [setup, setSetup] = useState(false);
+  const setupRef = useRef(setup);
+  setupRef.current = setup;
   const suggestions = input.startsWith("/")
     ? COMMANDS.filter((c) => c.name.startsWith(input))
     : [];
@@ -262,8 +270,8 @@ export function App(props: AppProps) {
       try {
         for await (const ev of runTask({
           task: mentions.text,
-          provider: props.provider,
-          model: props.model,
+          provider: provRef.current.provider,
+          model: provRef.current.model,
           projectRoot: props.root,
           planOnly: props.planOnly,
           maxIterations: props.maxIterations,
@@ -372,7 +380,11 @@ export function App(props: AppProps) {
         return;
       }
       if (task === "/model") {
-        push({ kind: "note", text: `${props.provider.name} · ${props.model}` });
+        push({ kind: "note", text: `${provRef.current.provider.name} · ${provRef.current.model}` });
+        return;
+      }
+      if (task === "/provider") {
+        setSetup(true);
         return;
       }
       if (task === "/clear") {
@@ -412,6 +424,7 @@ export function App(props: AppProps) {
   }, [props.task, runOnce, finish]);
 
   useInput((ch, key) => {
+    if (setupRef.current) return; // ProviderSetup owns input while open
     if (key.ctrl && ch === "c") {
       if (runCtl.current) runCtl.current.abort();
       finish(130);
@@ -456,6 +469,39 @@ export function App(props: AppProps) {
       }
     }
   });
+
+  const onSetupDone = useCallback(
+    (r: SetupResult | null) => {
+      setSetup(false);
+      if (!r) {
+        push({ kind: "note", text: "provider setup cancelled" });
+        return;
+      }
+      const env = { ...process.env };
+      const cfg = { ...loadConfig(), provider: r.provider };
+      if (r.provider === "anthropic") {
+        cfg.anthropicApiKey = r.apiKey;
+        env.ANTHROPIC_API_KEY = r.apiKey;
+      } else {
+        cfg.openaiApiKey = r.apiKey;
+        env.OPENAI_API_KEY = r.apiKey;
+        if (r.baseUrl) {
+          cfg.openaiBaseUrl = r.baseUrl;
+          env.OPENAI_BASE_URL = r.baseUrl;
+        }
+      }
+      try {
+        saveConfig(cfg);
+        const sel = resolveProvider({ provider: r.provider, model: cfg.model, env });
+        provRef.current = sel;
+        setProv(sel);
+        push({ kind: "note", text: `connected ${r.provider} · ${sel.model}` });
+      } catch (e) {
+        push({ kind: "error", text: e instanceof Error ? e.message : String(e) });
+      }
+    },
+    [push],
+  );
 
   function choose(p: Pending, i: number) {
     setPending({ kind: "input" });
@@ -525,7 +571,12 @@ export function App(props: AppProps) {
           />
         </Box>
       )}
-      {pending.kind === "input" && !exited && (
+      {setup && !exited && (
+        <Box marginTop={1}>
+          <ProviderSetup onDone={onSetupDone} />
+        </Box>
+      )}
+      {pending.kind === "input" && !exited && !setup && (
         <Box
           borderStyle="round"
           borderColor="gray"
@@ -547,12 +598,13 @@ export function App(props: AppProps) {
           <Text dimColor>
             {isRunning
               ? `turn ${elapsed.toFixed(1)}s${tok ? ` · ↓${fmtTokens(tok)} tok` : ""}`
-              : `${props.model} · ${mode}`}
+              : `${prov.model} · ${mode}`}
           </Text>
         </Box>
       )}
       {pending.kind === "input" &&
         !exited &&
+        !setup &&
         suggestions.map((c, i) => (
           <Text key={c.name} backgroundColor={i === sugSel ? SURFACE_HI : undefined}>
             {"  "}

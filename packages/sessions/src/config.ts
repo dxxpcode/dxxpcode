@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -9,6 +9,10 @@ export interface DxxpConfig {
   model?: string;
   approvalMode?: ApprovalMode;
   maxIterations?: number;
+  /** Saved by the in-CLI provider setup; env vars take precedence. */
+  anthropicApiKey?: string;
+  openaiApiKey?: string;
+  openaiBaseUrl?: string;
 }
 
 export function homeDir(env: NodeJS.ProcessEnv = process.env): string {
@@ -33,5 +37,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): DxxpConfig {
 export function saveConfig(config: DxxpConfig, env: NodeJS.ProcessEnv = process.env): void {
   const dir = homeDir(env);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(configPath(env), JSON.stringify(config, null, 2) + "\n", "utf8");
+  const path = configPath(env);
+  writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf8");
+  chmodSync(path, 0o600); // may hold provider keys — owner-only
 }
