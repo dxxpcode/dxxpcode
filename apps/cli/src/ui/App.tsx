@@ -330,6 +330,12 @@ export function App(props: AppProps) {
               break;
             case "approval_request":
               break;
+            case "compacted":
+              push({
+                kind: "note",
+                text: `⎿ compacted context — ${ev.blocks} old result(s) summarized (~${Math.round(ev.before / 1000)}k → ~${Math.round(ev.after / 1000)}k tok)`,
+              });
+              break;
             case "usage":
               setTok(ev.usage.inputTokens + ev.usage.outputTokens);
               break;

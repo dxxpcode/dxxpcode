@@ -13,6 +13,7 @@ import type { AgentTool, ProposedPlan, ToolContext, ToolResult } from "@dxxpcode
 import { newSessionId, saveSession } from "@dxxpcode/sessions";
 import type { RecordedToolCall, SessionRecord } from "@dxxpcode/sessions";
 import { execFileSync } from "node:child_process";
+import { compactMessages } from "./compact.ts";
 import { gatherContext } from "./context.ts";
 
 export interface ApprovalRequest {
@@ -32,6 +33,7 @@ export type AgentEvent =
   | { type: "tool_end"; tool: string; result: ToolResult }
   | { type: "denied"; tool: string; reason: string }
   | { type: "usage"; usage: Usage }
+  | { type: "compacted"; before: number; after: number; blocks: number }
   | { type: "done"; result: RunResult };
 
 export interface RunResult {
@@ -141,6 +143,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         return;
       }
       iterations++;
+      yield* maybeCompact(messages);
       const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "plan", opts.signal);
       mergeUsage(usage, turn.usage);
       yield { type: "usage", usage: { ...usage } };
@@ -186,6 +189,7 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         yield finish({ ...base("cancelled"), summary: "Cancelled" });
         return;
       }
+      yield* maybeCompact(messages);
       const turn = yield* streamTurn(provider, model, context.systemPrompt, messages, "execute", opts.signal);
       mergeUsage(usage, turn.usage);
       yield { type: "usage", usage: { ...usage } };
@@ -266,6 +270,14 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
 }
 
 /* --------------------------------- helpers -------------------------------- */
+
+/** Compact old tool output when the transcript estimate crosses the ceiling. */
+async function* maybeCompact(messages: Message[]): AsyncGenerator<AgentEvent, void> {
+  const result = compactMessages(messages);
+  if (result.compacted) {
+    yield { type: "compacted", before: result.before, after: result.after, blocks: result.blocks };
+  }
+}
 
 interface TurnOutcome {
   toolCalls: ToolUseBlock[];

@@ -160,6 +160,9 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         line(`  ${red(SYM.sub)}  ${red(`Denied: ${ev.reason}`)}`);
         think("Thinking…");
         break;
+      case "compacted":
+        line(dim(`  ${SYM.sub} compacted context — ${ev.blocks} old result(s) summarized`));
+        break;
       case "approval_request":
         break; // rendered inside approveTool
       case "done":
