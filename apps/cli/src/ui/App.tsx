@@ -771,8 +771,8 @@ export function App(props: AppProps) {
           </Box>
           <Text dimColor>
             {isRunning
-              ? `turn ${elapsed.toFixed(1)}s${tok ? ` · ↓${fmtTokens(tok)} tok` : ""}`
-              : `${prov.model} · ${mode}`}
+              ? `turn ${elapsed.toFixed(1)}s${tok ? ` · ↓${fmtTokens(tok)} tok` : ""}${effortRef.current ? ` · ${effortRef.current} effort` : ""}`
+              : `${prov.model} · ${mode}${effortRef.current ? ` · ${effortRef.current}` : ""}`}
           </Text>
         </Box>
       )}
