@@ -73,6 +73,34 @@ Conclusions:
   `~/.dxxpcode/config.json` alongside provider keys — the existing
   `env > config` precedence chain already supports this shape.
 
+## Initial capital required
+
+The model is deliberately capital-light — no GPU spend (inference is
+proxied, not hosted), no billing team (Stripe handles tax/invoicing).
+
+**Phase 1 — BYOK free tier (today): ~$0–50/yr.**
+Domain (~$12/yr) and site hosting on Vercel's free tier. npm publishing and
+GitHub are free; users' model costs are their own.
+
+**Phase 2 — Pro tier: a few hundred dollars + float.**
+
+- Supabase Auth: free tier (~50k MAU); $25/mo when outgrown
+- Stripe: no fixed cost — 2.9% + 30¢/charge, paid out of revenue
+- Inference float (the only real cost): provider tokens are paid before
+  user payments clear — worst case ~1 month of usage. For 100 Pro users at
+  ~$10 avg usage that's ~$1–2k of working capital. Credit-prepay (charge
+  before granting tokens) shrinks the float to near zero.
+- Dashboard/API hosting: free tiers → ~$20–50/mo
+
+**Realistically: <$500 to launch Pro, plus ~$1–2k float headroom if users
+pay monthly instead of prepaying credits.**
+
+**Phase 3 — Team: engineering time, not money.** Audit logs and policy
+enforcement are features, not infrastructure spend.
+
+The dominant cost across all phases is build time (auth + metering +
+dashboard ≈ one solid build phase), not capital.
+
 ## What we are explicitly NOT doing
 
 - No paywall on the local CLI — ever.
