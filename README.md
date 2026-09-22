@@ -29,6 +29,8 @@ npm install -g dxxpcode
 
 Node.js ≥ 22.6 required.
 
+The UI is designed for [IBM Plex Mono](https://github.com/IBM/plex) — set it as your terminal's font for the intended look (the app itself can't change terminal fonts). Truecolor-capable terminals render the tinted panels best.
+
 ## Configure a model provider
 
 DxxpCode talks to model providers through a replaceable interface. Set one key and go:
