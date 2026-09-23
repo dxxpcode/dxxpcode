@@ -157,6 +157,16 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         think("Thinking…");
         break;
       }
+      case "todo": {
+        const body = ev.items.map((it) => {
+          const mark =
+            it.status === "completed" ? green("✓") : it.status === "in_progress" ? cyan("▶") : dim("○");
+          const label = it.status === "in_progress" && it.activeForm ? it.activeForm : it.content;
+          return `  ${mark} ${it.status === "completed" ? dim(label) : label}`;
+        });
+        for (const l of panel("tasks", body, false)) line(l);
+        break;
+      }
       case "denied":
         line(`  ${red(SYM.sub)}  ${red(`Denied: ${ev.reason}`)}`);
         think("Thinking…");

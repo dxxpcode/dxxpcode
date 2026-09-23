@@ -43,6 +43,15 @@ export type ProviderEvent =
   | { type: "tool_use"; call: ToolUseBlock }
   | { type: "done"; stopReason: string; usage?: Usage };
 
+/** One checklist item maintained by the agent via the todo_write tool. */
+export interface TodoItem {
+  id: string;
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+  /** Present-continuous label shown while the item is in progress. */
+  activeForm?: string;
+}
+
 /** Reasoning effort; mapped per-provider (Anthropic thinking budget, OpenAI reasoning_effort). */
 export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 

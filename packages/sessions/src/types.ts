@@ -1,4 +1,4 @@
-import type { JsonObject, Message } from "@dxxpcode/providers";
+import type { JsonObject, Message, TodoItem } from "@dxxpcode/providers";
 
 export interface RecordedToolCall {
   name: string;
@@ -19,5 +19,7 @@ export interface SessionRecord {
   toolCalls: RecordedToolCall[];
   filesChanged: string[];
   commands: string[];
+  /** Latest agent-maintained checklist from the todo_write tool. */
+  todos?: TodoItem[];
   result?: string;
 }

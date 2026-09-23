@@ -3,7 +3,7 @@ import { Box, Static, Text, render, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
 import { runTask } from "@dxxpcode/agent";
-import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
+import type { ModelProvider, ReasoningEffort, TodoItem } from "@dxxpcode/providers";
 import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
 import { detectGit, type ProjectInfo } from "@dxxpcode/project";
 import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
@@ -26,6 +26,7 @@ type Item =
   | { id: number; kind: "result"; text: string; isError: boolean }
   | { id: number; kind: "tree"; lines: string[] }
   | { id: number; kind: "plan"; summary?: string; steps: string[] }
+  | { id: number; kind: "todo"; items: TodoItem[] }
   | { id: number; kind: "diff"; path: string; rows: DiffRow[] }
   | { id: number; kind: "denied"; reason: string }
   | { id: number; kind: "status"; rows: [string, string][] }
@@ -359,6 +360,10 @@ export function App(props: AppProps) {
               setSpinLabel("Thinking…");
               break;
             }
+            case "todo":
+              stopSpin();
+              push({ kind: "todo", items: ev.items });
+              break;
             case "denied":
               stopSpin();
               push({ kind: "denied", reason: ev.reason });
@@ -1053,6 +1058,23 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
         [{ t: "plan", bold: true }, { t: "  ×", dim: true }],
         ...(it.summary ? [[{ t: it.summary, dim: true }]] : []),
         ...it.steps.map((s, i) => [{ t: `${i + 1}`, c: "cyan" }, { t: `. ${s}` }]),
+      ];
+      return <Card lines={lines} />;
+    }
+    case "todo": {
+      const done = it.items.filter((t) => t.status === "completed").length;
+      const lines: Seg[][] = [
+        [{ t: "tasks", bold: true }, { t: `  ${done}/${it.items.length}  ×`, dim: true }],
+        ...it.items.map((t) => {
+          const mark =
+            t.status === "completed"
+              ? { t: "✓ ", c: "green" }
+              : t.status === "in_progress"
+                ? { t: "▶ ", c: "cyan" }
+                : { t: "○ ", dim: true };
+          const label = t.status === "in_progress" && t.activeForm ? t.activeForm : t.content;
+          return [mark, { t: label, dim: t.status !== "in_progress" }];
+        }),
       ];
       return <Card lines={lines} />;
     }

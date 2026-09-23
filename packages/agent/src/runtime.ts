@@ -9,8 +9,9 @@ import type {
   ToolUseBlock,
   Usage,
 } from "@dxxpcode/providers";
-import { findTool, parsePlan, toDefinition, toolsForPhase } from "@dxxpcode/tools";
+import { findTool, parsePlan, parseTodos, renderTodos, toDefinition, toolsForPhase } from "@dxxpcode/tools";
 import type { AgentTool, ProposedPlan, ToolContext, ToolResult } from "@dxxpcode/tools";
+import type { TodoItem } from "@dxxpcode/providers";
 import { newSessionId, saveSession } from "@dxxpcode/sessions";
 import type { RecordedToolCall, SessionRecord } from "@dxxpcode/sessions";
 import { execFileSync } from "node:child_process";
@@ -32,6 +33,7 @@ export type AgentEvent =
   | { type: "approval_request"; request: ApprovalRequest }
   | { type: "tool_start"; tool: string; input: JsonObject }
   | { type: "tool_end"; tool: string; result: ToolResult }
+  | { type: "todo"; items: TodoItem[] }
   | { type: "denied"; tool: string; reason: string }
   | { type: "usage"; usage: Usage }
   | { type: "compacted"; before: number; after: number; blocks: number }
@@ -214,6 +216,20 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
           yield { type: "denied", tool: call.name, reason: "unknown tool" };
           session.toolCalls.push(record(call, true, false));
           results.push({ type: "tool_result", toolUseId: call.id, content: `unknown tool: ${call.name}`, isError: true });
+          continue;
+        }
+        if (call.name === "todo_write") {
+          session.toolCalls.push(record(call, false, false));
+          try {
+            session.todos = parseTodos(call.input);
+            persist();
+            yield { type: "todo", items: session.todos };
+            results.push({ type: "tool_result", toolUseId: call.id, content: renderTodos(session.todos) });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            yield { type: "denied", tool: call.name, reason: msg };
+            results.push({ type: "tool_result", toolUseId: call.id, content: msg, isError: true });
+          }
           continue;
         }
         const decision = tool.permission(call.input, ctx);
