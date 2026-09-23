@@ -225,6 +225,7 @@ export const TOOL_DISPLAY: Record<string, string> = {
   git_diff: "Git",
   git_log: "Git",
   propose_plan: "Plan",
+  todo_write: "Checklist",
 };
 
 /** Per-tool glyphs (opencode-style inline tool rows). */
@@ -240,6 +241,7 @@ export const TOOL_ICONS: Record<string, string> = {
   git_diff: "⑂",
   git_log: "⑂",
   propose_plan: "◇",
+  todo_write: "☰",
 };
 
 /** Gerund for the live "working" line shown while a tool runs. */
@@ -255,6 +257,7 @@ export const TOOL_VERBS: Record<string, string> = {
   git_diff: "Reading git diff",
   git_log: "Reading git log",
   propose_plan: "Planning",
+  todo_write: "Updating checklist",
 };
 
 /** Short one-line label for a tool call's argument (path, command, or pattern). */

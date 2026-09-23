@@ -9,6 +9,8 @@ import {
   deleteFile,
   editFile,
   findTool,
+  parseTodos,
+  renderTodos,
   gitDiff,
   gitStatus,
   listDirectory,
@@ -114,4 +116,26 @@ test("findTool resolves registered tools", () => {
   const del = deleteFile.permission({ path: "src/x.ts" }, { root: "/p" });
   assert.equal(del.level, "approval");
   assert.equal(listDirectory.permission({ path: "." }, { root: "/p" }).level, "safe");
+});
+
+test("parseTodos normalizes the checklist", () => {
+  const items = parseTodos({
+    todos: [
+      { id: "a", content: "First", status: "completed" },
+      { content: "Second", status: "in_progress" },
+      { content: "Third", status: "bogus" },
+      { status: "pending" }, // no content — dropped
+    ],
+  });
+  assert.equal(items.length, 3);
+  assert.equal(items[0].status, "completed");
+  assert.equal(items[1].status, "in_progress");
+  assert.equal(items[2].status, "pending");
+  assert.equal(items[1].id, "item-2");
+  assert.equal(renderTodos(items), "[x] First\n[>] Second\n[ ] Third");
+});
+
+test("todo_write is an execute-phase tool", () => {
+  assert.ok(!toolsForPhase("plan").some((t) => t.name === "todo_write"));
+  assert.ok(toolsForPhase("execute").some((t) => t.name === "todo_write"));
 });

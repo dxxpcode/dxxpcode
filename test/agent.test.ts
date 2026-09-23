@@ -203,3 +203,58 @@ test("max iterations bounds the loop", async () => {
   });
   assert.equal(result.status, "max_iterations");
 });
+
+test("todo_write emits a live checklist and persists it on the session", async () => {
+  const { root, env } = setup();
+  const turns: MockTurn[] = [
+    { toolCalls: [{ name: "propose_plan", input: { summary: "s", steps: ["x"], trivial: true } }] },
+    {
+      toolCalls: [
+        {
+          name: "todo_write",
+          input: {
+            todos: [
+              { id: "1", content: "Read the file", status: "completed" },
+              { id: "2", content: "Apply the fix", status: "in_progress", activeForm: "Applying the fix" },
+              { id: "3", content: "Run tests", status: "pending" },
+            ],
+          },
+        },
+      ],
+    },
+    { text: "done" },
+  ];
+  const { result, events } = await collect({
+    task: "track a checklist",
+    provider: new MockProvider(turns),
+    model: "mock",
+    projectRoot: root,
+    env,
+  });
+  assert.equal(result.status, "completed");
+  const todo = events.find((e) => e.type === "todo");
+  assert.ok(todo && todo.type === "todo");
+  assert.equal(todo.items.length, 3);
+  assert.equal(todo.items[1].status, "in_progress");
+  // Persisted on the session so the checklist survives --resume.
+  const saved = latestSessionFor(root, env);
+  assert.equal(saved?.todos?.length, 3);
+});
+
+test("todo_write is execute-phase only (not a plan-phase tool)", async () => {
+  const { root, env } = setup();
+  const turns: MockTurn[] = [
+    { toolCalls: [{ name: "todo_write", input: { todos: [{ id: "1", content: "x", status: "pending" }] } }] },
+    { toolCalls: [{ name: "propose_plan", input: { summary: "s", steps: ["x"], trivial: true } }] },
+    { text: "done" },
+  ];
+  const { result, events } = await collect({
+    task: "try checklist during planning",
+    provider: new MockProvider(turns),
+    model: "mock",
+    projectRoot: root,
+    env,
+  });
+  assert.equal(result.status, "completed");
+  assert.ok(!events.some((e) => e.type === "todo"));
+});
