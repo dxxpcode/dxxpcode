@@ -4,12 +4,14 @@ import { join } from "node:path";
 
 export type ApprovalMode = "ask" | "auto";
 
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
 export interface DxxpConfig {
   provider?: string;
   model?: string;
   approvalMode?: ApprovalMode;
   /** Reasoning effort level for reasoning-capable models. */
-  effort?: "low" | "medium" | "high";
+  effort?: ReasoningEffort;
   maxIterations?: number;
   /** Saved by the in-CLI provider setup; env vars take precedence. */
   anthropicApiKey?: string;

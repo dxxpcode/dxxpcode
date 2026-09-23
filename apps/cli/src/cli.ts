@@ -27,7 +27,7 @@ Usage:
 Options:
   --provider <name>            anthropic | openai | mock
   --model <name>               Model override (DXXPCODE_MODEL)
-  --effort <level>             Reasoning effort: low | medium | high (DXXPCODE_EFFORT)
+  --effort <level>             Reasoning effort: minimal | low | medium | high | xhigh | max (DXXPCODE_EFFORT)
   --yes, -y                    Auto-approve actions needing confirmation
   --max-iterations <n>         Agent iteration cap (default 40)
 
@@ -41,7 +41,7 @@ Environment:
   OPENAI_BASE_URL              OpenAI-compatible endpoint (OpenRouter, local)
   DXXPCODE_PROVIDER            Force a provider
   DXXPCODE_MODEL               Force a model
-  DXXPCODE_EFFORT              Reasoning effort: low | medium | high
+  DXXPCODE_EFFORT              Reasoning effort: minimal | low | medium | high | xhigh | max
   DXXPCODE_MOCK_SCRIPT         Path to a JSON array of mock turns (offline dev/e2e)
 
 Mentions:
@@ -58,7 +58,7 @@ interface Args {
   yes: boolean;
   provider?: string;
   model?: string;
-  effort?: "low" | "medium" | "high";
+  effort?: import("@dxxpcode/sessions").DxxpConfig["effort"];
   maxIterations?: number;
 }
 
@@ -78,8 +78,8 @@ function parseArgs(argv: string[]): Args {
       case "--model": args.model = argv[++i]; break;
       case "--effort": {
         const e = argv[++i];
-        if (e === "low" || e === "medium" || e === "high") args.effort = e;
-        else { errLine("--effort must be low, medium, or high"); process.exit(2); }
+        if (e === "minimal" || e === "low" || e === "medium" || e === "high" || e === "xhigh" || e === "max") args.effort = e;
+        else { errLine("--effort must be minimal, low, medium, high, xhigh, or max"); process.exit(2); }
         break;
       }
       case "--max-iterations": {
@@ -92,8 +92,8 @@ function parseArgs(argv: string[]): Args {
         else if (a.startsWith("--model=")) args.model = a.slice(8);
         else if (a.startsWith("--effort=")) {
           const e = a.slice(9);
-          if (e === "low" || e === "medium" || e === "high") args.effort = e;
-          else { errLine("--effort must be low, medium, or high"); process.exit(2); }
+          if (e === "minimal" || e === "low" || e === "medium" || e === "high" || e === "xhigh" || e === "max") args.effort = e;
+          else { errLine("--effort must be minimal, low, medium, high, xhigh, or max"); process.exit(2); }
         }
         else if (a.startsWith("--")) { errLine(`unknown option: ${a}`); process.exit(2); }
         else positional.push(a);
@@ -209,7 +209,7 @@ async function main(): Promise<number> {
 
   const envEffort = process.env.DXXPCODE_EFFORT;
   const effort = args.effort
-    ?? (envEffort === "low" || envEffort === "medium" || envEffort === "high" ? envEffort : config.effort);
+    ?? (["minimal","low","medium","high","xhigh","max"].includes(envEffort ?? "") ? envEffort as Args["effort"] : config.effort);
   const autoApprove = args.yes || config.approvalMode === "auto";
   // Mode shown in the status bar: plan | always-approve | ask.
   const mode = args.plan ? "plan" : autoApprove ? "always-approve" : "ask";

@@ -37,7 +37,7 @@ type Pending =
   | { kind: "input" }
   | { kind: "plan"; resolve: (ok: boolean) => void }
   | { kind: "tool"; req: ApprovalRequest; key: string; resolve: (v: "y" | "a" | "n") => void }
-  | { kind: "config"; title: string; options: string[]; resolve: (i: number | null) => void }
+  | { kind: "config"; title: string; options: string[]; descs?: string[]; resolve: (i: number | null) => void }
   | { kind: "prompt"; title: string; resolve: (v: string | null) => void };
 
 export interface AppProps {
@@ -464,13 +464,22 @@ export function App(props: AppProps) {
       });
     };
     const openEffortMenu = () => {
-      const opts = ["default", "low", "medium", "high"];
+      const opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
       const cur = effortRef.current ?? "default";
       setMenuSel(opts.indexOf(cur));
       setPending({
         kind: "config",
         title: "Reasoning effort — applies to the next task (ignored on models without support)",
         options: opts,
+        descs: [
+          "provider default",
+          "fastest — quick lookups, simple formatting",
+          "modest reasoning — drafting, straightforward tasks",
+          "balanced — agentic coding, research, most workloads",
+          "hard reasoning — complex debugging, deep planning",
+          "larger budget for the hardest multi-step problems",
+          "unconstrained budget — high-stakes, hardest tasks",
+        ],
         resolve: (i) => {
           if (i === null) return;
           const next = opts[i];
@@ -717,6 +726,7 @@ export function App(props: AppProps) {
         <Menu
           title={pending.title}
           options={pending.options}
+          descriptions={pending.descs}
           sel={menuSel}
         />
       )}

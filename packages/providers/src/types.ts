@@ -44,7 +44,7 @@ export type ProviderEvent =
   | { type: "done"; stopReason: string; usage?: Usage };
 
 /** Reasoning effort; mapped per-provider (Anthropic thinking budget, OpenAI reasoning_effort). */
-export type ReasoningEffort = "low" | "medium" | "high";
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface ChatRequest {
   system: string;
