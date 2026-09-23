@@ -16,9 +16,9 @@ function CopyButton({ text, className }: { text: string; className?: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
       aria-label="Copy"
-      className={cn("text-white/40 transition-colors hover:text-white/80", className)}
+      className={cn("text-muted-foreground transition-colors hover:text-foreground", className)}
     >
-      {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
     </button>
   );
 }
@@ -27,11 +27,14 @@ function CodeChip({ code, className }: { code: string; className?: string }) {
   return (
     <div
       className={cn(
-        "group flex items-center gap-3 rounded-xl bg-[#1d1d1f] px-4 py-3 font-mono text-[13px] leading-6 text-white/90",
+        "flex items-center gap-4 rounded-full border border-border py-2.5 pl-5 pr-4 font-mono text-[13px] leading-6 text-foreground",
         className,
       )}
     >
-      <code className="flex-1 overflow-x-auto whitespace-pre">{code}</code>
+      <code className="flex-1 overflow-x-auto whitespace-pre">
+        <span className="select-none text-muted-foreground">$ </span>
+        {code}
+      </code>
       <CopyButton text={code} />
     </div>
   );
@@ -80,31 +83,33 @@ function TerminalShot() {
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-[#1d1d1f] font-mono text-[13px] leading-6 text-white/55 shadow-[0_40px_80px_-32px_rgb(0_0_0/0.45)] ring-1 ring-black/10">
-      <div className="flex items-center gap-2 px-5 py-3.5">
-        <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-        <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
-        <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-        <span className="ml-3 text-xs text-white/40">dxxpcode</span>
+    <div className="overflow-hidden rounded-xl bg-[#0a0a0a] font-mono text-[13px] leading-6 text-white/50 shadow-[0_32px_64px_-24px_rgb(0_0_0/0.35)] ring-1 ring-black/5 dark:shadow-none dark:ring-white/[0.09]">
+      <div className="relative flex items-center px-4 py-3">
+        <span className="flex gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+        </span>
+        <span className="absolute inset-x-0 text-center text-xs text-white/35">dxxpcode</span>
       </div>
-      <div className="space-y-1.5 border-t border-white/10 px-5 pb-6 pt-4">
+      <div className="min-h-[300px] space-y-1.5 border-t border-white/[0.08] px-5 pb-6 pt-4">
         <div>
-          <span className="text-[#7ee787]">❯</span>{" "}
+          <span className="text-white/35">❯</span>{" "}
           <span className="text-white/90">{TASK.slice(0, typed)}</span>
           {typed < TASK.length && <span className="animate-blink text-white/70">▌</span>}
         </div>
         <Reveal stage={1} show={Math.max(stage, typed >= TASK.length ? 1 : 0)}>
-          <div className="text-[#b083f0]">◆ Thought for 1.4s</div>
+          <div className="text-white/35">◆ Thought for 1.4s</div>
         </Reveal>
         <Reveal stage={2} show={stage} className="py-1.5">
-          <div className="inline-block rounded-lg bg-white/[0.06] px-3.5 py-2">
+          <div className="inline-block rounded-md bg-white/[0.05] px-3.5 py-2">
             <div className="font-medium text-white/90">plan ×</div>
             <div>1. Read src/math.ts</div>
             <div>2. Add a docstring</div>
           </div>
         </Reveal>
         <Reveal stage={3} show={stage}>
-          <span className="text-[#7ee787]">⏺</span>{" "}
+          <span className="text-white/90">⏺</span>{" "}
           <span className="font-medium text-white/90">Edit</span>
           <span className="text-white/40">(src/math.ts)</span>
         </Reveal>
@@ -112,11 +117,11 @@ function TerminalShot() {
           <div className="pl-5">⎿ edited src/math.ts (1 replacement)</div>
         </Reveal>
         <Reveal stage={5} show={stage} className="py-1.5">
-          <div className="inline-block rounded-lg bg-white/[0.06] px-3.5 py-2">
+          <div className="inline-block rounded-md bg-white/[0.05] px-3.5 py-2">
             <div className="font-medium text-white/90">src/math.ts ×</div>
             <div>
               <span className="text-white/30">1 </span>
-              <span className="bg-emerald-400/15 px-1 text-emerald-300">+/** Adds two numbers. */</span>
+              <span className="bg-emerald-400/10 px-1 text-emerald-300/90">+/** Adds two numbers. */</span>
             </div>
             <div>
               <span className="text-white/30">2 </span>
@@ -125,16 +130,13 @@ function TerminalShot() {
           </div>
         </Reveal>
         <Reveal stage={6} show={stage}>
-          <span className="text-emerald-400">✓</span>{" "}
+          <span className="text-emerald-400/90">✓</span>{" "}
           <span className="font-medium text-white/90">Completed</span> · 4.2s · 44.4k tokens
         </Reveal>
       </div>
     </div>
   );
 }
-
-
-
 export default function App() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
 
@@ -150,44 +152,45 @@ export default function App() {
     <div className="min-h-screen bg-background">
       <Nav dark={dark} onToggleTheme={() => setDark((d) => !d)} />
 
-      <header className="mx-auto max-w-3xl px-6 pb-16 pt-16 text-center md:pt-24">
-        <h1 className="text-5xl font-semibold leading-[1.05] tracking-[-0.02em] md:text-6xl">
+      <header className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center md:pb-20 md:pt-32">
+        <p className="text-[13px] text-muted-foreground">
+          Free during early access · bring your own API key
+        </p>
+        <h1 className="mt-5 text-balance text-[44px] font-semibold leading-[1.04] tracking-[-0.035em] md:text-[64px]">
           The AI coding agent that lives in your terminal.
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-xl leading-7 text-muted-foreground">
+        <p className="mx-auto mt-6 max-w-lg text-pretty text-[17px] leading-7 text-muted-foreground">
           Describe a task. DxxpCode plans it, asks permission, edits code, runs your tests, and shows
           you the diff.
         </p>
-        <div className="mt-8 flex items-center justify-center gap-6">
-          <Button
-            size="lg"
-            onClick={() => window.open(GITHUB_URL, "_blank")}
-          >
+        <div className="mt-10 flex items-center justify-center gap-3">
+          <Button className="h-10 px-5" onClick={() => window.open(GITHUB_URL, "_blank")}>
             Get started
           </Button>
           <a
             href={GITHUB_URL}
             target="_blank"
             rel="noreferrer"
-            className="text-[17px] font-medium text-primary hover:underline"
+            className="inline-flex h-10 items-center rounded-full border border-border px-5 text-[15px] font-medium text-foreground transition-colors hover:bg-secondary"
           >
-            View on GitHub&nbsp;&rsaquo;
+            View on GitHub
           </a>
         </div>
-        <p className="mt-6 text-[15px] text-muted-foreground">
-          Free during early access · bring your own API key
-        </p>
       </header>
 
-      <section className="mx-auto max-w-3xl px-6 pb-8">
+      <section className="mx-auto max-w-3xl px-6">
         <TerminalShot />
-        <div className="mt-10 flex justify-center pb-16">
+      </section>
+
+      <section className="mx-auto max-w-3xl px-6 py-28 text-center md:py-36">
+        <h2 className="text-[28px] font-semibold tracking-[-0.025em]">Install in one line.</h2>
+        <div className="mt-8 flex justify-center">
           <CodeChip code="npm install -g dxxpcode" />
         </div>
       </section>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-8 text-sm text-muted-foreground">
+        <div className="mx-auto flex max-w-5xl items-center flex-wrap justify-between gap-x-6 gap-y-2 px-6 py-8 text-[13px] text-muted-foreground">
           <span>© 2026 DxxpCode</span>
           <span className="hidden md:inline">
             Free during market validation — paid plans (hosted inference, team features) come later.
