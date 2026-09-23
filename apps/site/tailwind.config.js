@@ -15,7 +15,7 @@ export default {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
       },
-      fontFamily: { mono: ["'IBM Plex Mono'", "ui-monospace", "monospace"] },
+      fontFamily: { mono: ["'Geist Mono'", "ui-monospace", "'SF Mono'", "Menlo", "monospace"] },
       borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" },
       keyframes: { blink: { "50%": { opacity: "0" } } },
       animation: { blink: "blink 1s step-end infinite" },
