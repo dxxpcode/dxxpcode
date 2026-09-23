@@ -137,6 +137,12 @@ function TerminalShot() {
     </div>
   );
 }
+const PRINCIPLES = [
+  ["Plans before it acts.", "Every meaningful change starts as a numbered plan you can read, edit, or reject."],
+  ["Asks before it writes.", "Edits and shell commands wait for your approval. Nothing destructive runs silently."],
+  ["Stays on your machine.", "Bring your own key. Your repository never leaves your laptop except for model calls."],
+] as const;
+
 export default function App() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
 
@@ -149,53 +155,96 @@ export default function App() {
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-clip bg-background">
       <Nav dark={dark} onToggleTheme={() => setDark((d) => !d)} />
 
-      <header className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center md:pb-20 md:pt-32">
-        <p className="text-[13px] text-muted-foreground">
-          Free during early access · bring your own API key
-        </p>
-        <h1 className="mt-5 text-balance text-[44px] font-semibold leading-[1.04] tracking-[-0.035em] md:text-[64px]">
-          The AI coding agent that lives in your terminal.
-        </h1>
-        <p className="mx-auto mt-6 max-w-lg text-pretty text-[17px] leading-7 text-muted-foreground">
-          Describe a task. DxxpCode plans it, asks permission, edits code, runs your tests, and shows
-          you the diff.
-        </p>
-        <div className="mt-10 flex items-center justify-center gap-3">
-          <Button className="h-10 px-5" onClick={() => window.open(GITHUB_URL, "_blank")}>
-            Get started
+      <header className="relative">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[640px] bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_55%_at_50%_0%,black,transparent)]"
+        />
+        <div className="relative mx-auto max-w-4xl px-6 pb-16 pt-20 text-center md:pb-20 md:pt-32">
+          <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-[13px] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+            Free during early access · bring your own API key
+          </p>
+          <h1 className="mt-7 text-balance text-[44px] font-semibold leading-[1.02] tracking-[-0.04em] md:text-[72px]">
+            The AI coding agent
+            <span className="block text-muted-foreground">that lives in your terminal.</span>
+          </h1>
+          <p className="mx-auto mt-7 max-w-lg text-pretty text-[17px] leading-7 text-muted-foreground">
+            Describe a task. DxxpCode plans it, asks permission, edits code, runs your tests, and shows
+            you the diff.
+          </p>
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button className="h-11 px-6" onClick={() => (window.location.href = "/docs")}>
+              Get started
+            </Button>
+            <CodeChip code="npm install -g dxxpcode" className="h-11 bg-background" />
+          </div>
+        </div>
+      </header>
+
+      <section className="relative mx-auto max-w-4xl px-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-16 -top-8 bottom-8 -z-0 rounded-[48px] bg-foreground/[0.04] blur-3xl dark:bg-white/[0.07]"
+        />
+        <div className="relative">
+          <TerminalShot />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-6 pt-32 md:pt-40">
+        <div className="grid border-y border-border md:grid-cols-3">
+          {PRINCIPLES.map(([title, body], i) => (
+            <div
+              key={title}
+              className={cn(
+                "py-10 md:px-8 md:py-12",
+                i > 0 && "border-t border-border md:border-l md:border-t-0",
+                i === 0 && "md:pl-0",
+                i === PRINCIPLES.length - 1 && "md:pr-0",
+              )}
+            >
+              <div className="font-mono text-xs text-muted-foreground">0{i + 1}</div>
+              <h3 className="mt-6 text-[17px] font-medium tracking-[-0.01em]">{title}</h3>
+              <p className="mt-2 text-[15px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-6 py-32 text-center md:py-40">
+        <h2 className="text-balance text-[36px] font-semibold leading-[1.05] tracking-[-0.035em] md:text-[48px]">
+          Ship from the prompt.
+        </h2>
+        <p className="mt-4 text-[17px] text-muted-foreground">Works in minutes. No config required.</p>
+        <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Button className="h-11 px-6" onClick={() => (window.location.href = "/docs")}>
+            Read the docs
           </Button>
           <a
             href={GITHUB_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 items-center rounded-full border border-border px-5 text-[15px] font-medium text-foreground transition-colors hover:bg-secondary"
+            className="inline-flex h-11 items-center rounded-full border border-border px-6 text-[15px] font-medium text-foreground transition-colors hover:bg-secondary"
           >
             View on GitHub
           </a>
         </div>
-      </header>
-
-      <section className="mx-auto max-w-3xl px-6">
-        <TerminalShot />
-      </section>
-
-      <section className="mx-auto max-w-3xl px-6 py-28 text-center md:py-36">
-        <h2 className="text-[28px] font-semibold tracking-[-0.025em]">Install in one line.</h2>
-        <div className="mt-8 flex justify-center">
-          <CodeChip code="npm install -g dxxpcode" />
-        </div>
       </section>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-5xl items-center flex-wrap justify-between gap-x-6 gap-y-2 px-6 py-8 text-[13px] text-muted-foreground">
-          <span>© 2026 DxxpCode</span>
-          <span className="hidden md:inline">
-            Free during market validation — paid plans (hosted inference, team features) come later.
-          </span>
-          <span>Terminal-native. Bring your own key.</span>
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-8 text-[13px] text-muted-foreground">
+          <span>© 2026 DxxpCode · Terminal-native. Bring your own key.</span>
+          <div className="flex gap-6">
+            <a href="/docs" className="transition-colors hover:text-foreground">Docs</a>
+            <a href="/changelog" className="transition-colors hover:text-foreground">Changelog</a>
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="transition-colors hover:text-foreground">
+              GitHub
+            </a>
+          </div>
         </div>
       </footer>
     </div>
