@@ -131,6 +131,9 @@ function undo(root: string): number {
   line(green(`restored checkpoint ${out.seq}`));
   for (const f of out.restored) line(`  ${green("+")} ${f}`);
   for (const f of out.removed) line(`  ${red("−")} ${f}`);
+  if (out.headMoved) {
+    line(dim(`  note: HEAD moved (${out.headMoved.from.slice(0, 7)} → ${out.headMoved.to.slice(0, 7)}) since this checkpoint`));
+  }
   return 0;
 }
 

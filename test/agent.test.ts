@@ -295,3 +295,16 @@ test("file mutations are checkpointed and undoable", async () => {
   assert.match(readFileSync(join(root, "src/math.js"), "utf8"), /return a - b/);
   assert.equal(undoCheckpoint(root, saved!.id, env), null);
 });
+
+test("checkpoints record HEAD; undo reports when HEAD moved", async () => {
+  const { root, env } = setup();
+  const { takeCheckpoint, undoCheckpoint } = await import("@dxxpcode/agent");
+  const cp = takeCheckpoint(root, ["src/math.js"], "s-git", env);
+  assert.ok(cp?.headSha);
+  execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "move", "--allow-empty"], {
+    cwd: root,
+  });
+  const res = undoCheckpoint(root, "s-git", env);
+  assert.ok(res?.headMoved);
+  assert.equal(res!.headMoved!.from, cp!.headSha);
+});
