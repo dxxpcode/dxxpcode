@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Github, Moon, Sun, Terminal } from "lucide-react";
+import { Check, Copy, Github, Moon, Sun } from "lucide-react";
 import { GITHUB_URL } from "./components/Nav";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
@@ -16,10 +16,16 @@ function InstallButton() {
         setTimeout(() => setCopied(false), 1500);
       }}
       aria-label={`Copy "${INSTALL}"`}
-      className="inline-flex h-10 items-center gap-2.5 rounded-full bg-foreground px-5 text-background transition-opacity hover:opacity-90"
+      className="group inline-flex h-10 items-center rounded-full border border-border font-mono text-[13px] transition-colors hover:bg-secondary"
     >
-      {copied ? <Check className="h-4 w-4" /> : <Terminal className="h-4 w-4" />}
-      <span className="font-mono text-[13px]">{INSTALL}</span>
+      <span className="pl-5 pr-4">
+        <span className="select-none text-muted-foreground">$ </span>
+        <span className="text-foreground/80">{INSTALL}</span>
+      </span>
+      <span className="h-5 w-px bg-border" />
+      <span className="flex h-full items-center pl-3.5 pr-4 text-muted-foreground transition-colors group-hover:text-foreground">
+        {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4" />}
+      </span>
     </button>
   );
 }
