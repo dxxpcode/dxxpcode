@@ -5,45 +5,45 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 3% 11%;
+    --foreground: 0 0% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 240 3% 11%;
-    --primary: 213 100% 44%;
+    --card-foreground: 0 0% 4%;
+    --primary: 0 0% 4%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 240 3% 25%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 5% 44%;
-    --accent: 213 100% 44%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 4%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 9% 90%;
+    --border: 0 0% 91%;
     --radius: 0.75rem;
   }
   .dark {
-    --background: 240 4% 6%;
-    --foreground: 0 0% 96%;
-    --card: 240 4% 9%;
-    --card-foreground: 0 0% 96%;
-    --primary: 213 100% 56%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 14%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 9%;
     --secondary-foreground: 0 0% 92%;
-    --muted: 240 4% 14%;
-    --muted-foreground: 230 6% 60%;
-    --accent: 213 100% 56%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 56%;
+    --accent: 0 0% 98%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 18%;
+    --border: 0 0% 13%;
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue",
+    font-family: "Geist", -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue",
       "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  ::selection { background: hsl(var(--primary) / 0.18); }
+  ::selection { background: hsl(var(--foreground) / 0.14); }
 }
