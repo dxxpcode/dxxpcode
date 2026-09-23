@@ -258,3 +258,40 @@ test("todo_write is execute-phase only (not a plan-phase tool)", async () => {
   assert.equal(result.status, "completed");
   assert.ok(!events.some((e) => e.type === "todo"));
 });
+
+test("file mutations are checkpointed and undoable", async () => {
+  const { root, env } = setup();
+  const { undoCheckpoint, checkpointCount } = await import("@dxxpcode/agent");
+  const turns: MockTurn[] = [
+    { toolCalls: [{ name: "propose_plan", input: { summary: "s", steps: ["x"], trivial: true } }] },
+    {
+      toolCalls: [
+        { name: "edit_file", input: { path: "src/math.js", old_string: "return a - b", new_string: "return a + b" } },
+        { name: "write_file", input: { path: "new.js", content: "// new\n" } },
+      ],
+    },
+    { text: "done" },
+  ];
+  const { result, events } = await collect({
+    task: "make changes",
+    provider: new MockProvider(turns),
+    model: "mock",
+    projectRoot: root,
+    env,
+  });
+  assert.equal(result.status, "completed");
+  assert.equal(events.filter((e) => e.type === "checkpoint").length, 2);
+
+  const saved = latestSessionFor(root, env);
+  assert.equal(checkpointCount(saved!.id, env), 2);
+
+  // Undo newest-first: new.js disappears, then math.js reverts.
+  const u1 = undoCheckpoint(root, saved!.id, env);
+  assert.ok(u1);
+  assert.deepEqual(u1.removed, ["new.js"]);
+  const u2 = undoCheckpoint(root, saved!.id, env);
+  assert.ok(u2);
+  assert.deepEqual(u2.restored, ["src/math.js"]);
+  assert.match(readFileSync(join(root, "src/math.js"), "utf8"), /return a - b/);
+  assert.equal(undoCheckpoint(root, saved!.id, env), null);
+});

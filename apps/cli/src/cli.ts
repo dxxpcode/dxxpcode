@@ -8,8 +8,9 @@ import type { SessionRecord } from "@dxxpcode/sessions";
 import { renderBanner, renderTips } from "./banner.ts"; // kept for non-interactive/tests
 import { expandMentions } from "./mentions.ts";
 import { createPrompter } from "./prompt.ts";
+import { undoCheckpoint } from "@dxxpcode/agent";
 import { runAndRender } from "./run.ts";
-import { bold, cyan, dim, errLine, line, pill, red, renderDiff, rule } from "./render.ts";
+import { bold, cyan, dim, errLine, green, line, pill, red, renderDiff, rule } from "./render.ts";
 
 const VERSION = "0.1.0";
 
@@ -20,6 +21,7 @@ Usage:
   dxxpcode "<task>"            Run a task directly
   dxxpcode --plan "<task>"     Plan only — no changes
   dxxpcode --review            Show working-tree diff
+  dxxpcode --undo              Restore files from the last checkpoint
   dxxpcode --resume            Resume the previous session here
   dxxpcode --version           Print version
   dxxpcode --help              This help
@@ -52,6 +54,7 @@ interface Args {
   task?: string;
   plan: boolean;
   review: boolean;
+  undo: boolean;
   resume: boolean;
   version: boolean;
   help: boolean;
@@ -63,13 +66,14 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { plan: false, review: false, resume: false, version: false, help: false, yes: false };
+  const args: Args = { plan: false, review: false, undo: false, resume: false, version: false, help: false, yes: false };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     switch (a) {
       case "--plan": args.plan = true; break;
       case "--review": args.review = true; break;
+      case "--undo": args.undo = true; break;
       case "--resume": args.resume = true; break;
       case "--version": case "-v": args.version = true; break;
       case "--help": case "-h": args.help = true; break;
@@ -117,6 +121,19 @@ function review(root: string): number {
   return 0;
 }
 
+function undo(root: string): number {
+  const sess = latestSessionFor(root);
+  const out = sess ? undoCheckpoint(root, sess.id, process.env) : null;
+  if (!out) {
+    line(dim("Nothing to undo."));
+    return 0;
+  }
+  line(green(`restored checkpoint ${out.seq}`));
+  for (const f of out.restored) line(`  ${green("+")} ${f}`);
+  for (const f of out.removed) line(`  ${red("−")} ${f}`);
+  return 0;
+}
+
 function readStdin(): Promise<string> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
@@ -149,6 +166,7 @@ async function main(): Promise<number> {
   const project = detectProject(root);
 
   if (args.review) return review(root);
+  if (args.undo) return undo(root);
 
   const interactive = process.stdin.isTTY === true;
 
