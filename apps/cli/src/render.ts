@@ -227,6 +227,36 @@ export const TOOL_DISPLAY: Record<string, string> = {
   propose_plan: "Plan",
 };
 
+/** Per-tool glyphs (opencode-style inline tool rows). */
+export const TOOL_ICONS: Record<string, string> = {
+  read_file: "→",
+  write_file: "←",
+  edit_file: "←",
+  delete_file: "✗",
+  list_directory: "≡",
+  search_files: "✱",
+  run_command: "$",
+  git_status: "⑂",
+  git_diff: "⑂",
+  git_log: "⑂",
+  propose_plan: "◇",
+};
+
+/** Gerund for the live "working" line shown while a tool runs. */
+export const TOOL_VERBS: Record<string, string> = {
+  read_file: "Reading",
+  write_file: "Writing",
+  edit_file: "Editing",
+  delete_file: "Deleting",
+  list_directory: "Listing",
+  search_files: "Searching",
+  run_command: "Running",
+  git_status: "Checking git status",
+  git_diff: "Reading git diff",
+  git_log: "Reading git log",
+  propose_plan: "Planning",
+};
+
 /** Short one-line label for a tool call's argument (path, command, or pattern). */
 export function toolArg(input: Record<string, unknown>): string {
   const cand = input["path"] ?? input["command"] ?? input["pattern"] ?? input["summary"];
