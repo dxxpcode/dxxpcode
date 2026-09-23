@@ -5,7 +5,7 @@ import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
 import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
 import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
-import type { ProjectInfo } from "@dxxpcode/project";
+import { detectGit, type ProjectInfo } from "@dxxpcode/project";
 import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
 import { diffTarget, TOOL_DISPLAY, toolArg } from "../render.ts";
@@ -533,6 +533,7 @@ export function App(props: AppProps) {
       if (task === "/status") {
         const p = props.project;
         const cur = provRef.current;
+        const git = detectGit(props.root) ?? p.git;
         const effMode = modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
         push({
           kind: "status",
@@ -542,7 +543,7 @@ export function App(props: AppProps) {
             ["effort", effortRef.current ?? "default"],
             ["version", `v${props.version}`],
             ["project", `${p.name} — ${p.root}`],
-            ["git", p.git ? `${p.git.branch}${p.git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
+            ["git", git ? `${git.branch}${git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
             ["session", sessionRef.current?.id ?? "—"],
             ["usage", `${fmtTokens(tok)} tok this turn`],
             ["config", join(homeDir(), "config.json")],
@@ -961,6 +962,11 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
             </Text>
           </Text>
           <Text dimColor>{props.root}</Text>
+          {props.session ? (
+            <Text dimColor>
+              resumed session {props.session.id} ({props.session.messages.length} messages)
+            </Text>
+          ) : null}
           <Text> </Text>
           <Text bold dimColor>
             Tips for getting started
