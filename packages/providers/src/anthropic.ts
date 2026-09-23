@@ -6,7 +6,7 @@ const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 
 /** thinking.budget_tokens per effort level; the API requires max_tokens > budget. */
-const EFFORT_BUDGET = { low: 2048, medium: 8192, high: 32768 } as const;
+const EFFORT_BUDGET = { minimal: 1024, low: 4096, medium: 16384, high: 32768, xhigh: 49152, max: 61440 } as const;
 
 export class AnthropicProvider implements ModelProvider {
   readonly name = "anthropic";
@@ -39,7 +39,7 @@ export class AnthropicProvider implements ModelProvider {
         model: req.model,
         max_tokens: Math.max(
           req.maxTokens ?? 8192,
-          req.effort ? EFFORT_BUDGET[req.effort] + 4096 : 0,
+          req.effort ? EFFORT_BUDGET[req.effort] + 2048 : 0,
         ),
         system: req.system,
         messages: req.messages.map(toApiMessage),
