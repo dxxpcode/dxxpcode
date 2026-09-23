@@ -107,8 +107,7 @@ export default function Docs() {
 
         <main className="min-w-0 flex-1">
           <div className="pt-10">
-            <h1 className="text-4xl font-semibold tracking-tight">DxxpCode docs</h1>
-            <p className="mt-3 text-[17px] leading-7 text-muted-foreground">
+            <p className="text-[17px] leading-7 text-muted-foreground">
               The AI coding agent that lives in your terminal — install, connect a provider, and ship.
             </p>
           </div>
