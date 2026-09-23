@@ -27,7 +27,12 @@ function shortHome(p: string): string {
 }
 
 /** Sharp geometric XX mark — terminal-safe glyphs, no bitmap downscaling. */
-export const XX_MARK = ["◣ ◢◤ ◣ ◢", " ◤  ◣  ◤ ", "◤ ◥◣ ◤ ◥"];
+export const XX_MARK = [
+  "██◣  ◢██  ██◣  ◢██",
+  "  ◥██◤      ◥██◤  ",
+  "  ◢██◣      ◢██◣  ",
+  "██◤  ◥██  ██◤  ◥██",
+];
 
 /** Startup banner lines: logo + name/version/model + project context. */
 export function renderBanner(info: BannerInfo): string[] {
@@ -42,7 +47,12 @@ export function renderBanner(info: BannerInfo): string[] {
       ? [dim(`resumed ${info.resumedSession.id} (${info.resumedSession.messages.length} messages)`)]
       : []),
   ];
-  const head = [bold(cyan("DxxpCode")), dim(`v${info.version} · ${info.provider} · ${info.model}`), ""];
+  const head = [
+    bold(cyan("DxxpCode")),
+    dim(`v${info.version} · ${info.provider} · ${info.model}`),
+    "",
+    "",
+  ];
   const marked = head.map((line, i) => (i < XX_MARK.length ? `${cyan(XX_MARK[i])}  ${line}` : line));
   return [...marked, ...meta];
 }
