@@ -120,6 +120,7 @@ const COMMANDS = [
   { name: "/model", desc: "current provider and model" },
   { name: "/status", desc: "session, config, and usage info" },
   { name: "/config", desc: "change settings (approval mode)" },
+  { name: "/effort", desc: "reasoning effort for the next task" },
   { name: "/provider", desc: "connect or switch the model provider" },
   { name: "/clear", desc: "clear the transcript" },
   { name: "/help", desc: "list available commands" },
@@ -455,6 +456,33 @@ export function App(props: AppProps) {
     }
   }, [push]);
 
+  const openEffortMenu = useCallback(() => {
+    const opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
+    const cur = effortRef.current ?? "default";
+    setMenuSel(opts.indexOf(cur));
+    setPending({
+      kind: "config",
+      title: "Reasoning effort — applies to the next task (ignored on models without support)",
+      options: opts,
+      descs: [
+        "provider default",
+        "fastest — quick lookups, simple formatting",
+        "modest reasoning — drafting, straightforward tasks",
+        "balanced — agentic coding, research, most workloads",
+        "hard reasoning — complex debugging, deep planning",
+        "larger budget for the hardest multi-step problems",
+        "unconstrained budget — high-stakes, hardest tasks",
+      ],
+      resolve: (i) => {
+        if (i === null) return;
+        const next = opts[i];
+        effortRef.current = next === "default" ? undefined : (next as ReasoningEffort);
+        saveConfig({ ...loadConfig(), effort: effortRef.current });
+        push({ kind: "note", text: `reasoning effort: ${next} (saved)` });
+      },
+    });
+  }, [push]);
+
   const openConfigMenu = useCallback(() => {
     const openApprovalMenu = () => {
       const opts = ["ask", "always-approve"];
@@ -473,32 +501,6 @@ export function App(props: AppProps) {
         },
       });
     };
-    const openEffortMenu = () => {
-      const opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
-      const cur = effortRef.current ?? "default";
-      setMenuSel(opts.indexOf(cur));
-      setPending({
-        kind: "config",
-        title: "Reasoning effort — applies to the next task (ignored on models without support)",
-        options: opts,
-        descs: [
-          "provider default",
-          "fastest — quick lookups, simple formatting",
-          "modest reasoning — drafting, straightforward tasks",
-          "balanced — agentic coding, research, most workloads",
-          "hard reasoning — complex debugging, deep planning",
-          "larger budget for the hardest multi-step problems",
-          "unconstrained budget — high-stakes, hardest tasks",
-        ],
-        resolve: (i) => {
-          if (i === null) return;
-          const next = opts[i];
-          effortRef.current = next === "default" ? undefined : (next as ReasoningEffort);
-          saveConfig({ ...loadConfig(), effort: effortRef.current });
-          push({ kind: "note", text: `reasoning effort: ${next} (saved)` });
-        },
-      });
-    };
     const entries = ["Approval mode", "Model", "Reasoning effort"];
     setMenuSel(0);
     setPending({
@@ -511,7 +513,7 @@ export function App(props: AppProps) {
         else if (i === 2) openEffortMenu();
       },
     });
-  }, [push, openModelMenu]);
+  }, [push, openModelMenu, openEffortMenu]);
 
   const submit = useCallback(
     (raw: string) => {
@@ -564,6 +566,10 @@ export function App(props: AppProps) {
         openConfigMenu();
         return;
       }
+      if (task === "/effort") {
+        openEffortMenu();
+        return;
+      }
       if (task === "/provider") {
         setSetup(true);
         return;
@@ -590,7 +596,7 @@ export function App(props: AppProps) {
       }
       void runOnce(task);
     },
-    [finish, push, runOnce, props],
+    [finish, push, runOnce, props, openModelMenu, openConfigMenu, openEffortMenu],
   );
 
   // One-shot task: run once on mount, exit with the result code.
