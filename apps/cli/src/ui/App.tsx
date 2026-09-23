@@ -927,7 +927,7 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
           <Box flexDirection="row">
             <Box flexDirection="column" marginRight={2}>
               {XX_MARK.map((r, i) => (
-                <Text key={i} color="cyan">
+                <Text key={i} bold>
                   {r}
                 </Text>
               ))}
