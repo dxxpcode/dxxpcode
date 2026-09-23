@@ -10,7 +10,7 @@ export class OpenAIProvider implements ModelProvider {
 
   constructor(apiKey: string, baseUrl = "https://api.openai.com/v1") {
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
   }
 
   async listModels(signal?: AbortSignal): Promise<string[]> {
@@ -51,7 +51,10 @@ export class OpenAIProvider implements ModelProvider {
     });
     if (!res.ok || !res.body) {
       const detail = await res.text().catch(() => "");
-      throw new ProviderError(`OpenAI API error ${res.status}: ${detail.slice(0, 400)}`, res.status);
+      throw new ProviderError(
+        `OpenAI API error ${res.status}${res.statusText ? ` ${res.statusText}` : ""}${detail ? `: ${detail.slice(0, 400)}` : ""}`,
+        res.status,
+      );
     }
 
     let usage: Usage | undefined;
