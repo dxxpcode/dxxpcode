@@ -40,7 +40,16 @@ type Pending =
   | { kind: "input" }
   | { kind: "plan"; resolve: (ok: boolean) => void }
   | { kind: "tool"; req: ApprovalRequest; key: string; resolve: (v: "y" | "a" | "n") => void }
-  | { kind: "config"; title: string; options: string[]; descs?: string[]; resolve: (i: number | null) => void }
+  | {
+      kind: "config";
+      title: string;
+      options: string[];
+      descs?: string[];
+      resolve: (i: number | null) => void;
+      /** When set, renders a tab bar; `tab` is the active pane (0 = the menu). */
+      tabs?: string[];
+      tab?: number;
+    }
   | { kind: "prompt"; title: string; resolve: (v: string | null) => void };
 
 export interface AppProps {
@@ -121,6 +130,7 @@ const COMMANDS = [
   { name: "/model", desc: "current provider and model" },
   { name: "/status", desc: "session, config, and usage info" },
   { name: "/config", desc: "change settings (approval mode)" },
+  { name: "/settings", desc: "settings and session surface" },
   { name: "/effort", desc: "reasoning effort for the next task" },
   { name: "/provider", desc: "connect or switch the model provider" },
   { name: "/undo", desc: "restore files from the last checkpoint" },
@@ -528,7 +538,7 @@ export function App(props: AppProps) {
     });
   }, [push]);
 
-  const openConfigMenu = useCallback(() => {
+  const openConfigMenu = useCallback((tab = 0) => {
     const openApprovalMenu = () => {
       const opts = ["ask", "always-approve"];
       setMenuSel(autoRef.current ? 1 : 0);
@@ -552,6 +562,8 @@ export function App(props: AppProps) {
       kind: "config",
       title: "Settings",
       options: entries,
+      tabs: ["Settings", "Session"],
+      tab,
       resolve: (i) => {
         if (i === 0) openApprovalMenu();
         else if (i === 1) openModelMenu();
@@ -561,6 +573,25 @@ export function App(props: AppProps) {
   }, [push, openModelMenu, openEffortMenu]);
 
   const [inputKey, setInputKey] = useState(0);
+  const statusRows = (): [string, string][] => {
+    const p = props.project;
+    const cur = provRef.current;
+    const git = detectGit(props.root) ?? p.git;
+    const effMode =
+      modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
+    return [
+      ["provider", `${cur.provider.name} · ${cur.model}`],
+      ["mode", effMode],
+      ["effort", effortRef.current ?? "default"],
+      ["version", `v${props.version}`],
+      ["project", `${p.name} — ${p.root}`],
+      ["git", git ? `${git.branch}${git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
+      ["session", sessionRef.current?.id ?? "—"],
+      ["usage", `${fmtTokens(tok)} tok this turn`],
+      ["config", join(homeDir(), "config.json")],
+    ];
+  };
+
   const completeMention = (name: string) => {
     setInput(
       (v) => v.replace(/@[^\s#]*((?:#[^\s]*)?)$/, `@${name}$1`) + (name.endsWith("/") ? "" : " "),
@@ -605,29 +636,12 @@ export function App(props: AppProps) {
         openModelMenu();
         return;
       }
-      if (task === "/status") {
-        const p = props.project;
-        const cur = provRef.current;
-        const git = detectGit(props.root) ?? p.git;
-        const effMode = modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
-        push({
-          kind: "status",
-          rows: [
-            ["provider", `${cur.provider.name} · ${cur.model}`],
-            ["mode", effMode],
-            ["effort", effortRef.current ?? "default"],
-            ["version", `v${props.version}`],
-            ["project", `${p.name} — ${p.root}`],
-            ["git", git ? `${git.branch}${git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
-            ["session", sessionRef.current?.id ?? "—"],
-            ["usage", `${fmtTokens(tok)} tok this turn`],
-            ["config", join(homeDir(), "config.json")],
-          ],
-        });
+      if (task === "/status" || task === "/sessions") {
+        openConfigMenu(1);
         return;
       }
-      if (task === "/config") {
-        openConfigMenu();
+      if (task === "/config" || task === "/settings") {
+        openConfigMenu(0);
         return;
       }
       if (task === "/effort") {
@@ -708,6 +722,22 @@ export function App(props: AppProps) {
     if (p.kind === "prompt") return; // inline TextInput owns input
     if (p.kind === "plan" || p.kind === "tool" || p.kind === "config") {
       const opts = p.kind === "config" ? p.options.length : p.kind === "plan" ? 2 : 3;
+      if (p.kind === "config" && p.tabs) {
+        const tabs = p.tabs.length;
+        const t = p.tab ?? 0;
+        if (key.leftArrow) {
+          setMenuSel(0);
+          setPending({ ...p, tab: (t + tabs - 1) % tabs });
+        } else if (key.rightArrow) {
+          setMenuSel(0);
+          setPending({ ...p, tab: (t + 1) % tabs });
+        } else if (t === 0) {
+          if (key.upArrow || ch === "k") setMenuSel((s) => (s - 1 + opts) % opts);
+          else if (key.downArrow || ch === "j") setMenuSel((s) => (s + 1) % opts);
+          else if (key.return) choose(p, menuSel);
+        }
+        return;
+      }
       if (key.upArrow || ch === "k") setMenuSel((s) => (s - 1 + opts) % opts);
       else if (key.downArrow || ch === "j") setMenuSel((s) => (s + 1) % opts);
       else if (p.kind !== "config" && ch === "y") choose(p, 0);
@@ -815,14 +845,31 @@ export function App(props: AppProps) {
           sel={menuSel}
         />
       )}
-      {pending.kind === "config" && (
-        <Menu
-          title={pending.title}
-          options={pending.options}
-          descriptions={pending.descs}
-          sel={menuSel}
-        />
-      )}
+      {pending.kind === "config" &&
+        (pending.tabs ? (
+          <Box flexDirection="column" marginTop={1}>
+            <TabBar tabs={pending.tabs} sel={pending.tab ?? 0} />
+            {pending.tab === 0 ? (
+              <Menu options={pending.options} sel={menuSel} />
+            ) : (
+              <Box marginTop={1}>
+                <Card
+                  lines={statusRows().map(([k, v]) => [
+                    { t: `${k.padEnd(9)}`, dim: true },
+                    { t: v },
+                  ])}
+                />
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Menu
+            title={pending.title}
+            options={pending.options}
+            descriptions={pending.descs}
+            sel={menuSel}
+          />
+        ))}
       {pending.kind === "tool" && (
         <Box flexDirection="column">
           <Box marginTop={1}>
@@ -916,6 +963,24 @@ export function App(props: AppProps) {
 }
 
 const MAJOR_ITEMS = new Set(["banner", "pill", "plan", "diff", "footer"]);
+
+function TabBar({ tabs, sel }: { tabs: string[]; sel: number }) {
+  return (
+    <Box gap={2}>
+      {tabs.map((t, i) => (
+        <Text
+          key={t}
+          bold={i === sel}
+          dimColor={i !== sel}
+          backgroundColor={i === sel ? SURFACE_HI : undefined}
+        >
+          {` ${t} `}
+        </Text>
+      ))}
+      <Text dimColor>←/→ switch tab</Text>
+    </Box>
+  );
+}
 
 function Menu({
   title,
