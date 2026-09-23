@@ -2,6 +2,11 @@ import { Moon, Sun } from "lucide-react";
 
 export const GITHUB_URL = "https://github.com/thenextdeveloper/DxxpCode-Terminal";
 
+const LINKS = [
+  ["/docs", "Docs"],
+  ["/changelog", "Changelog"],
+] as const;
+
 export function Nav({
   dark,
   onToggleTheme,
@@ -9,7 +14,7 @@ export function Nav({
   dark: boolean;
   onToggleTheme: () => void;
 }) {
-  const onDocs = window.location.pathname.startsWith("/docs");
+  const path = window.location.pathname;
   return (
     <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
       <a href="/" className="flex items-center gap-2.5">
@@ -17,16 +22,19 @@ export function Nav({
         <span className="text-[15px] font-semibold tracking-tight">DxxpCode</span>
       </a>
       <div className="flex items-center gap-5">
-        <a
-          href="/docs"
-          className={
-            onDocs
-              ? "text-[15px] font-medium text-foreground"
-              : "text-[15px] text-muted-foreground transition-colors hover:text-foreground"
-          }
-        >
-          Docs
-        </a>
+        {LINKS.map(([href, label]) => (
+          <a
+            key={href}
+            href={href}
+            className={
+              path.startsWith(href)
+                ? "text-[15px] font-medium text-foreground"
+                : "text-[15px] text-muted-foreground transition-colors hover:text-foreground"
+            }
+          >
+            {label}
+          </a>
+        ))}
         <a
           href={GITHUB_URL}
           target="_blank"

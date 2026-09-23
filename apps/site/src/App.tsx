@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { GITHUB_URL, Nav } from "./components/Nav";
+import Changelog from "./Changelog";
 import Docs from "./Docs";
 import { cn } from "./lib/utils";
 
@@ -143,6 +144,7 @@ export default function App() {
   }, [dark]);
 
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
+  if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
 
   return (
     <div className="min-h-screen bg-background">
