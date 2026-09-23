@@ -4,18 +4,6 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 
 ## [Unreleased]
 
-- `/compact` forces context compaction and `/status` shows `~Nk tok / 60k` context usage
-- Background processes: `run_background`, `check_process`, `kill_process` tools with per-name logs under `~/.dxxpcode/bg/`
-- Git-aware checkpoints: each records HEAD; `/undo` warns when HEAD moved since the checkpoint
-- Multi-provider sessions: `/providers` switcher (Settings → Provider) with per-provider model memory
-- `@mention` autocomplete with `@file#L-M` line ranges and `@dir/` directory listing
-- `todo_write` live checklists, `/effort` shortcut, `/undo` file checkpoints, full effort range (minimal→max)
-- Opencode-inspired streaming: per-tool icons and live verb lines; crisp geometric XX banner mark
-- Tabbed `/settings` surface (Settings + Session tabs); `model: X · effort Y` change notes
-- `/docs` and `/changelog` site pages; dark mode + animated terminal on the landing page
-- `--resume` banner indicator, live git state in `/status`, `OPENAI_BASE_URL` trailing-slash fix
-- `scripts/release.sh`: one-command release — changelog move, version bumps, commit, tag, publish
-
 ## [0.1.0] — initial release
 
 - Interactive terminal UI (ink/React): boxed input, arrow-key approvals,
@@ -30,3 +18,14 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 - Context compaction past ~60k estimated tokens; sessions persisted to
   `~/.dxxpcode/` with `--resume`; `--plan`, `--review`, `--yes` modes;
   ESC-to-interrupt; update notifications via npm registry (24h cache)
+- `/compact` forces context compaction and `/status` shows `~Nk tok / 60k` context usage
+- Background processes: `run_background`, `check_process`, `kill_process` tools with per-name logs under `~/.dxxpcode/bg/`
+- Git-aware checkpoints: each records HEAD; `/undo` warns when HEAD moved since the checkpoint
+- Multi-provider sessions: `/providers` switcher (Settings → Provider) with per-provider model memory
+- `@mention` autocomplete with `@file#L-M` line ranges and `@dir/` directory listing
+- `todo_write` live checklists, `/effort` shortcut, `/undo` file checkpoints, full effort range (minimal→max)
+- Opencode-inspired streaming: per-tool icons and live verb lines; crisp geometric XX banner mark
+- Tabbed `/settings` surface (Settings + Session tabs); `model: X · effort Y` change notes
+- `/docs` and `/changelog` site pages; dark mode + animated terminal on the landing page
+- `--resume` banner indicator, live git state in `/status`, `OPENAI_BASE_URL` trailing-slash fix
+- `scripts/release.sh`: one-command release — changelog move, version bumps, commit, tag, publish
