@@ -387,7 +387,7 @@ export function App(props: AppProps) {
         push({
           kind: "note",
           text: out
-            ? `restored checkpoint ${out.seq}${out.restored.length ? ` — restored ${out.restored.join(", ")}` : ""}${out.removed.length ? ` — removed ${out.removed.join(", ")}` : ""}`
+            ? `restored checkpoint ${out.seq}${out.restored.length ? ` — restored ${out.restored.join(", ")}` : ""}${out.removed.length ? ` — removed ${out.removed.join(", ")}` : ""}${out.headMoved ? ` — note: HEAD moved (${out.headMoved.from.slice(0, 7)} → ${out.headMoved.to.slice(0, 7)}) since this checkpoint` : ""}`
             : "⎿ nothing to undo",
         });
         return;

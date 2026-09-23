@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { homeDir } from "@dxxpcode/sessions";
@@ -16,12 +17,26 @@ export interface CheckpointInfo {
   seq: number;
   at: string;
   files: CheckpointFile[];
+  /** git HEAD when the checkpoint was taken (null outside a repo / detached). */
+  headSha?: string;
 }
 
 export interface UndoResult {
   seq: number;
   restored: string[];
   removed: string[];
+  /** Set when HEAD moved between checkpoint and undo (checkout/pull/commit). */
+  headMoved?: { from: string; to: string };
+}
+
+function currentHead(root: string): string | null {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
 }
 
 /** Tools whose file writes get checkpointed. */
@@ -82,6 +97,8 @@ export function takeCheckpoint(
     return null;
   }
   const info: CheckpointInfo = { seq, at: new Date().toISOString(), files };
+  const head = currentHead(root);
+  if (head) info.headSha = head;
   writeFileSync(join(cpDir, "manifest.json"), JSON.stringify(info, null, 2) + "\n", "utf8");
   // Prune oldest checkpoints past the cap.
   const seqs = listSeqs(dir);
@@ -133,5 +150,10 @@ export function undoCheckpoint(
     }
   }
   rmSync(cpDir, { recursive: true, force: true });
-  return { seq, restored, removed };
+  const result: UndoResult = { seq, restored, removed };
+  const head = currentHead(root);
+  if (info.headSha && head && head !== info.headSha) {
+    result.headMoved = { from: info.headSha, to: head };
+  }
+  return result;
 }
