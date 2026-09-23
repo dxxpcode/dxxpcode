@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Static, Text, render, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
-import { runTask, undoCheckpoint } from "@dxxpcode/agent";
+import { compactMessages, runTask, undoCheckpoint } from "@dxxpcode/agent";
 import type { ReasoningEffort } from "@dxxpcode/providers";
 import { resolveProvider } from "@dxxpcode/providers";
-import { loadConfig, loadSession, saveConfig } from "@dxxpcode/sessions";
+import { loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
 import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
@@ -389,6 +389,22 @@ export function App(props: AppProps) {
           text: out
             ? `restored checkpoint ${out.seq}${out.restored.length ? ` — restored ${out.restored.join(", ")}` : ""}${out.removed.length ? ` — removed ${out.removed.join(", ")}` : ""}`
             : "⎿ nothing to undo",
+        });
+        return;
+      }
+      if (task === "/compact") {
+        const sess = sessionRef.current;
+        if (!sess || sess.messages.length === 0) {
+          push({ kind: "note", text: "⎿ no session context to compact yet" });
+          return;
+        }
+        const r = compactMessages(sess.messages, { force: true });
+        saveSession(sess, process.env);
+        push({
+          kind: "note",
+          text: r.compacted
+            ? `⎿ compacted context — ${r.blocks} old result(s) summarized (~${fmtTokens(r.before)} → ~${fmtTokens(r.after)} tok)`
+            : `⎿ context already compact (~${fmtTokens(r.before)} tok)`,
         });
         return;
       }

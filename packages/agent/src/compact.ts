@@ -7,6 +7,8 @@ export interface CompactOptions {
   keepRecent?: number;
   /** Lines kept from the head and tail of a compressed tool result. Default 20. */
   previewLines?: number;
+  /** Compact regardless of the token ceiling (manual /compact). */
+  force?: boolean;
 }
 
 export interface CompactResult {
@@ -57,7 +59,7 @@ export function compactMessages(messages: Message[], opts: CompactOptions = {}):
   const previewLines = opts.previewLines ?? 20;
 
   const before = estimateTokens(messages);
-  if (before <= maxTokens) return { compacted: false, before, after: before, blocks: 0 };
+  if (!opts.force && before <= maxTokens) return { compacted: false, before, after: before, blocks: 0 };
 
   const cutoff = Math.max(0, messages.length - keepRecent);
   let blocks = 0;

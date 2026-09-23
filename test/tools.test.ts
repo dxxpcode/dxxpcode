@@ -14,7 +14,10 @@ import {
   gitDiff,
   gitStatus,
   listDirectory,
+  checkProcess,
+  killProcess,
   readFile,
+  runBackground,
   runCommand,
   searchFiles,
   toolsForPhase,
@@ -138,4 +141,30 @@ test("parseTodos normalizes the checklist", () => {
 test("todo_write is an execute-phase tool", () => {
   assert.ok(!toolsForPhase("plan").some((t) => t.name === "todo_write"));
   assert.ok(toolsForPhase("execute").some((t) => t.name === "todo_write"));
+});
+
+test("run_background spawns a process; check_process reads its log; kill_process stops it", async () => {
+  const { ctx } = setup();
+  const home = mkdtempSync(join(tmpdir(), "dxxp-bg-"));
+  const prev = process.env.DXXPCODE_HOME;
+  process.env.DXXPCODE_HOME = home;
+  try {
+    const start = await runBackground.execute(
+      { command: "sleep 0.3 && echo done-marker", name: "t-proc" },
+      ctx,
+    );
+    assert.equal(start.isError, undefined);
+    await new Promise((r) => setTimeout(r, 700));
+    const check = await checkProcess.execute({ name: "t-proc" }, ctx);
+    assert.match(check.content, /done-marker/);
+    const list = await checkProcess.execute({}, ctx);
+    assert.match(list.content, /t-proc/);
+    const again = await runBackground.execute({ command: "sleep 30", name: "t2" }, ctx);
+    assert.match(again.content, /started 't2'/);
+    const kill = await killProcess.execute({ name: "t2" }, ctx);
+    assert.match(kill.content, /SIGTERM/);
+  } finally {
+    if (prev === undefined) delete process.env.DXXPCODE_HOME;
+    else process.env.DXXPCODE_HOME = prev;
+  }
 });
