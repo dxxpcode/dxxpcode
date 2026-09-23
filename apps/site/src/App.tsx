@@ -196,6 +196,9 @@ export default function App() {
             View on GitHub&nbsp;&rsaquo;
           </a>
         </div>
+        <p className="mt-6 text-[15px] text-muted-foreground">
+          Free during early access · bring your own API key
+        </p>
       </header>
 
       <section className="mx-auto max-w-3xl px-6 pb-8">
@@ -208,6 +211,9 @@ export default function App() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-8 text-sm text-muted-foreground">
           <span>© 2026 DxxpCode</span>
+          <span className="hidden md:inline">
+            Free during market validation — paid plans (hosted inference, team features) come later.
+          </span>
           <span>Terminal-native. Bring your own key.</span>
         </div>
       </footer>
