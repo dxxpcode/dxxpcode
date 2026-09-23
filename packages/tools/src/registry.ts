@@ -4,6 +4,7 @@ import type { TodoItem } from "@dxxpcode/providers";
 import { fileTools } from "./fs.ts";
 import { searchFiles } from "./search.ts";
 import { runCommand } from "./shell.ts";
+import { checkProcess, killProcess, runBackground } from "./background.ts";
 import { gitDiff, gitLog, gitStatus } from "./git.ts";
 
 /**
@@ -116,6 +117,9 @@ const ALL_TOOLS: AgentTool[] = [
   ...fileTools,
   searchFiles,
   runCommand,
+  runBackground,
+  checkProcess,
+  killProcess,
   gitStatus,
   gitDiff,
   gitLog,

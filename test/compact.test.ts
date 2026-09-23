@@ -62,3 +62,12 @@ test("estimateTokens scales with content size", () => {
   assert.ok(small < 10);
   assert.ok(big > 1_000);
 });
+
+test("compactMessages force compacts under the ceiling", () => {
+  const messages: Message[] = [];
+  for (let i = 0; i < 10; i++) messages.push(bigResult(`t${i}`, 100));
+  const result = compactMessages(messages, { force: true, keepRecent: 8 });
+  assert.equal(result.compacted, true);
+  assert.equal(result.blocks, 2);
+  assert.ok(result.after < result.before);
+});

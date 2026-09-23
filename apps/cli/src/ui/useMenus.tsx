@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
 import { KNOWN_MODELS } from "@dxxpcode/providers";
+import { estimateTokens } from "@dxxpcode/agent";
 import { detectGit } from "@dxxpcode/project";
 import { homeDir, loadConfig, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
 import { join } from "node:path";
@@ -157,6 +158,12 @@ export function useConfigMenus(d: MenuDeps) {
       ["project", `${p.name} — ${p.root}`],
       ["git", git ? `${git.branch}${git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
       ["session", sessionRef.current?.id ?? "—"],
+      [
+        "context",
+        sessionRef.current
+          ? `~${fmtTokens(estimateTokens(sessionRef.current.messages))} tok / 60k cap`
+          : "—",
+      ],
       ["usage", `${fmtTokens(d.tok)} tok this turn`],
       ["config", join(homeDir(), "config.json")],
     ];
