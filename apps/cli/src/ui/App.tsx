@@ -304,7 +304,7 @@ export function App(props: AppProps) {
     [props, push],
   );
 
-  const { openModelMenu, openEffortMenu, openConfigMenu, statusRows } = useConfigMenus({
+  const { openModelMenu, openProviderMenu, openEffortMenu, openConfigMenu, statusRows } = useConfigMenus({
     props,
     push,
     setPending,
@@ -312,6 +312,7 @@ export function App(props: AppProps) {
     setSpinLabel,
     setProv,
     setModeOverride,
+    setSetup,
     provRef,
     autoRef,
     effortRef,
@@ -379,6 +380,10 @@ export function App(props: AppProps) {
       }
       if (task === "/provider") {
         setSetup(true);
+        return;
+      }
+      if (task === "/providers") {
+        openProviderMenu();
         return;
       }
       if (task === "/undo") {
