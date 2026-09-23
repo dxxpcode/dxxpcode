@@ -26,6 +26,14 @@ function shortHome(p: string): string {
   return p.startsWith(home) ? `~${p.slice(home.length)}` : p;
 }
 
+/** Sharp geometric XX mark — terminal-safe glyphs, no bitmap downscaling. */
+export const XX_MARK = [
+  "██◣  ◢██  ██◣  ◢██",
+  "  ◥██◤      ◥██◤  ",
+  "  ◢██◣      ◢██◣  ",
+  "██◤  ◥██  ██◤  ◥██",
+];
+
 /** Startup banner lines: logo + name/version/model + project context. */
 export function renderBanner(info: BannerInfo): string[] {
   const git = info.project.git
@@ -39,11 +47,14 @@ export function renderBanner(info: BannerInfo): string[] {
       ? [dim(`resumed ${info.resumedSession.id} (${info.resumedSession.messages.length} messages)`)]
       : []),
   ];
-  return [
+  const head = [
     bold(cyan("DxxpCode")),
     dim(`v${info.version} · ${info.provider} · ${info.model}`),
-    ...meta,
+    "",
+    "",
   ];
+  const marked = head.map((line, i) => (i < XX_MARK.length ? `${cyan(XX_MARK[i])}  ${line}` : line));
+  return [...marked, ...meta];
 }
 
 /** "Tips for getting started" section lines (6 tips, numbered). */

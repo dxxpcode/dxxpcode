@@ -12,6 +12,7 @@ import { diffTarget, TOOL_DISPLAY, toolArg } from "../render.ts";
 import { expandMentions } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
+import { XX_MARK } from "../banner.ts";
 import { parseDiff, type DiffRow } from "./diff.ts";
 import { join } from "node:path";
 
@@ -933,12 +934,23 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
     case "banner":
       return (
         <Box flexDirection="column">
-          <Text bold color="cyan">
-            DxxpCode
-          </Text>
-          <Text dimColor>
-            v{props.version} · {props.provider.name} · {props.model}
-          </Text>
+          <Box flexDirection="row">
+            <Box flexDirection="column" marginRight={2}>
+              {XX_MARK.map((r, i) => (
+                <Text key={i} bold>
+                  {r}
+                </Text>
+              ))}
+            </Box>
+            <Box flexDirection="column">
+              <Text bold color="cyan">
+                DxxpCode
+              </Text>
+              <Text dimColor>
+                v{props.version} · {props.provider.name} · {props.model}
+              </Text>
+            </Box>
+          </Box>
           <Text>
             <Text bold>{props.project.name}</Text>
             <Text dimColor>
