@@ -9,12 +9,13 @@ import { detectGit, type ProjectInfo } from "@dxxpcode/project";
 import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
 import { diffTarget, TOOL_DISPLAY, TOOL_ICONS, TOOL_VERBS, toolArg } from "../render.ts";
-import { expandMentions } from "../mentions.ts";
+import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { XX_MARK } from "../banner.ts";
 import { parseDiff, type DiffRow } from "./diff.ts";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, join } from "node:path";
 
 type Item =
   | { id: number; kind: "banner" }
@@ -178,12 +179,52 @@ export function App(props: AppProps) {
   const [setup, setSetup] = useState(false);
   const setupRef = useRef(setup);
   setupRef.current = setup;
+  const fileIndexRef = useRef<{ files: string[]; dirs: string[] } | null>(null);
+  // Trailing @fragment → file/dir suggestions; leading / → command suggestions.
+  const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
+  const atFrag = atMatch ? atMatch[1].split("#")[0] : null;
   const suggestions = input.startsWith("/")
     ? COMMANDS.filter((c) => c.name.startsWith(input))
-    : [];
+    : atFrag !== null
+      ? fileSuggestions(atFrag)
+      : [];
+  const sugMode = input.startsWith("/") ? "cmd" : "file";
   const sugSel = Math.min(cmdSel, Math.max(0, suggestions.length - 1));
-  const sugRef = useRef<{ sel: number; names: string[] }>({ sel: 0, names: [] });
-  sugRef.current = { sel: sugSel, names: suggestions.map((c) => c.name) };
+  const sugRef = useRef<{ sel: number; names: string[]; mode: string }>({
+    sel: 0,
+    names: [],
+    mode: "cmd",
+  });
+  sugRef.current = { sel: sugSel, names: suggestions.map((c) => c.name), mode: sugMode };
+
+  function fileSuggestions(frag: string): { name: string; desc: string }[] {
+    if (!fileIndexRef.current) fileIndexRef.current = listProjectFiles(props.root);
+    const idx = fileIndexRef.current;
+    const f = frag.toLowerCase();
+    const base = basename(f);
+    const seen = new Set<string>();
+    const score = (p: string): number => {
+      const lp = p.toLowerCase();
+      if (lp === f) return 0;
+      if (lp.startsWith(f)) return basename(lp).startsWith(base) ? 1 : 2;
+      if (basename(lp).startsWith(base)) return 3;
+      if (lp.includes(f)) return 4;
+      return -1;
+    };
+    const entries: { p: string; s: number; dir: boolean }[] = [];
+    for (const d of idx.dirs) {
+      const s = score(d + "/");
+      if (s >= 0 && seen.add(d)) entries.push({ p: d + "/", s, dir: true });
+    }
+    for (const p of idx.files) {
+      const s = score(p);
+      if (s >= 0 && seen.add(p)) entries.push({ p, s, dir: false });
+    }
+    return entries
+      .sort((a, b) => a.s - b.s || (a.dir === b.dir ? a.p.localeCompare(b.p) : a.dir ? -1 : 1))
+      .slice(0, 8)
+      .map((e) => ({ name: e.p, desc: e.dir ? "dir" : "file" }));
+  }
 
   const push = useCallback((item: ItemInput) => {
     setItems((prev) => [...prev, { ...item, id: idRef.current++ } as Item]);
@@ -519,10 +560,29 @@ export function App(props: AppProps) {
     });
   }, [push, openModelMenu, openEffortMenu]);
 
+  const [inputKey, setInputKey] = useState(0);
+  const completeMention = (name: string) => {
+    setInput(
+      (v) => v.replace(/@[^\s#]*((?:#[^\s]*)?)$/, `@${name}$1`) + (name.endsWith("/") ? "" : " "),
+    );
+    // Remount so the cursor lands at the end instead of the old offset.
+    setInputKey((k) => k + 1);
+  };
+
   const submit = useCallback(
     (raw: string) => {
       let task = raw.trim();
       if (!task || running.current) return;
+      // Enter with an @mention dropdown open completes the mention unless the
+      // typed path already resolves to a real file or directory.
+      if (sugRef.current.mode === "file" && sugRef.current.names.length > 0) {
+        const m = task.match(/@([^\s#]*)((?:#[^\s]*)?)$/);
+        const frag = m ? m[1] : "";
+        if (!m || !existsSync(join(props.root, frag.replace(/\/+$/, "")))) {
+          completeMention(sugRef.current.names[sugRef.current.sel]);
+          return;
+        }
+      }
       setInput("");
       setHistIdx(-1);
       setHist((h) => (h[0] === task ? h : [task, ...h].slice(0, 500)));
@@ -661,6 +721,7 @@ export function App(props: AppProps) {
       if (sug.length > 0) {
         if (key.upArrow) setCmdSel((s) => (s - 1 + sug.length) % sug.length);
         else if (key.downArrow) setCmdSel((s) => (s + 1) % sug.length);
+        else if (key.tab && sugRef.current.mode === "file") completeMention(sug[sugRef.current.sel]);
         return;
       }
       if (key.upArrow && hist.length) {
@@ -817,6 +878,7 @@ export function App(props: AppProps) {
           <Box>
             <Text color="cyan">❯ </Text>
             <TextInput
+              key={inputKey}
               value={input}
               onChange={(v) => {
                 setInput(v);
@@ -1003,7 +1065,7 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
           </Text>
           {[
             `Describe a task in plain language — "fix the failing test in math.js"`,
-            `Attach files as context inline: @src/math.js`,
+            `Attach context inline: @file, @file#5-10, @dir/ (type @ to browse)`, 
             `Preview without changes: dxxpcode --plan "<task>"`,
             `Review diffs anytime: /review in-session, or dxxpcode --review`,
             `Pick up where you left off: dxxpcode --resume`,
