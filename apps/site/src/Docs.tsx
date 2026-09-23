@@ -4,7 +4,7 @@ import { cn } from "./lib/utils";
 
 function Code({ children }: { children: React.ReactNode }) {
   return (
-    <div className="my-4 overflow-x-auto rounded-xl bg-[#1d1d1f] px-4 py-3 font-mono text-[13px] leading-6 text-white/90">
+    <div className="my-4 overflow-x-auto rounded-xl bg-[#0a0a0a] px-4 py-3 font-mono ring-1 ring-black/5 dark:ring-white/[0.09] text-[13px] leading-6 text-white/90">
       <pre>{children}</pre>
     </div>
   );
@@ -84,7 +84,7 @@ export default function Docs() {
       <Nav dark={dark} onToggleTheme={() => setDark((d) => !d)} />
 
       <div className="mx-auto flex max-w-5xl gap-10 px-6 pb-16">
-        <aside className="sticky top-10 hidden w-44 shrink-0 self-start pt-10 md:block">
+        <aside className="sticky top-14 hidden w-44 shrink-0 self-start pt-10 md:block">
           <p className="pb-3 text-[13px] font-semibold tracking-tight">Docs</p>
           <ul className="space-y-1.5 border-l border-border">
             {SECTIONS.map(([id, label]) => (
