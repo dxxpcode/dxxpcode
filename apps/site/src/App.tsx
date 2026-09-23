@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Moon, Sun } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { Button } from "./components/ui/button";
+import { GITHUB_URL, Nav } from "./components/Nav";
+import Docs from "./Docs";
 import { cn } from "./lib/utils";
-
-const GITHUB_URL = "https://github.com/thenextdeveloper/DxxpCode-Terminal";
 
 function CopyButton({ text, className }: { text: string; className?: string }) {
   const [copied, setCopied] = useState(false);
@@ -142,35 +142,11 @@ export default function App() {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
+  if (window.location.pathname.startsWith("/docs")) return <Docs />;
+
   return (
     <div className="min-h-screen bg-background">
-      <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2.5">
-          <img
-            src={dark ? "/logo-dark.png" : "/logo.png"}
-            alt="DxxpCode"
-            className="h-[17px] w-auto"
-          />
-          <span className="text-[15px] font-semibold tracking-tight">DxxpCode</span>
-        </div>
-        <div className="flex items-center gap-5">
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[15px] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            GitHub
-          </a>
-          <button
-            onClick={() => setDark((d) => !d)}
-            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-          </button>
-        </div>
-      </nav>
+      <Nav dark={dark} onToggleTheme={() => setDark((d) => !d)} />
 
       <header className="mx-auto max-w-3xl px-6 pb-16 pt-16 text-center md:pt-24">
         <h1 className="text-5xl font-semibold leading-[1.05] tracking-[-0.02em] md:text-6xl">
