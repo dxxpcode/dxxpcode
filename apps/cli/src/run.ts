@@ -157,6 +157,9 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         think("Thinking…");
         break;
       }
+      case "checkpoint":
+        line(dim(`  ${SYM.sub} checkpoint ${ev.seq} — /undo restores ${ev.paths.join(", ")}`));
+        break;
       case "todo": {
         const body = ev.items.map((it) => {
           const mark =

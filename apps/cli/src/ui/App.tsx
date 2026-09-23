@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Static, Text, render, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
-import { runTask } from "@dxxpcode/agent";
+import { runTask, undoCheckpoint } from "@dxxpcode/agent";
 import type { ModelProvider, ReasoningEffort, TodoItem } from "@dxxpcode/providers";
 import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
 import { detectGit, type ProjectInfo } from "@dxxpcode/project";
@@ -122,6 +122,7 @@ const COMMANDS = [
   { name: "/config", desc: "change settings (approval mode)" },
   { name: "/effort", desc: "reasoning effort for the next task" },
   { name: "/provider", desc: "connect or switch the model provider" },
+  { name: "/undo", desc: "restore files from the last checkpoint" },
   { name: "/clear", desc: "clear the transcript" },
   { name: "/help", desc: "list available commands" },
   { name: "/exit", desc: "quit dxxpcode" },
@@ -365,6 +366,9 @@ export function App(props: AppProps) {
               stopSpin();
               push({ kind: "todo", items: ev.items });
               break;
+            case "checkpoint":
+              push({ kind: "note", text: `⎿ checkpoint ${ev.seq} — /undo restores ${ev.paths.join(", ")}` });
+              break;
             case "denied":
               stopSpin();
               push({ kind: "denied", reason: ev.reason });
@@ -572,6 +576,17 @@ export function App(props: AppProps) {
       }
       if (task === "/provider") {
         setSetup(true);
+        return;
+      }
+      if (task === "/undo") {
+        const sess = sessionRef.current;
+        const out = sess ? undoCheckpoint(props.root, sess.id, process.env) : null;
+        push({
+          kind: "note",
+          text: out
+            ? `restored checkpoint ${out.seq}${out.restored.length ? ` — restored ${out.restored.join(", ")}` : ""}${out.removed.length ? ` — removed ${out.removed.join(", ")}` : ""}`
+            : "⎿ nothing to undo",
+        });
         return;
       }
       if (task === "/clear") {

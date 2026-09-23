@@ -15,6 +15,7 @@ import type { TodoItem } from "@dxxpcode/providers";
 import { newSessionId, saveSession } from "@dxxpcode/sessions";
 import type { RecordedToolCall, SessionRecord } from "@dxxpcode/sessions";
 import { execFileSync } from "node:child_process";
+import { CHECKPOINTED_TOOLS, takeCheckpoint } from "./checkpoint.ts";
 import { compactMessages } from "./compact.ts";
 import { gatherContext } from "./context.ts";
 
@@ -34,6 +35,7 @@ export type AgentEvent =
   | { type: "tool_start"; tool: string; input: JsonObject }
   | { type: "tool_end"; tool: string; result: ToolResult }
   | { type: "todo"; items: TodoItem[] }
+  | { type: "checkpoint"; seq: number; paths: string[] }
   | { type: "denied"; tool: string; reason: string }
   | { type: "usage"; usage: Usage }
   | { type: "compacted"; before: number; after: number; blocks: number }
@@ -253,6 +255,10 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
             results.push({ type: "tool_result", toolUseId: call.id, content: "denied by user", isError: true });
             continue;
           }
+        }
+        if (CHECKPOINTED_TOOLS.has(call.name) && typeof call.input["path"] === "string") {
+          const cp = takeCheckpoint(projectRoot, [call.input["path"]], session.id, env);
+          if (cp) yield { type: "checkpoint", seq: cp.seq, paths: cp.files.map((f) => f.path) };
         }
         yield { type: "tool_start", tool: call.name, input: call.input };
         const result = await executeTool(tool, call.input, ctx);
