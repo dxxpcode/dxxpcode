@@ -486,7 +486,8 @@ export function App(props: AppProps) {
     const applyModel = (m: string) => {
       setProv({ ...provRef.current, model: m });
       saveConfig({ ...loadConfig(), model: m });
-      push({ kind: "note", text: `model: ${m} (saved)` });
+      const eff = effortRef.current ?? "default";
+      push({ kind: "note", text: `model: ${m} · effort ${eff} (saved)` });
     };
     const openCustomPrompt = () => {
       setPending({
