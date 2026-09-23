@@ -3,151 +3,24 @@ import { Box, Static, Text, render, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { ApprovalRequest, RunResult } from "@dxxpcode/agent";
 import { runTask, undoCheckpoint } from "@dxxpcode/agent";
-import type { ModelProvider, ReasoningEffort, TodoItem } from "@dxxpcode/providers";
-import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
-import { detectGit, type ProjectInfo } from "@dxxpcode/project";
-import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
+import type { ReasoningEffort } from "@dxxpcode/providers";
+import { resolveProvider } from "@dxxpcode/providers";
+import { loadConfig, loadSession, saveConfig } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
-import { diffTarget, TOOL_DISPLAY, TOOL_ICONS, TOOL_VERBS, toolArg } from "../render.ts";
+import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
-import { XX_MARK } from "../banner.ts";
-import { parseDiff, type DiffRow } from "./diff.ts";
+import { parseDiff } from "./diff.ts";
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
+import { COMMANDS, FRAMES, SURFACE_HI, describe, fmtTokens } from "./shared.ts";
+import { atFragment, fileSuggestions, type FileIndex } from "./suggest.ts";
+import { Card, ItemView, MAJOR_ITEMS, Menu, TabBar } from "./widgets.tsx";
+import { useConfigMenus } from "./useMenus.tsx";
+import type { AppProps, Item, ItemInput, Pending } from "./types.ts";
 
-type Item =
-  | { id: number; kind: "banner" }
-  | { id: number; kind: "pill"; text: string }
-  | { id: number; kind: "note"; text: string }
-  | { id: number; kind: "thought"; secs: number }
-  | { id: number; kind: "text"; text: string }
-  | { id: number; kind: "tool"; name: string; arg: string }
-  | { id: number; kind: "result"; text: string; isError: boolean }
-  | { id: number; kind: "tree"; lines: string[] }
-  | { id: number; kind: "plan"; summary?: string; steps: string[] }
-  | { id: number; kind: "todo"; items: TodoItem[] }
-  | { id: number; kind: "diff"; path: string; rows: DiffRow[] }
-  | { id: number; kind: "denied"; reason: string }
-  | { id: number; kind: "status"; rows: [string, string][] }
-  | { id: number; kind: "footer"; result: RunResult; secs: number }
-  | { id: number; kind: "error"; text: string };
-
-type ItemInput = Item extends infer T ? (T extends Item ? Omit<T, "id"> : never) : never;
-
-type Pending =
-  | { kind: "input" }
-  | { kind: "plan"; resolve: (ok: boolean) => void }
-  | { kind: "tool"; req: ApprovalRequest; key: string; resolve: (v: "y" | "a" | "n") => void }
-  | {
-      kind: "config";
-      title: string;
-      options: string[];
-      descs?: string[];
-      resolve: (i: number | null) => void;
-      /** When set, renders a tab bar; `tab` is the active pane (0 = the menu). */
-      tabs?: string[];
-      tab?: number;
-    }
-  | { kind: "prompt"; title: string; resolve: (v: string | null) => void };
-
-export interface AppProps {
-  version: string;
-  provider: ModelProvider;
-  model: string;
-  effort?: ReasoningEffort;
-  project: ProjectInfo;
-  root: string;
-  session?: SessionRecord;
-  planOnly: boolean;
-  autoApprove: boolean;
-  maxIterations?: number;
-  /** First task for one-shot runs; App exits after it finishes. */
-  task?: string;
-  /** Session-scoped "always allow" keys shared across tasks. */
-  allowlist: Set<string>;
-  /** Persistent input history (REPL only). */
-  historyFile?: string;
-  /** Working-tree diff for /review. */
-  getReviewDiff?: () => string;
-  onExit: (code: number) => void;
-  /** Called with the session id after each run so `--resume` chains. */
-  onSession: (id: string) => void;
-  /** Resolves to a newer published version, if one exists. */
-  updateCheck?: Promise<string | null>;
-}
-
-const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-const SURFACE = "#1a1b26";
-const SURFACE_HI = "#262838";
-
-type Seg = { t: string; c?: string; bg?: string; bold?: boolean; dim?: boolean };
-const segWidth = (l: Seg[]) => l.reduce((n, s) => n + s.t.length, 0);
-
-function SurfaceLine({ segs, w, bg }: { segs: Seg[]; w: number; bg?: string }) {
-  return (
-    <Text backgroundColor={bg ?? SURFACE}>
-      {" "}
-      {segs.map((s, i) => (
-        <Text key={i} color={s.c} backgroundColor={s.bg} bold={s.bold} dimColor={s.dim}>
-          {s.t}
-        </Text>
-      ))}
-      {" ".repeat(Math.max(0, w - segWidth(segs)) + 1)}
-    </Text>
-  );
-}
-
-/** Tinted surface card — subtle bg fill instead of a border. */
-function Card({
-  lines,
-  accent,
-  fills,
-}: {
-  lines: Seg[][];
-  accent?: string;
-  fills?: (string | undefined)[];
-}) {
-  const w = Math.max(0, ...lines.map(segWidth));
-  return (
-    <Box flexDirection="row">
-      {accent ? (
-        <Text backgroundColor={accent}>{Array(lines.length).fill("  ").join("\n")}</Text>
-      ) : null}
-      <Box flexDirection="column">
-        {lines.map((l, i) => (
-          <SurfaceLine key={i} segs={l} w={w} bg={fills?.[i]} />
-        ))}
-      </Box>
-    </Box>
-  );
-}
-
-const COMMANDS = [
-  { name: "/review", desc: "show the working-tree diff" },
-  { name: "/model", desc: "current provider and model" },
-  { name: "/status", desc: "session, config, and usage info" },
-  { name: "/config", desc: "change settings (approval mode)" },
-  { name: "/settings", desc: "settings and session surface" },
-  { name: "/effort", desc: "reasoning effort for the next task" },
-  { name: "/provider", desc: "connect or switch the model provider" },
-  { name: "/undo", desc: "restore files from the last checkpoint" },
-  { name: "/clear", desc: "clear the transcript" },
-  { name: "/help", desc: "list available commands" },
-  { name: "/exit", desc: "quit dxxpcode" },
-];
-
-function describe(req: ApprovalRequest): string {
-  if (req.tool === "run_command") return String(req.input["command"] ?? req.tool);
-  const target = req.input["path"];
-  return typeof target === "string" ? `${req.tool} ${target}` : req.tool;
-}
-
-function fmtTokens(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-}
+export type { AppProps };
 
 export function App(props: AppProps) {
   const { exit } = useApp();
@@ -189,14 +62,13 @@ export function App(props: AppProps) {
   const [setup, setSetup] = useState(false);
   const setupRef = useRef(setup);
   setupRef.current = setup;
-  const fileIndexRef = useRef<{ files: string[]; dirs: string[] } | null>(null);
+  const fileIndexRef = useRef<FileIndex | null>(null);
   // Trailing @fragment → file/dir suggestions; leading / → command suggestions.
-  const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
-  const atFrag = atMatch ? atMatch[1].split("#")[0] : null;
+  const atFrag = atFragment(input);
   const suggestions = input.startsWith("/")
     ? COMMANDS.filter((c) => c.name.startsWith(input))
     : atFrag !== null
-      ? fileSuggestions(atFrag)
+      ? fileSuggestions((fileIndexRef.current ??= listProjectFiles(props.root)), atFrag)
       : [];
   const sugMode = input.startsWith("/") ? "cmd" : "file";
   const sugSel = Math.min(cmdSel, Math.max(0, suggestions.length - 1));
@@ -206,35 +78,6 @@ export function App(props: AppProps) {
     mode: "cmd",
   });
   sugRef.current = { sel: sugSel, names: suggestions.map((c) => c.name), mode: sugMode };
-
-  function fileSuggestions(frag: string): { name: string; desc: string }[] {
-    if (!fileIndexRef.current) fileIndexRef.current = listProjectFiles(props.root);
-    const idx = fileIndexRef.current;
-    const f = frag.toLowerCase();
-    const base = basename(f);
-    const seen = new Set<string>();
-    const score = (p: string): number => {
-      const lp = p.toLowerCase();
-      if (lp === f) return 0;
-      if (lp.startsWith(f)) return basename(lp).startsWith(base) ? 1 : 2;
-      if (basename(lp).startsWith(base)) return 3;
-      if (lp.includes(f)) return 4;
-      return -1;
-    };
-    const entries: { p: string; s: number; dir: boolean }[] = [];
-    for (const d of idx.dirs) {
-      const s = score(d + "/");
-      if (s >= 0 && seen.add(d)) entries.push({ p: d + "/", s, dir: true });
-    }
-    for (const p of idx.files) {
-      const s = score(p);
-      if (s >= 0 && seen.add(p)) entries.push({ p, s, dir: false });
-    }
-    return entries
-      .sort((a, b) => a.s - b.s || (a.dir === b.dir ? a.p.localeCompare(b.p) : a.dir ? -1 : 1))
-      .slice(0, 8)
-      .map((e) => ({ name: e.p, desc: e.dir ? "dir" : "file" }));
-  }
 
   const push = useCallback((item: ItemInput) => {
     setItems((prev) => [...prev, { ...item, id: idRef.current++ } as Item]);
@@ -461,138 +304,23 @@ export function App(props: AppProps) {
     [props, push],
   );
 
-  const openModelMenu = useCallback(() => {
-    const name = provRef.current.provider.name;
-    const fallback = [...(KNOWN_MODELS[name] ?? [])];
-    // OpenAI-compatible endpoints (xAI Grok, Google Gemini, local) get their models too.
-    if (name === "openai" && loadConfig().openaiBaseUrl) {
-      fallback.push("grok-4", "gemini-3-pro");
-    }
-    const cur = provRef.current.model;
-    const listModels = provRef.current.provider.listModels?.bind(provRef.current.provider);
-    if (listModels) {
-      setSpinLabel("Fetching models…");
-      listModels()
-        .catch(() => fallback)
-        .then((known) => {
-          setSpinLabel(null);
-          showMenu(known.length > 0 ? known : fallback);
-        });
-    } else {
-      showMenu(fallback);
-    }
-    function showMenu(known: string[]) {
-    const opts = cur && !known.includes(cur) ? [cur, ...known] : known;
-    const applyModel = (m: string) => {
-      setProv({ ...provRef.current, model: m });
-      saveConfig({ ...loadConfig(), model: m });
-      const eff = effortRef.current ?? "default";
-      push({ kind: "note", text: `model: ${m} · effort ${eff} (saved)` });
-    };
-    const openCustomPrompt = () => {
-      setPending({
-        kind: "prompt",
-        title: "model name:",
-        resolve: (v) => {
-          if (v && v.trim()) applyModel(v.trim());
-        },
-      });
-    };
-    setMenuSel(Math.max(0, opts.indexOf(cur)));
-    setPending({
-      kind: "config",
-      title: `Model — ${name} · applies to the next task and is saved to config`,
-      options: [...opts, "custom…"],
-      resolve: (i) => {
-        if (i === null) return;
-        if (opts[i] === undefined) openCustomPrompt();
-        else applyModel(opts[i]);
-      },
-    });
-    }
-  }, [push]);
-
-  const openEffortMenu = useCallback(() => {
-    const opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
-    const cur = effortRef.current ?? "default";
-    setMenuSel(opts.indexOf(cur));
-    setPending({
-      kind: "config",
-      title: "Reasoning effort — applies to the next task (ignored on models without support)",
-      options: opts,
-      descs: [
-        "provider default",
-        "fastest — quick lookups, simple formatting",
-        "modest reasoning — drafting, straightforward tasks",
-        "balanced — agentic coding, research, most workloads",
-        "hard reasoning — complex debugging, deep planning",
-        "larger budget for the hardest multi-step problems",
-        "unconstrained budget — high-stakes, hardest tasks",
-      ],
-      resolve: (i) => {
-        if (i === null) return;
-        const next = opts[i];
-        effortRef.current = next === "default" ? undefined : (next as ReasoningEffort);
-        saveConfig({ ...loadConfig(), effort: effortRef.current });
-        push({ kind: "note", text: `reasoning effort: ${next} (saved)` });
-      },
-    });
-  }, [push]);
-
-  const openConfigMenu = useCallback((tab = 0) => {
-    const openApprovalMenu = () => {
-      const opts = ["ask", "always-approve"];
-      setMenuSel(autoRef.current ? 1 : 0);
-      setPending({
-        kind: "config",
-        title: "Approval mode — applied to the next task and saved to config",
-        options: opts,
-        resolve: (i) => {
-          if (i === null) return;
-          const next = opts[i] === "always-approve";
-          autoRef.current = next;
-          setModeOverride(next ? "always-approve" : "ask");
-          saveConfig({ ...loadConfig(), approvalMode: next ? "auto" : "ask" });
-          push({ kind: "note", text: `approval mode: ${opts[i]} (saved)` });
-        },
-      });
-    };
-    const entries = ["Approval mode", "Model", "Reasoning effort"];
-    setMenuSel(0);
-    setPending({
-      kind: "config",
-      title: "Settings",
-      options: entries,
-      tabs: ["Settings", "Session"],
-      tab,
-      resolve: (i) => {
-        if (i === 0) openApprovalMenu();
-        else if (i === 1) openModelMenu();
-        else if (i === 2) openEffortMenu();
-      },
-    });
-  }, [push, openModelMenu, openEffortMenu]);
+  const { openModelMenu, openEffortMenu, openConfigMenu, statusRows } = useConfigMenus({
+    props,
+    push,
+    setPending,
+    setMenuSel,
+    setSpinLabel,
+    setProv,
+    setModeOverride,
+    provRef,
+    autoRef,
+    effortRef,
+    sessionRef,
+    modeOverride,
+    tok,
+  });
 
   const [inputKey, setInputKey] = useState(0);
-  const statusRows = (): [string, string][] => {
-    const p = props.project;
-    const cur = provRef.current;
-    const git = detectGit(props.root) ?? p.git;
-    const effMode =
-      modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
-    return [
-      ["provider", `${cur.provider.name} · ${cur.model}`],
-      ["mode", effMode],
-      ["effort", effortRef.current ?? "default"],
-      ["version", `v${props.version}`],
-      ["project", `${p.name} — ${p.root}`],
-      ["git", git ? `${git.branch}${git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
-      ["session", sessionRef.current?.id ?? "—"],
-      ["usage", `${fmtTokens(tok)} tok this turn`],
-      ["config", join(homeDir(), "config.json")],
-    ];
-  };
-
   const completeMention = (name: string) => {
     setInput(
       (v) => v.replace(/@[^\s#]*((?:#[^\s]*)?)$/, `@${name}$1`) + (name.endsWith("/") ? "" : " "),
@@ -961,337 +689,6 @@ export function App(props: AppProps) {
         ))}
     </Box>
   );
-}
-
-const MAJOR_ITEMS = new Set(["banner", "pill", "plan", "diff", "footer"]);
-
-function TabBar({ tabs, sel }: { tabs: string[]; sel: number }) {
-  return (
-    <Box gap={2}>
-      {tabs.map((t, i) => (
-        <Text
-          key={t}
-          bold={i === sel}
-          dimColor={i !== sel}
-          backgroundColor={i === sel ? SURFACE_HI : undefined}
-        >
-          {` ${t} `}
-        </Text>
-      ))}
-      <Text dimColor>←/→ switch tab</Text>
-    </Box>
-  );
-}
-
-function Menu({
-  title,
-  options,
-  sel,
-  descriptions,
-}: {
-  title?: string;
-  options: string[];
-  sel: number;
-  descriptions?: string[];
-}) {
-  return (
-    <Box flexDirection="column" marginTop={1}>
-      {title ? <Text dimColor>{title}</Text> : null}
-      {options.map((o, i) => (
-        <Box key={o} flexDirection="column">
-          <Text backgroundColor={i === sel ? SURFACE_HI : undefined}>
-            <Text dimColor={i !== sel} bold={i === sel}>
-              {i === sel ? " ● " : " ◯ "}
-              {o}
-            </Text>
-            {i === sel
-              ? " ".repeat(Math.max(0, Math.max(...options.map((x) => x.length)) - o.length) + 1)
-              : ""}
-          </Text>
-          {descriptions?.[i] ? (
-            <Text dimColor>{"      "}{descriptions[i]}</Text>
-          ) : null}
-        </Box>
-      ))}
-      <Text dimColor>{"  "}↑/↓ navigate · Enter select · esc cancel</Text>
-    </Box>
-  );
-}
-
-const TABLE_LINE = /^\s*\|.*\|\s*$/;
-const TABLE_SEP = /^:?-+:?$/;
-
-/** Rendered markdown table: header bold, `│` separators become dim, rows aligned. */
-function Table({ rows }: { rows: string[][] }) {
-  const cols = Math.max(...rows.map((r) => r.length));
-  const w = Array.from({ length: cols }, (_, c) =>
-    Math.max(...rows.map((r) => r[c]?.length ?? 0)),
-  );
-  const row = (r: string[], bold: boolean, key: number) => (
-    <Text key={key}>
-      {"  "}
-      {r.map((cell, c) => (
-        <React.Fragment key={c}>
-          {c > 0 ? "  " : ""}
-          <Text bold={bold}>{(cell ?? "").padEnd(w[c])}</Text>
-        </React.Fragment>
-      ))}
-    </Text>
-  );
-  const out: React.ReactNode[] = [];
-  let i = 0;
-  let headerDone = false;
-  while (i < rows.length) {
-    const r = rows[i];
-    if (r.every((c) => TABLE_SEP.test(c))) {
-      out.push(
-        <Text key={`sep${i}`} dimColor>
-          {"  "}{w.map((x) => "─".repeat(x)).join("  ")}
-        </Text>,
-      );
-      i++;
-      continue;
-    }
-    out.push(row(r, !headerDone, i));
-    headerDone = true;
-    i++;
-  }
-  return <Box flexDirection="column">{out}</Box>;
-}
-
-/** Streamed text burst: normal lines via mdLine, `|…|` runs become Tables. */
-function TextBlock({ text }: { text: string }) {
-  const lines = text.split("\n");
-  const out: React.ReactNode[] = [];
-  let i = 0;
-  let k = 0;
-  while (i < lines.length) {
-    if (TABLE_LINE.test(lines[i])) {
-      const rows: string[][] = [];
-      while (i < lines.length && TABLE_LINE.test(lines[i])) {
-        rows.push(
-          lines[i].split("|").slice(1, -1).map((c) => c.trim()),
-        );
-        i++;
-      }
-      out.push(<Table key={k++} rows={rows} />);
-      continue;
-    }
-    out.push(
-      <Text key={k++}>
-        {i === 0 ? <Text color="cyan">⏺ </Text> : "  "}
-        {mdLine(lines[i])}
-      </Text>,
-    );
-    i++;
-  }
-  return <Box flexDirection="column">{out}</Box>;
-}
-
-function ItemView({ it, props }: { it: Item; props: AppProps }) {
-  switch (it.kind) {
-    case "banner":
-      return (
-        <Box flexDirection="column">
-          <Box flexDirection="row">
-            <Box flexDirection="column" marginRight={2}>
-              {XX_MARK.map((r, i) => (
-                <Text key={i} bold>
-                  {r}
-                </Text>
-              ))}
-            </Box>
-            <Box flexDirection="column">
-              <Text bold color="cyan">
-                DxxpCode
-              </Text>
-              <Text dimColor>
-                v{props.version} · {props.provider.name} · {props.model}
-              </Text>
-            </Box>
-          </Box>
-          <Text>
-            <Text bold>{props.project.name}</Text>
-            <Text dimColor>
-              {props.project.languages.length ? ` (${props.project.languages.join(", ")})` : ""}
-              {props.project.git
-                ? ` · ${props.project.git.branch}${props.project.git.dirty ? "*" : ""}`
-                : ""}
-            </Text>
-          </Text>
-          <Text dimColor>{props.root}</Text>
-          {props.session ? (
-            <Text dimColor>
-              resumed session {props.session.id} ({props.session.messages.length} messages)
-            </Text>
-          ) : null}
-          <Text> </Text>
-          <Text bold dimColor>
-            Tips for getting started
-          </Text>
-          {[
-            `Describe a task in plain language — "fix the failing test in math.js"`,
-            `Attach context inline: @file, @file#5-10, @dir/ (type @ to browse)`, 
-            `Preview without changes: dxxpcode --plan "<task>"`,
-            `Review diffs anytime: /review in-session, or dxxpcode --review`,
-            `Pick up where you left off: dxxpcode --resume`,
-            `Project instructions live in .dxxpcode/instructions.md`,
-          ].map((t, i) => (
-            <Text key={i}>
-              {"  "}
-              <Text color="cyan">{i + 1}</Text>
-              {`. ${t}`}
-            </Text>
-          ))}
-          <Text> </Text>
-        </Box>
-      );
-    case "pill":
-      return <Card lines={[[{ t: "❯ ", c: "cyan" }, { t: it.text }]]} />;
-    case "status":
-      return (
-        <Card
-          lines={it.rows.map(([k, v]) => [
-            { t: `${k.padEnd(9)}`, dim: true },
-            { t: v },
-          ])}
-        />
-      );
-    case "note":
-      return <Text dimColor>  {it.text}</Text>;
-    case "thought":
-      return (
-        <Text dimColor>
-          {"  "}
-          <Text color="magenta">◆</Text> Thought for {it.secs.toFixed(1)}s
-        </Text>
-      );
-    case "text":
-      return <TextBlock text={it.text} />;
-    case "tree":
-      return (
-        <Box flexDirection="column">
-          <Text dimColor>{"  ⎿  "}Listed {it.lines.length} entries</Text>
-          {it.lines.slice(0, 40).map((l, i) => (
-            <Text key={i} dimColor>
-              {"     "}{i === it.lines.length - 1 || i === 39 ? "└─" : "├─"} {l}
-            </Text>
-          ))}
-          {it.lines.length > 40 ? (
-            <Text dimColor>{"     "}… {it.lines.length - 40} more</Text>
-          ) : null}
-        </Box>
-      );
-    case "tool": {
-      const name = TOOL_DISPLAY[it.name] ?? it.name;
-      const icon = TOOL_ICONS[it.name] ?? "⏺";
-      return (
-        <Text>
-          <Text color="cyan">{icon} </Text>
-          <Text bold>{name}</Text>
-          {it.arg ? <Text dimColor>({it.arg})</Text> : null}
-        </Text>
-      );
-    }
-    case "result":
-      return (
-        <Text>
-          {"  "}
-          <Text color={it.isError ? "red" : undefined} dimColor={!it.isError}>
-            ⎿  {it.text}
-          </Text>
-        </Text>
-      );
-    case "plan": {
-      const lines: Seg[][] = [
-        [{ t: "plan", bold: true }, { t: "  ×", dim: true }],
-        ...(it.summary ? [[{ t: it.summary, dim: true }]] : []),
-        ...it.steps.map((s, i) => [{ t: `${i + 1}`, c: "cyan" }, { t: `. ${s}` }]),
-      ];
-      return <Card lines={lines} />;
-    }
-    case "todo": {
-      const done = it.items.filter((t) => t.status === "completed").length;
-      const lines: Seg[][] = [
-        [{ t: "tasks", bold: true }, { t: `  ${done}/${it.items.length}  ×`, dim: true }],
-        ...it.items.map((t) => {
-          const mark =
-            t.status === "completed"
-              ? { t: "✓ ", c: "green" }
-              : t.status === "in_progress"
-                ? { t: "▶ ", c: "cyan" }
-                : { t: "○ ", dim: true };
-          const label = t.status === "in_progress" && t.activeForm ? t.activeForm : t.content;
-          return [mark, { t: label, dim: t.status !== "in_progress" }];
-        }),
-      ];
-      return <Card lines={lines} />;
-    }
-    case "diff": {
-      const rows = it.rows.filter((r) => r.kind !== "meta");
-      const lines: Seg[][] = [
-        [{ t: it.path, bold: true }, { t: "  ×", dim: true }],
-        ...rows.map((r) => [
-          {
-            t: `${r.num !== null ? String(r.num).padStart(4) : "    "}  ${
-              r.kind === "add" ? "+" : r.kind === "del" ? "−" : " "
-            } ${r.text}`,
-            c:
-              r.kind === "hunk"
-                ? "cyan"
-                : r.kind === "add"
-                  ? "green"
-                  : r.kind === "del"
-                    ? "red"
-                    : undefined,
-            dim: r.kind === "ctx",
-          },
-        ]),
-      ];
-      const fills = [
-        undefined,
-        ...rows.map((r) =>
-          r.kind === "add" ? "#0c2b16" : r.kind === "del" ? "#3b0f12" : undefined,
-        ),
-      ];
-      return <Card lines={lines} fills={fills} />;
-    }
-    case "denied":
-      return (
-        <Text color="red">
-          {"  ⎿  Denied: "}
-          {it.reason}
-        </Text>
-      );
-    case "footer": {
-      const r = it.result;
-      const ok = r.status === "completed";
-      const tokens =
-        r.usage && (r.usage.inputTokens || r.usage.outputTokens)
-          ? ` · ${fmtTokens(r.usage.inputTokens + r.usage.outputTokens)} tokens`
-          : "";
-      return (
-        <Box flexDirection="column">
-          <Text>
-            <Text color={ok ? "green" : "yellow"}>{ok ? "✓" : "⚠"} </Text>
-            <Text bold>{ok ? "Completed" : r.status}</Text>
-            <Text dimColor>
-              {" · "}
-              {it.secs.toFixed(1)}s{tokens}
-            </Text>
-          </Text>
-          {r.summary && !ok ? <Text dimColor>{r.summary}</Text> : null}
-          {r.filesChanged.length > 0 && (
-            <Text dimColor>  Changed: {r.filesChanged.join(", ")}</Text>
-          )}
-          {r.error ? <Text color="red">{r.error}</Text> : null}
-          <Text dimColor>{"─".repeat(24)}</Text>
-        </Box>
-      );
-    }
-    case "error":
-      return <Text color="red">{it.text}</Text>;
-  }
 }
 
 export interface InkRunResult {
