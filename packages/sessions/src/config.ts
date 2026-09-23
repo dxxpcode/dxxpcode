@@ -9,6 +9,8 @@ export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | 
 export interface DxxpConfig {
   provider?: string;
   model?: string;
+  /** Last-used model per provider — restored on provider switch. */
+  models?: Record<string, string>;
   approvalMode?: ApprovalMode;
   /** Reasoning effort level for reasoning-capable models. */
   effort?: ReasoningEffort;
