@@ -8,7 +8,7 @@ import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
 import { detectGit, type ProjectInfo } from "@dxxpcode/project";
 import { homeDir, loadConfig, loadSession, saveConfig, type SessionRecord } from "@dxxpcode/sessions";
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
-import { diffTarget, TOOL_DISPLAY, toolArg } from "../render.ts";
+import { diffTarget, TOOL_DISPLAY, TOOL_ICONS, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions } from "../mentions.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
@@ -329,10 +329,14 @@ export function App(props: AppProps) {
               stopSpin();
               push({ kind: "plan", summary: ev.plan.summary, steps: ev.plan.steps });
               break;
-            case "tool_start":
+            case "tool_start": {
               stopSpin();
-              push({ kind: "tool", name: ev.tool, arg: toolArg(ev.input) });
+              const arg = toolArg(ev.input);
+              push({ kind: "tool", name: ev.tool, arg });
+              thinkAt.current = Date.now();
+              setSpinLabel(`${TOOL_VERBS[ev.tool] ?? "Working"}${arg ? ` ${arg}` : ""}…`);
               break;
+            }
             case "tool_end": {
               stopSpin();
               const lines = ev.result.content.split("\n").filter((l) => l.length > 0);
@@ -1026,9 +1030,10 @@ function ItemView({ it, props }: { it: Item; props: AppProps }) {
       );
     case "tool": {
       const name = TOOL_DISPLAY[it.name] ?? it.name;
+      const icon = TOOL_ICONS[it.name] ?? "⏺";
       return (
         <Text>
-          <Text color="cyan">⏺ </Text>
+          <Text color="cyan">{icon} </Text>
           <Text bold>{name}</Text>
           {it.arg ? <Text dimColor>({it.arg})</Text> : null}
         </Text>
