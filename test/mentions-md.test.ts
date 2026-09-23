@@ -35,6 +35,32 @@ test("expandMentions ignores email-like and duplicate mentions", () => {
   assert.equal(r.attached.length, 1);
 });
 
+test("expandMentions attaches a line range with @file#L-M", () => {
+  const dir = root();
+  writeFileSync(join(dir, "src", "b.ts"), "l1\nl2\nl3\nl4\n");
+  const r = expandMentions("look at @src/b.ts#2-3", dir);
+  assert.match(r.text, /<file path="src\/b\.ts" lines="2-3">\nl2\nl3\n<\/file>/);
+  assert.equal(r.attached[0], "src/b.ts#2-3 (2 lines)");
+});
+
+test("expandMentions reports out-of-bounds ranges", () => {
+  const r = expandMentions("see @src/a.ts#50-60", root());
+  assert.equal(r.attached.length, 0);
+  assert.match(r.skipped[0].reason, /out of bounds/);
+});
+
+test("expandMentions attaches a directory listing for @dir/", () => {
+  const dir = root();
+  mkdirSync(join(dir, "lib", "deep"), { recursive: true });
+  writeFileSync(join(dir, "lib", "x.ts"), "x\n");
+  writeFileSync(join(dir, "lib", "deep", "y.ts"), "y\n");
+  writeFileSync(join(dir, "lib", ".env"), "SECRET=x\n");
+  const r = expandMentions("check @lib/", dir);
+  assert.match(r.text, /<directory path="lib\/">\nlib\/deep\/y\.ts\nlib\/x\.ts\n<\/directory>/);
+  assert.match(r.attached[0], /lib\/ \(2 files\)/);
+  assert.doesNotMatch(r.text, /\.env/);
+});
+
 test("md styler renders bold, code, headers and bullets", () => {
   const md = createMdStyler(true);
   const out = md.push("## Title\n- item **bold** and `code`\n") + md.flush();

@@ -154,9 +154,14 @@ export default function Docs() {
             </ol>
             <p>
               Every file mutation is checkpointed — <Inline>/undo</Inline> restores the last change.
-              Attach files as context with <Inline>@path/to/file.ts</Inline>, preview without
-              changing anything via <Inline>dxxpcode --plan &quot;task&quot;</Inline>, and pick up
-              where you left off with <Inline>dxxpcode --resume</Inline>.
+              Preview without changing anything via <Inline>dxxpcode --plan &quot;task&quot;</Inline>,
+              and pick up where you left off with <Inline>dxxpcode --resume</Inline>.
+            </p>
+            <p>
+              Attach context inline with <Inline>@</Inline> mentions — typing{" "}
+              <Inline>@</Inline> opens a file/directory picker; <Inline>Tab</Inline> completes.
+              <Inline>@src/math.ts</Inline> attaches a file, <Inline>@src/math.ts#5-10</Inline>{" "}
+              attaches just those lines, and <Inline>@src/</Inline> attaches a directory listing.
             </p>
           </Section>
 

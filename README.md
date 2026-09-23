@@ -59,7 +59,7 @@ OpenAI-compatible endpoints (OpenRouter, local servers) work via `OPENAI_BASE_UR
 
 Piped input also works: `echo "add a /health endpoint" | dxxpcode`.
 
-Attach files as task context with `@path` mentions — `dxxpcode "explain @src/math.ts"` appends the file as a `<file>` block. Mentions follow the same permissions as `read_file`: root-escaping and protected paths (`.env`, keys) are skipped with a note. Streamed answers render markdown: `**bold**`, `` `code` ``, `##` headers, `-` bullets, `>` quotes.
+Attach files as task context with `@path` mentions — `dxxpcode "explain @src/math.ts"` appends the file as a `<file>` block. In the interactive UI, typing `@` opens a file/directory picker (`Tab` completes). `@file#L-M` attaches just that line range, and `@dir/` attaches a directory listing. Mentions follow the same permissions as `read_file`: root-escaping and protected paths (`.env`, keys) are skipped with a note. Streamed answers render markdown: `**bold**`, `` `code` ``, `##` headers, `-` bullets, `>` quotes.
 
 ## How it works
 
