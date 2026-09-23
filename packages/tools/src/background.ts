@@ -1,12 +1,18 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, openSync, readFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { evaluateCommand } from "@dxxpcode/permissions";
-import { homeDir } from "@dxxpcode/sessions";
 import { optNum, optStr, str } from "./types.ts";
 import type { AgentTool } from "./types.ts";
 
 const MAX_LOG_READ = 16 * 1024;
+
+// duplicated from @dxxpcode/sessions homeDir() — tools can't depend on sessions
+// (build order + dependency direction)
+function dxxpHome(): string {
+  return process.env.DXXPCODE_HOME ?? join(homedir(), ".dxxpcode");
+}
 
 interface BgProc {
   name: string;
@@ -21,7 +27,7 @@ interface BgProc {
 const PROCS = new Map<string, BgProc>();
 
 function bgDir(): string {
-  const dir = join(homeDir(), "bg");
+  const dir = join(dxxpHome(), "bg");
   mkdirSync(dir, { recursive: true });
   return dir;
 }
