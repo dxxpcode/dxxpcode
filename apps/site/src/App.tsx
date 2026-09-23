@@ -1,142 +1,33 @@
 import { useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
-import { Button } from "./components/ui/button";
-import { GITHUB_URL, Nav } from "./components/Nav";
+import { Check, Github, Moon, Sun, Terminal } from "lucide-react";
+import { GITHUB_URL } from "./components/Nav";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
-import { cn } from "./lib/utils";
 
-function CopyButton({ text, className }: { text: string; className?: string }) {
+const INSTALL = "npm install -g dxxpcode";
+
+const PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "Grok", "OpenRouter", "Local models"];
+
+const PLATFORMS = ["macOS", "Linux", "Windows (WSL)"];
+
+function InstallButton() {
   const [copied, setCopied] = useState(false);
   return (
     <button
       onClick={() => {
-        void navigator.clipboard?.writeText(text);
+        void navigator.clipboard?.writeText(INSTALL);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      aria-label="Copy"
-      className={cn("text-muted-foreground transition-colors hover:text-foreground", className)}
+      aria-label={`Copy "${INSTALL}"`}
+      className="inline-flex h-10 items-center gap-2.5 rounded-full bg-foreground px-5 text-background transition-opacity hover:opacity-90"
     >
-      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+      {copied ? <Check className="h-4 w-4" /> : <Terminal className="h-4 w-4" />}
+      <span className="font-mono text-[13px]">{INSTALL}</span>
     </button>
   );
 }
 
-function CodeChip({ code, className }: { code: string; className?: string }) {
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-4 rounded-full border border-border py-2.5 pl-5 pr-4 font-mono text-[13px] leading-6 text-foreground",
-        className,
-      )}
-    >
-      <code className="flex-1 overflow-x-auto whitespace-pre">
-        <span className="select-none text-muted-foreground">$ </span>
-        {code}
-      </code>
-      <CopyButton text={code} />
-    </div>
-  );
-}
-
-const TASK = 'dxxpcode "document the math helpers"';
-
-const STAGE_DELAYS = [500, 1400, 650, 500, 300, 650, 500];
-// 0: finish typing → 1: thought → 2: plan → 3: edit → 4: result → 5: diff → 6: completed
-
-function Reveal({ stage, show, children, className }: { stage: number; show: number; children: React.ReactNode; className?: string }) {
-  return (
-    <div
-      className={cn(
-        "transition-all duration-500 ease-out",
-        show >= stage ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-function TerminalShot() {
-  const [typed, setTyped] = useState(0);
-  const [stage, setStage] = useState(0);
-
-  useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setTyped(TASK.length);
-      setStage(STAGE_DELAYS.length);
-      return;
-    }
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 1; i <= TASK.length; i++) {
-      timers.push(setTimeout(() => setTyped(i), 300 + i * 38));
-    }
-    let t = 300 + TASK.length * 38;
-    for (let s = 0; s < STAGE_DELAYS.length; s++) {
-      t += STAGE_DELAYS[s];
-      const n = s + 1;
-      timers.push(setTimeout(() => setStage(n), t));
-    }
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  return (
-    <div className="overflow-hidden rounded-xl bg-[#0a0a0a] font-mono text-[13px] leading-6 text-white/50 shadow-[0_32px_64px_-24px_rgb(0_0_0/0.35)] ring-1 ring-black/5 dark:shadow-none dark:ring-white/[0.09]">
-      <div className="relative flex items-center px-4 py-3">
-        <span className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-        </span>
-        <span className="absolute inset-x-0 text-center text-xs text-white/35">dxxpcode</span>
-      </div>
-      <div className="min-h-[300px] space-y-1.5 border-t border-white/[0.08] px-5 pb-6 pt-4">
-        <div>
-          <span className="text-white/35">❯</span>{" "}
-          <span className="text-white/90">{TASK.slice(0, typed)}</span>
-          {typed < TASK.length && <span className="animate-blink text-white/70">▌</span>}
-        </div>
-        <Reveal stage={1} show={Math.max(stage, typed >= TASK.length ? 1 : 0)}>
-          <div className="text-white/35">◆ Thought for 1.4s</div>
-        </Reveal>
-        <Reveal stage={2} show={stage} className="py-1.5">
-          <div className="inline-block rounded-md bg-white/[0.05] px-3.5 py-2">
-            <div className="font-medium text-white/90">plan ×</div>
-            <div>1. Read src/math.ts</div>
-            <div>2. Add a docstring</div>
-          </div>
-        </Reveal>
-        <Reveal stage={3} show={stage}>
-          <span className="text-white/90">⏺</span>{" "}
-          <span className="font-medium text-white/90">Edit</span>
-          <span className="text-white/40">(src/math.ts)</span>
-        </Reveal>
-        <Reveal stage={4} show={stage}>
-          <div className="pl-5">⎿ edited src/math.ts (1 replacement)</div>
-        </Reveal>
-        <Reveal stage={5} show={stage} className="py-1.5">
-          <div className="inline-block rounded-md bg-white/[0.05] px-3.5 py-2">
-            <div className="font-medium text-white/90">src/math.ts ×</div>
-            <div>
-              <span className="text-white/30">1 </span>
-              <span className="bg-emerald-400/10 px-1 text-emerald-300/90">+/** Adds two numbers. */</span>
-            </div>
-            <div>
-              <span className="text-white/30">2 </span>
-              <span className="px-1">export const add = …</span>
-            </div>
-          </div>
-        </Reveal>
-        <Reveal stage={6} show={stage}>
-          <span className="text-emerald-400/90">✓</span>{" "}
-          <span className="font-medium text-white/90">Completed</span> · 4.2s · 44.4k tokens
-        </Reveal>
-      </div>
-    </div>
-  );
-}
 export default function App() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
 
@@ -149,54 +40,66 @@ export default function App() {
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Nav dark={dark} onToggleTheme={() => setDark((d) => !d)} />
+    <div className="flex min-h-[100svh] flex-col bg-background">
+      <header className="grid h-16 grid-cols-3 items-center px-6">
+        <span />
+        <a href="/" className="justify-self-center" aria-label="DxxpCode">
+          <img src={dark ? "/logo-dark.png" : "/logo.png"} alt="DxxpCode" className="h-[18px] w-auto" />
+        </a>
+        <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
+          <a href="/docs" className="transition-colors hover:text-foreground">
+            Docs
+          </a>
+          <a href="/changelog" className="hidden transition-colors hover:text-foreground sm:inline">
+            Changelog
+          </a>
+          <button
+            onClick={() => setDark((d) => !d)}
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+            className="-mr-2 p-2 transition-colors hover:text-foreground"
+          >
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </nav>
+      </header>
 
-      <header className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center md:pb-20 md:pt-32">
-        <p className="text-[13px] text-muted-foreground">
-          Free during early access · bring your own API key
-        </p>
-        <h1 className="mt-5 text-balance text-[44px] font-semibold leading-[1.04] tracking-[-0.035em] md:text-[64px]">
-          The AI coding agent that lives in your terminal.
+      <main className="flex flex-1 flex-col items-center justify-center px-6 pb-8 text-center">
+        <h1 className="text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
+          The AI coding agent{" "}
+          <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+            in your terminal
+          </span>
         </h1>
-        <p className="mx-auto mt-6 max-w-lg text-pretty text-[17px] leading-7 text-muted-foreground">
-          Describe a task. DxxpCode plans it, asks permission, edits code, runs your tests, and shows
-          you the diff.
-        </p>
-        <div className="mt-10 flex items-center justify-center gap-3">
-          <Button className="h-10 px-5" onClick={() => window.open(GITHUB_URL, "_blank")}>
-            Get started
-          </Button>
+
+        <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row">
+          <InstallButton />
           <a
             href={GITHUB_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 items-center rounded-full border border-border px-5 text-[15px] font-medium text-foreground transition-colors hover:bg-secondary"
+            className="inline-flex h-10 items-center gap-2.5 rounded-full border border-border px-5 text-[14px] text-foreground transition-colors hover:bg-secondary"
           >
-            View on GitHub
+            <Github className="h-4 w-4" />
+            GitHub
           </a>
         </div>
-      </header>
 
-      <section className="mx-auto max-w-3xl px-6">
-        <TerminalShot />
-      </section>
+        <ul className="mt-10 flex max-w-[300px] flex-wrap sm:max-w-none justify-center gap-x-6 gap-y-2 text-[13px] text-muted-foreground">
+          {PROVIDERS.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      </main>
 
-      <section className="mx-auto max-w-3xl px-6 py-28 text-center md:py-36">
-        <h2 className="text-[28px] font-semibold tracking-[-0.025em]">Install in one line.</h2>
-        <div className="mt-8 flex justify-center">
-          <CodeChip code="npm install -g dxxpcode" />
-        </div>
-      </section>
-
-      <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-5xl items-center flex-wrap justify-between gap-x-6 gap-y-2 px-6 py-8 text-[13px] text-muted-foreground">
-          <span>© 2026 DxxpCode</span>
-          <span className="hidden md:inline">
-            Free during market validation — paid plans (hosted inference, team features) come later.
-          </span>
-          <span>Terminal-native. Bring your own key.</span>
-        </div>
+      <footer className="pb-10 text-center">
+        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Runs on
+        </p>
+        <ul className="mt-4 flex justify-center gap-6 text-[13px] text-foreground/80">
+          {PLATFORMS.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
       </footer>
     </div>
   );
