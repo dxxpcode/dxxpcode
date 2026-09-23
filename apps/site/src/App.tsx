@@ -6,10 +6,6 @@ import Docs from "./Docs";
 
 const INSTALL = "npm install -g dxxpcode";
 
-const PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "Grok", "OpenRouter", "Local models"];
-
-const PLATFORMS = ["macOS", "Linux", "Windows (WSL)"];
-
 function InstallButton() {
   const [copied, setCopied] = useState(false);
   return (
@@ -63,7 +59,7 @@ export default function App() {
         </nav>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center px-6 pb-8 text-center">
+      <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
         <h1 className="text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
           The AI coding agent{" "}
           <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
@@ -83,24 +79,7 @@ export default function App() {
             GitHub
           </a>
         </div>
-
-        <ul className="mt-10 flex max-w-[300px] flex-wrap sm:max-w-none justify-center gap-x-6 gap-y-2 text-[13px] text-muted-foreground">
-          {PROVIDERS.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
       </main>
-
-      <footer className="pb-10 text-center">
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Runs on
-        </p>
-        <ul className="mt-4 flex justify-center gap-6 text-[13px] text-foreground/80">
-          {PLATFORMS.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
-      </footer>
     </div>
   );
 }
