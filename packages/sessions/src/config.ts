@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export type ApprovalMode = "ask" | "auto";
+export type ApprovalMode = "ask" | "auto" | "smart";
 
 export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -26,6 +26,8 @@ export interface DxxpConfig {
   plan?: string;
   /** Random per-install ID — generated once, powers the unique-installs stat. */
   installId?: string;
+  /** TypeSafe API key for Jev-powered smart approvals. */
+  typeSafeApiKey?: string;
 }
 
 export function homeDir(env: NodeJS.ProcessEnv = process.env): string {

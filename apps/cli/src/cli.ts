@@ -232,8 +232,9 @@ async function main(): Promise<number> {
   const effort = args.effort
     ?? (["minimal","low","medium","high","xhigh","max"].includes(envEffort ?? "") ? envEffort as Args["effort"] : config.effort);
   const autoApprove = args.yes || config.approvalMode === "auto";
-  // Mode shown in the status bar: plan | always-approve | ask.
-  const mode = args.plan ? "plan" : autoApprove ? "always-approve" : "ask";
+  const smartApproveMode = !args.yes && config.approvalMode === "smart";
+  // Mode shown in the status bar: plan | always-approve | smart | ask.
+  const mode = args.plan ? "plan" : autoApprove ? "always-approve" : smartApproveMode ? "smart" : "ask";
   const controller = new AbortController();
   process.on("SIGINT", () => controller.abort());
 
@@ -266,6 +267,7 @@ async function main(): Promise<number> {
       session,
       planOnly: args.plan,
       autoApprove,
+      smartApprove: smartApproveMode,
       maxIterations: args.maxIterations ?? config.maxIterations,
       task: args.task,
       allowlist,
@@ -305,6 +307,7 @@ async function main(): Promise<number> {
       projectRoot: root,
       planOnly: args.plan,
       autoApprove,
+      smartApprove: smartApproveMode ? (process.env.TYPESAFE_API_KEY ?? config.typeSafeApiKey) : undefined,
       maxIterations: args.maxIterations ?? config.maxIterations,
       prompter,
       session,

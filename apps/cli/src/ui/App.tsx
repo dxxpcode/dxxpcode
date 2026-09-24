@@ -11,6 +11,7 @@ import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
 import { billingUrl, openUrl, waitForLoginCallback } from "../auth.ts";
+import { smartApprove } from "../jev.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff } from "./diff.ts";
@@ -60,6 +61,8 @@ export function App(props: AppProps) {
   // /config writes these; they take effect on the next run.
   const [modeOverride, setModeOverride] = useState<string | null>(null);
   const autoRef = useRef(props.autoApprove);
+  const smartRef = useRef(props.smartApprove ?? false);
+  const jevKey = process.env.TYPESAFE_API_KEY ?? cfgRef.current.typeSafeApiKey;
   const effortRef = useRef(props.effort);
   const [promptVal, setPromptVal] = useState("");
   const [setup, setSetup] = useState(false);
@@ -184,6 +187,14 @@ export function App(props: AppProps) {
         if (autoRef.current) {
           push({ kind: "note", text: `auto-approved: ${describe(req)}` });
           return true;
+        }
+        if (smartRef.current && jevKey) {
+          const v = await smartApprove(req, jevKey);
+          if (v?.approve) {
+            push({ kind: "note", text: `⎿ smart-approved: ${describe(req)} (jev ${v.confidence.toFixed(2)})` });
+            return true;
+          }
+          if (v) push({ kind: "note", text: `⎿ jev escalated (${v.confidence.toFixed(2)}) — your call` });
         }
         return new Promise((resolve) => {
           setMenuSel(0);
@@ -318,6 +329,7 @@ export function App(props: AppProps) {
     setSetup,
     provRef,
     autoRef,
+    smartRef,
     effortRef,
     sessionRef,
     modeOverride,

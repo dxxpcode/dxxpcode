@@ -53,6 +53,8 @@ export interface AppProps {
   session?: SessionRecord;
   planOnly: boolean;
   autoApprove: boolean;
+  /** Jev-powered smart approvals (approvalMode "smart" + TYPESAFE_API_KEY). */
+  smartApprove?: boolean;
   maxIterations?: number;
   /** First task for one-shot runs; App exits after it finishes. */
   task?: string;
