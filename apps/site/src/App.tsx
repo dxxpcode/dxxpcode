@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Github, Moon, Sun } from "lucide-react";
-import { GITHUB_URL } from "./components/Nav";
+import { Check, Copy, Moon, Sun } from "lucide-react";
 import { Logo } from "./components/Logo";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
@@ -68,17 +67,8 @@ export default function App() {
           </span>
         </h1>
 
-        <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row">
+        <div className="mt-7">
           <InstallButton />
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 items-center gap-2.5 rounded-full border border-border px-5 text-[14px] text-foreground transition-colors hover:bg-secondary"
-          >
-            <Github strokeWidth={1.5} className="h-4 w-4" />
-            GitHub
-          </a>
         </div>
       </main>
     </div>
