@@ -6,6 +6,22 @@ import Docs from "./Docs";
 
 const INSTALL = "npm install -g dxxpcode";
 
+function InstallCount() {
+  const [n, setN] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((d) => setN(typeof d.installs === "number" ? d.installs : null))
+      .catch(() => {});
+  }, []);
+  if (n === null) return null;
+  return (
+    <p className="mt-6 text-[13px] text-muted-foreground">
+      {n.toLocaleString()} {n === 1 ? "developer" : "developers"} installed dxxpcode
+    </p>
+  );
+}
+
 function InstallButton() {
   const [copied, setCopied] = useState(false);
   return (
@@ -70,6 +86,7 @@ export default function App() {
         <div className="mt-7">
           <InstallButton />
         </div>
+        <InstallCount />
       </main>
     </div>
   );

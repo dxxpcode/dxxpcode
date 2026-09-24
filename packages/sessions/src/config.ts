@@ -24,6 +24,8 @@ export interface DxxpConfig {
   accountEmail?: string;
   /** Entitlement reported by the auth server at login ("free" | "pro" | ...). */
   plan?: string;
+  /** Random per-install ID — generated once, powers the unique-installs stat. */
+  installId?: string;
 }
 
 export function homeDir(env: NodeJS.ProcessEnv = process.env): string {

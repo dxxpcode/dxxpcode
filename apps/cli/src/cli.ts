@@ -245,6 +245,10 @@ async function main(): Promise<number> {
   // "Always allow" approvals persist across tasks for the whole process.
   const allowlist = new Set<string>();
 
+  // One-shot install ping — generates a random ID once, POSTs to the stats endpoint.
+  const { trackInstall } = await import("./track.ts");
+  trackInstall(config, process.env);
+
   if (interactive) {
     // Background update check — resolved inside the TUI as a note.
     const updateCheck = import("./update.ts").then((m) =>
