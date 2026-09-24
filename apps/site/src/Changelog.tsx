@@ -10,16 +10,12 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
-    version: "0.1.0",
-    date: "Initial release",
+    version: "Unreleased",
+    date: "ships as v0.2.0",
     items: [
-      "Interactive terminal UI — boxed input, arrow-key approvals, scrollable transcript, status bar, live turn meter, slash-command autocomplete, persistent history",
-      "Agent loop — plan → approve → execute → verify, with permission tiers and session \"always allow\"",
-      "Providers — Anthropic and OpenAI-compatible streaming adapters; first-run /provider connect flow",
-      "Tools — filesystem, search, shell, git; @file mentions; inline diff previews; token/time footer",
-      "Context compaction past ~60k estimated tokens — /compact forces it; /status shows usage",
+      "Manual compaction — /compact forces it; /status shows context usage vs the 60k cap",
       "Background processes — run_background, check_process, kill_process with per-name logs",
-      "File checkpoints — every mutation snapshots its target; /undo restores, git-aware HEAD tracking",
+      "Git-aware checkpoints — every mutation snapshots its target; /undo restores, warns if HEAD moved",
       "Multi-provider sessions — /providers switcher with per-provider model memory",
       "@mentions — autocomplete picker, @file#L-M line ranges, @dir/ directory listing",
       "Task checklists — todo_write renders a live tasks card in the terminal",
@@ -27,9 +23,23 @@ const RELEASES: Release[] = [
       "Reasoning effort — minimal through max tiers, shown in the turn meter and footer",
       "Tabbed /settings — Settings + Session surfaces",
       "Opencode-style streaming — per-tool icons and live verb lines; geometric XX banner mark",
+      "Docs page — /docs with install, provider, command, and config reference",
+      "Changelog page — this page",
+      "Resume indicator — --resume shows the restored session and message count",
+      "Fresh git state in /status — dirty trees no longer report clean",
+    ],
+  },
+  {
+    version: "0.1.0",
+    date: "Initial release",
+    items: [
+      "Interactive terminal UI — boxed input, arrow-key approvals, scrollable transcript, status bar, live turn meter, slash-command autocomplete, persistent history",
+      "Agent loop — plan → approve → execute → verify, with permission tiers and session \"always allow\"",
+      "Providers — Anthropic and OpenAI-compatible streaming adapters; first-run /provider connect flow",
+      "Tools — filesystem, search, shell, git; @file mentions; inline diff previews; token/time footer",
+      "Context compaction past ~60k estimated tokens",
       "Sessions persisted locally with --resume; --plan, --review, --yes modes",
       "Update notifications via npm registry with a 24h cache",
-      "Docs page — /docs with install, provider, command, and config reference",
     ],
   },
 ];
