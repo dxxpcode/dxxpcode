@@ -14,6 +14,8 @@ export interface DxxpConfig {
   approvalMode?: ApprovalMode;
   /** Reasoning effort level for reasoning-capable models. */
   effort?: ReasoningEffort;
+  /** Let Jev pick the effort tier per task (uses TYPESAFE_API_KEY / typeSafeApiKey). */
+  effortAuto?: boolean;
   maxIterations?: number;
   /** Saved by the in-CLI provider setup; env vars take precedence. */
   anthropicApiKey?: string;

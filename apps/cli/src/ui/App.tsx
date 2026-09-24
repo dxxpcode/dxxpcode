@@ -11,7 +11,7 @@ import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
 import { billingUrl, openUrl, waitForLoginCallback } from "../auth.ts";
-import { smartApprove } from "../jev.ts";
+import { jevRouteEffort, smartApprove } from "../jev.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff } from "./diff.ts";
@@ -63,6 +63,7 @@ export function App(props: AppProps) {
   const autoRef = useRef(props.autoApprove);
   const smartRef = useRef(props.smartApprove ?? false);
   const jevKey = process.env.TYPESAFE_API_KEY ?? cfgRef.current.typeSafeApiKey;
+  const autoEffortRef = useRef(cfgRef.current.effortAuto ?? false);
   const effortRef = useRef(props.effort);
   const [promptVal, setPromptVal] = useState("");
   const [setup, setSetup] = useState(false);
@@ -208,6 +209,15 @@ export function App(props: AppProps) {
         });
       };
 
+      let eff = effortRef.current;
+      if (autoEffortRef.current && jevKey) {
+        const r = await jevRouteEffort(mentions.text, jevKey);
+        if (r) {
+          eff = r.effort;
+          push({ kind: "note", text: `⎿ effort: ${r.effort} (jev ${r.confidence.toFixed(2)})` });
+        }
+      }
+
       const t0 = Date.now();
       let result: RunResult | undefined;
       try {
@@ -215,7 +225,7 @@ export function App(props: AppProps) {
           task: mentions.text,
           provider: provRef.current.provider,
           model: provRef.current.model,
-          effort: effortRef.current,
+          effort: eff,
           projectRoot: props.root,
           planOnly: props.planOnly,
           maxIterations: props.maxIterations,
@@ -331,6 +341,8 @@ export function App(props: AppProps) {
     autoRef,
     smartRef,
     effortRef,
+    autoEffortRef,
+    jevKey,
     sessionRef,
     modeOverride,
     tok,
@@ -759,7 +771,7 @@ export function App(props: AppProps) {
           <Text dimColor>
             {isRunning
               ? `turn ${elapsed.toFixed(1)}s${tok ? ` · ↓${fmtTokens(tok)} tok` : ""}${effortRef.current ? ` · ${effortRef.current} effort` : ""}`
-              : `${prov.model} · ${mode}${effortRef.current ? ` · ${effortRef.current}` : ""}`}
+              : `${prov.model} · ${mode}${autoEffortRef.current ? " · auto effort" : effortRef.current ? ` · ${effortRef.current}` : ""}`}
           </Text>
         </Box>
       )}
