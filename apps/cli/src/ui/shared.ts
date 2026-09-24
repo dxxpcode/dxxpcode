@@ -19,6 +19,8 @@ export const COMMANDS = [
   { name: "/providers", desc: "switch between configured providers" },
   { name: "/undo", desc: "restore files from the last checkpoint" },
   { name: "/compact", desc: "compress old tool output in the session context" },
+  { name: "/docs", desc: "in-terminal reference — install, commands, flags, config" },
+  { name: "/changelog", desc: "release history" },
   { name: "/clear", desc: "clear the transcript" },
   { name: "/help", desc: "list available commands" },
   { name: "/exit", desc: "quit dxxpcode" },
