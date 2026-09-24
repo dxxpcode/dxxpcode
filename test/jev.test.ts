@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { smartApprove } from "../apps/cli/src/jev.ts";
+import { jevRouteEffort, smartApprove } from "../apps/cli/src/jev.ts";
 import type { ApprovalRequest } from "../packages/agent/src/runtime.ts";
 
 const req: ApprovalRequest = {
@@ -50,5 +50,23 @@ test("smartApprove returns null when Jev is unreachable", async () => {
     assert.equal(await smartApprove(req, "key"), null);
   } finally {
     globalThis.fetch = real;
+  }
+});
+
+test("jevRouteEffort maps a valid tier choice, nulls on bad choice", async () => {
+  const restore = stub({
+    effort: { type: "choice", choice: "high", confidence: 0.9, probabilities: {} },
+  });
+  try {
+    assert.deepEqual(await jevRouteEffort("fix the auth bug", "key"), { effort: "high", confidence: 0.9 });
+  } finally {
+    restore();
+  }
+
+  const restore2 = stub({ effort: { type: "choice", choice: "bogus", confidence: 0.9 } });
+  try {
+    assert.equal(await jevRouteEffort("x", "key"), null);
+  } finally {
+    restore2();
   }
 });

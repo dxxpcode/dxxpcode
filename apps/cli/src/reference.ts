@@ -23,7 +23,7 @@ export const DOCS_MD = `# install
 - \`/settings\` — Settings + Session tabs (approval mode, provider, model, effort)
 - \`/model\` · \`/providers\` · \`/effort\` — pickers
 - \`/undo\` — restore files from the last checkpoint
-- \`/compact\` — compress old tool output; \`/settings\` → Approval mode \`smart\` = Jev-decided approvals; \`/clear\` clears the transcript
+- \`/compact\` — compress old tool output; \`/settings\` → Approval mode \`smart\` = Jev-decided approvals; effort \`auto (Jev)\` = Jev picks effort per task; \`/clear\` clears the transcript
 - \`/review\` — diff of uncommitted changes; \`/provider\` — connect a key
 - \`/changelog\` · \`/docs\` — this reference; \`/help\` · \`/exit\`
 - \`/login\` sign in via browser · \`/logout\` · \`/upgrade\` billing

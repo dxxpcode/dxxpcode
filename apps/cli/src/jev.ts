@@ -1,4 +1,5 @@
 import type { ApprovalRequest } from "@dxxpcode/agent";
+import type { ReasoningEffort } from "@dxxpcode/providers";
 
 export interface JevAnswer {
   type: "choice" | "noul" | "score";
@@ -65,6 +66,46 @@ export async function smartApprove(req: ApprovalRequest, apiKey: string): Promis
     const a = res.answers["verdict"];
     if (!a) return null;
     return { approve: a.choice === "approve" && a.confidence >= APPROVE_THRESHOLD, confidence: a.confidence };
+  } catch {
+    return null;
+  }
+}
+
+export interface EffortRoute {
+  effort: ReasoningEffort;
+  confidence: number;
+}
+
+const EFFORT_TIERS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+/**
+ * Score a task prompt with Jev and pick a reasoning-effort tier. Returns null
+ * when Jev can't be reached or is uncertain — callers use the user's setting.
+ */
+export async function jevRouteEffort(task: string, apiKey: string): Promise<EffortRoute | null> {
+  try {
+    const res = await jevDecide(
+      apiKey,
+      { task },
+      {
+        effort: {
+          type: "choice",
+          instructions:
+            "Pick the reasoning effort an AI coding agent should spend on this task. Judge the task's inherent complexity, not its length: lower tiers for lookups, formatting, simple edits and straightforward commands; medium for typical agentic coding; higher tiers only for genuinely hard, multi-step or high-stakes work.",
+          criteria: {
+            minimal: "trivial — answers, renames, one-line edits",
+            low: "simple — drafting, small changes, routine commands",
+            medium: "standard — most coding tasks and fixes",
+            high: "complex — debugging, refactors, deep planning",
+            xhigh: "very hard — subtle bugs, architecture, large multi-step work",
+            max: "extreme — high-stakes, hardest reasoning problems",
+          },
+        },
+      },
+    );
+    const a = res.answers["effort"];
+    if (!a || !a.choice || !EFFORT_TIERS.includes(a.choice as (typeof EFFORT_TIERS)[number])) return null;
+    return { effort: a.choice as ReasoningEffort, confidence: a.confidence };
   } catch {
     return null;
   }

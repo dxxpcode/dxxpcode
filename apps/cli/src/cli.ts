@@ -7,6 +7,7 @@ import { homeDir, latestSessionFor, loadConfig, loadSession, saveConfig } from "
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { renderBanner, renderTips } from "./banner.ts"; // kept for non-interactive/tests
 import { expandMentions } from "./mentions.ts";
+import { jevRouteEffort } from "./jev.ts";
 import { createPrompter } from "./prompt.ts";
 import { undoCheckpoint } from "@dxxpcode/agent";
 import { runAndRender } from "./run.ts";
@@ -294,6 +295,9 @@ async function main(): Promise<number> {
   const runOnce = async (task: string) => {
     for (const l of pill(task)) line(l);
     const mentions = expandMentions(task, root);
+    const taskEffort = config.effortAuto && (process.env.TYPESAFE_API_KEY ?? config.typeSafeApiKey)
+      ? (await jevRouteEffort(mentions.text, process.env.TYPESAFE_API_KEY ?? config.typeSafeApiKey ?? ""))?.effort ?? effort
+      : effort;
     for (const a of mentions.attached) line(dim(`  attached ${a}`));
     for (const s of mentions.skipped) line(dim(`  skipped @${s.path}: ${s.reason}`));
     const runCtl = new AbortController();
@@ -303,7 +307,7 @@ async function main(): Promise<number> {
       task: mentions.text,
       provider: provider.provider,
       model: provider.model,
-      effort,
+      effort: taskEffort,
       projectRoot: root,
       planOnly: args.plan,
       autoApprove,

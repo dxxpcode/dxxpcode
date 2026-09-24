@@ -21,6 +21,9 @@ export interface MenuDeps {
   autoRef: MutableRefObject<boolean>;
   smartRef: MutableRefObject<boolean>;
   effortRef: MutableRefObject<ReasoningEffort | undefined>;
+  autoEffortRef: MutableRefObject<boolean>;
+  /** TypeSafe key for Jev-powered options (auto effort), undefined when unset. */
+  jevKey?: string;
   sessionRef: MutableRefObject<SessionRecord | undefined>;
   modeOverride: string | null;
   tok: number;
@@ -29,7 +32,7 @@ export interface MenuDeps {
 /** The /model, /effort, and /settings(+tab) menus plus the Session status rows. */
 export function useConfigMenus(d: MenuDeps) {
   const { props, push, setPending, setMenuSel, setSpinLabel, setProv, setModeOverride, setSetup } = d;
-  const { provRef, autoRef, smartRef, effortRef, sessionRef } = d;
+  const { provRef, autoRef, smartRef, effortRef, autoEffortRef, sessionRef } = d;
 
   const openModelMenu = useCallback(() => {
     const name = provRef.current.provider.name;
@@ -83,9 +86,9 @@ export function useConfigMenus(d: MenuDeps) {
   }, [push, provRef, effortRef, setPending, setMenuSel, setSpinLabel, setProv]);
 
   const openEffortMenu = useCallback(() => {
-    const opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
-    const cur = effortRef.current ?? "default";
-    setMenuSel(opts.indexOf(cur));
+    const opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
+    const cur = autoEffortRef.current ? "auto (Jev)" : (effortRef.current ?? "default");
+    setMenuSel(Math.max(0, opts.indexOf(cur)));
     setPending({
       kind: "config",
       title: "Reasoning effort — applies to the next task (ignored on models without support)",
@@ -98,16 +101,23 @@ export function useConfigMenus(d: MenuDeps) {
         "hard reasoning — complex debugging, deep planning",
         "larger budget for the hardest multi-step problems",
         "unconstrained budget — high-stakes, hardest tasks",
+        "Jev scores each task and picks the tier — needs TYPESAFE_API_KEY",
       ],
       resolve: (i) => {
         if (i === null) return;
         const next = opts[i];
+        autoEffortRef.current = next === "auto (Jev)";
+        if (autoEffortRef.current) {
+          saveConfig({ ...loadConfig(), effortAuto: true });
+          push({ kind: "note", text: d.jevKey ? "reasoning effort: auto (Jev) (saved)" : "reasoning effort: auto (Jev) (saved) — set TYPESAFE_API_KEY to enable" });
+          return;
+        }
         effortRef.current = next === "default" ? undefined : (next as ReasoningEffort);
-        saveConfig({ ...loadConfig(), effort: effortRef.current });
+        saveConfig({ ...loadConfig(), effort: effortRef.current, effortAuto: false });
         push({ kind: "note", text: `reasoning effort: ${next} (saved)` });
       },
     });
-  }, [push, effortRef, setPending, setMenuSel]);
+  }, [push, effortRef, autoEffortRef, d.jevKey, setPending, setMenuSel]);
 
   const openProviderMenu = useCallback(() => {
     const cfg = loadConfig();
@@ -216,7 +226,7 @@ export function useConfigMenus(d: MenuDeps) {
       ],
       ["provider", `${cur.provider.name} · ${cur.model}`],
       ["mode", effMode],
-      ["effort", effortRef.current ?? "default"],
+      ["effort", autoEffortRef.current ? "auto (Jev)" : (effortRef.current ?? "default")],
       ["version", `v${props.version}`],
       ["project", `${p.name} — ${p.root}`],
       ["git", git ? `${git.branch}${git.dirty ? " (dirty)" : " (clean)"}` : "not a repository"],
@@ -230,7 +240,7 @@ export function useConfigMenus(d: MenuDeps) {
       ["usage", `${fmtTokens(d.tok)} tok this turn`],
       ["config", join(homeDir(), "config.json")],
     ];
-  }, [props, provRef, autoRef, effortRef, sessionRef, d.modeOverride, d.tok]);
+  }, [props, provRef, autoRef, effortRef, autoEffortRef, sessionRef, d.modeOverride, d.tok]);
 
   return { openModelMenu, openProviderMenu, openEffortMenu, openConfigMenu, statusRows };
 }
