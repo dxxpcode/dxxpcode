@@ -197,7 +197,14 @@ export function useConfigMenus(d: MenuDeps) {
     const git = detectGit(props.root) ?? p.git;
     const effMode =
       d.modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
+    const acct = loadConfig();
     return [
+      [
+        "account",
+        acct.authToken
+          ? `${acct.accountEmail ?? "signed in"} · plan ${acct.plan ?? "free"}`
+          : "not signed in — /login",
+      ],
       ["provider", `${cur.provider.name} · ${cur.model}`],
       ["mode", effMode],
       ["effort", effortRef.current ?? "default"],

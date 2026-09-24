@@ -26,6 +26,7 @@ export const DOCS_MD = `# install
 - \`/compact\` — compress old tool output; \`/clear\` clears the transcript
 - \`/review\` — diff of uncommitted changes; \`/provider\` — connect a key
 - \`/changelog\` · \`/docs\` — this reference; \`/help\` · \`/exit\`
+- \`/login\` sign in via browser · \`/logout\` · \`/upgrade\` billing
 
 # mentions
 
@@ -38,9 +39,15 @@ export const DOCS_MD = `# install
 - \`DXXPCODE_PROVIDER\`, \`DXXPCODE_MODEL\`, \`DXXPCODE_HOME\` (default \`~/.dxxpcode\`)
 - project instructions live in \`.dxxpcode/instructions.md\` — loaded automatically
 
+# account
+
+- \`/login\` opens the auth server sign-in in your browser and stores the token in config.json (owner-only)
+- \`/upgrade\` opens billing/plan management; \`plan\` shows on the \`/status\` Session tab
+- auth server defaults to \`https://dxxpcode.dev\` — override with \`DXXPCODE_AUTH_URL\`
+
 # config file
 
-- \`~/.dxxpcode/config.json\`: provider, model (+ per-provider \`models\`), approvalMode, effort, keys
+- \`~/.dxxpcode/config.json\`: provider, model (+ per-provider \`models\`), approvalMode, effort, keys, authToken, plan
 `;
 
 /** In-terminal release history rendered by /changelog — mirror of CHANGELOG.md. */
