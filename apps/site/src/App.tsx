@@ -49,12 +49,6 @@ export default function App() {
           <img src={dark ? "/logo-dark.png" : "/logo.png"} alt="DxxpCode" className="h-[18px] w-auto" />
         </a>
         <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
-          <a href="/docs" className="transition-colors hover:text-foreground">
-            Docs
-          </a>
-          <a href="/changelog" className="hidden transition-colors hover:text-foreground sm:inline">
-            Changelog
-          </a>
           <button
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}

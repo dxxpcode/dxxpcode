@@ -9,6 +9,7 @@ import { loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sess
 import { ProviderSetup, type SetupResult } from "./setup.tsx";
 import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
+import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff } from "./diff.ts";
@@ -395,6 +396,14 @@ export function App(props: AppProps) {
             ? `restored checkpoint ${out.seq}${out.restored.length ? ` — restored ${out.restored.join(", ")}` : ""}${out.removed.length ? ` — removed ${out.removed.join(", ")}` : ""}${out.headMoved ? ` — note: HEAD moved (${out.headMoved.from.slice(0, 7)} → ${out.headMoved.to.slice(0, 7)}) since this checkpoint` : ""}`
             : "⎿ nothing to undo",
         });
+        return;
+      }
+      if (task === "/docs") {
+        push({ kind: "text", text: DOCS_MD });
+        return;
+      }
+      if (task === "/changelog") {
+        push({ kind: "text", text: CHANGELOG_MD });
         return;
       }
       if (task === "/compact") {
