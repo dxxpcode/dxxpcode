@@ -10,7 +10,7 @@ export interface AuthResult {
 }
 
 export function authBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env.DXXPCODE_AUTH_URL ?? "https://dxxpcode.dev";
+  return env.DXXPCODE_AUTH_URL ?? "https://dxxpcode.vercel.app";
 }
 
 export function billingUrl(env: NodeJS.ProcessEnv = process.env): string {
