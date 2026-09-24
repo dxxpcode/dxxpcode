@@ -4,6 +4,7 @@ import type { SessionRecord } from "@dxxpcode/sessions";
 import { runTask } from "@dxxpcode/agent";
 import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
 import { createMdStyler } from "./md.ts";
+import { smartApprove } from "./jev.ts";
 import type { Prompter } from "./prompt.ts";
 import {
   FANCY, SYM, bold, card, createSpinner, cyan, diffTarget, dim, errLine, green, line, panel,
@@ -18,6 +19,8 @@ export interface RunCliOptions {
   projectRoot: string;
   planOnly?: boolean;
   autoApprove?: boolean;
+  /** TypeSafe API key — enables Jev smart approvals (approvalMode "smart"). */
+  smartApprove?: string;
   maxIterations?: number;
   prompter: Prompter;
   session?: SessionRecord;
@@ -88,6 +91,15 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       body.push(dim("auto-approved (--yes)"));
       for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
       return true;
+    }
+    if (opts.smartApprove) {
+      const v = await smartApprove(req, opts.smartApprove);
+      if (v?.approve) {
+        body.push(dim(`smart-approved (jev ${v.confidence.toFixed(2)})`));
+        for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
+        return true;
+      }
+      if (v) body.push(dim(`jev escalated (${v.confidence.toFixed(2)}) — your call`));
     }
     if (!prompter.interactive) {
       body.push(dim("non-interactive run — denied; re-run with --yes to allow"));

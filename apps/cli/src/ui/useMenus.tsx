@@ -19,6 +19,7 @@ export interface MenuDeps {
   setSetup: Dispatch<SetStateAction<boolean>>;
   provRef: MutableRefObject<{ provider: ModelProvider; model: string }>;
   autoRef: MutableRefObject<boolean>;
+  smartRef: MutableRefObject<boolean>;
   effortRef: MutableRefObject<ReasoningEffort | undefined>;
   sessionRef: MutableRefObject<SessionRecord | undefined>;
   modeOverride: string | null;
@@ -28,7 +29,7 @@ export interface MenuDeps {
 /** The /model, /effort, and /settings(+tab) menus plus the Session status rows. */
 export function useConfigMenus(d: MenuDeps) {
   const { props, push, setPending, setMenuSel, setSpinLabel, setProv, setModeOverride, setSetup } = d;
-  const { provRef, autoRef, effortRef, sessionRef } = d;
+  const { provRef, autoRef, smartRef, effortRef, sessionRef } = d;
 
   const openModelMenu = useCallback(() => {
     const name = provRef.current.provider.name;
@@ -156,19 +157,26 @@ export function useConfigMenus(d: MenuDeps) {
   const openConfigMenu = useCallback(
     (tab = 0) => {
       const openApprovalMenu = () => {
-        const opts = ["ask", "always-approve"];
-        setMenuSel(autoRef.current ? 1 : 0);
+        const opts = ["ask", "always-approve", "smart (Jev)"];
+        const cur = smartRef.current ? 2 : autoRef.current ? 1 : 0;
+        const hasKey = Boolean(process.env.TYPESAFE_API_KEY ?? loadConfig().typeSafeApiKey);
+        setMenuSel(cur);
         setPending({
           kind: "config",
-          title: "Approval mode — applied to the next task and saved to config",
+          title: `Approval mode — applied to the next task and saved to config${hasKey ? "" : " · smart needs TYPESAFE_API_KEY"}`,
           options: opts,
           resolve: (i) => {
             if (i === null) return;
-            const next = opts[i] === "always-approve";
-            autoRef.current = next;
-            setModeOverride(next ? "always-approve" : "ask");
-            saveConfig({ ...loadConfig(), approvalMode: next ? "auto" : "ask" });
-            push({ kind: "note", text: `approval mode: ${opts[i]} (saved)` });
+            const sel = opts[i];
+            smartRef.current = sel === "smart (Jev)";
+            autoRef.current = sel === "always-approve";
+            const mode = smartRef.current ? "smart" : autoRef.current ? "auto" : "ask";
+            setModeOverride(smartRef.current ? "smart" : autoRef.current ? "always-approve" : "ask");
+            saveConfig({ ...loadConfig(), approvalMode: mode });
+            push({
+              kind: "note",
+              text: `approval mode: ${sel} (saved)${smartRef.current && !hasKey ? " — no TYPESAFE_API_KEY yet; falls back to ask" : ""}`,
+            });
           },
         });
       };
@@ -196,7 +204,8 @@ export function useConfigMenus(d: MenuDeps) {
     const cur = provRef.current;
     const git = detectGit(props.root) ?? p.git;
     const effMode =
-      d.modeOverride ?? (props.planOnly ? "plan" : autoRef.current ? "always-approve" : "ask");
+      d.modeOverride ??
+      (props.planOnly ? "plan" : autoRef.current ? "always-approve" : smartRef.current ? "smart" : "ask");
     const acct = loadConfig();
     return [
       [
