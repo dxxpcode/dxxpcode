@@ -43,6 +43,7 @@
     font-family: "Geist", -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue",
       "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
   ::selection { background: hsl(var(--foreground) / 0.14); }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Github, Moon, Sun } from "lucide-react";
 import { GITHUB_URL } from "./components/Nav";
+import { Logo } from "./components/Logo";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
 
@@ -24,7 +25,7 @@ function InstallButton() {
       </span>
       <span className="h-5 w-px bg-border" />
       <span className="flex h-full items-center pl-3.5 pr-4 text-muted-foreground transition-colors group-hover:text-foreground">
-        {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4" />}
+        {copied ? <Check strokeWidth={1.5} className="h-4 w-4 text-foreground" /> : <Copy strokeWidth={1.5} className="h-4 w-4" />}
       </span>
     </button>
   );
@@ -46,7 +47,7 @@ export default function App() {
       <header className="grid h-16 grid-cols-3 items-center px-6">
         <span />
         <a href="/" className="justify-self-center" aria-label="DxxpCode">
-          <img src={dark ? "/logo-dark.png" : "/logo.png"} alt="DxxpCode" className="h-[18px] w-auto" />
+          <Logo className="h-[18px] w-auto" />
         </a>
         <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
           <button
@@ -54,7 +55,7 @@ export default function App() {
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
             className="-mr-2 p-2 transition-colors hover:text-foreground"
           >
-            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {dark ? <Sun strokeWidth={1.5} className="h-4 w-4" /> : <Moon strokeWidth={1.5} className="h-4 w-4" />}
           </button>
         </nav>
       </header>
@@ -75,7 +76,7 @@ export default function App() {
             rel="noreferrer"
             className="inline-flex h-10 items-center gap-2.5 rounded-full border border-border px-5 text-[14px] text-foreground transition-colors hover:bg-secondary"
           >
-            <Github className="h-4 w-4" />
+            <Github strokeWidth={1.5} className="h-4 w-4" />
             GitHub
           </a>
         </div>
