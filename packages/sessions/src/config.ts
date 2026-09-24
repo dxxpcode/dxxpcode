@@ -19,6 +19,11 @@ export interface DxxpConfig {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   openaiBaseUrl?: string;
+  /** Account auth token from /login (browser callback flow). */
+  authToken?: string;
+  accountEmail?: string;
+  /** Entitlement reported by the auth server at login ("free" | "pro" | ...). */
+  plan?: string;
 }
 
 export function homeDir(env: NodeJS.ProcessEnv = process.env): string {
