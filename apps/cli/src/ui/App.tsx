@@ -508,6 +508,12 @@ export function App(props: AppProps) {
         setItems([]);
         return;
       }
+      if (task === "/new") {
+        sessionRef.current = undefined;
+        props.allowlist.clear();
+        push({ kind: "note", text: "⎿ new session — context and session approvals reset" });
+        return;
+      }
       if (task === "/help") {
         push({
           kind: "text",

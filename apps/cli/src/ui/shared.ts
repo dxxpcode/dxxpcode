@@ -26,6 +26,7 @@ export const COMMANDS = [
   { name: "/logout", desc: "sign out — removes the saved token" },
   { name: "/upgrade", desc: "open billing / plan management" },
   { name: "/clear", desc: "clear the transcript" },
+  { name: "/new", desc: "start a new session — resets context and approvals" },
   { name: "/help", desc: "list available commands" },
   { name: "/exit", desc: "quit dxxpcode" },
 ];
