@@ -294,8 +294,13 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
     }
     case "todo": {
       const done = it.items.filter((t) => t.status === "completed").length;
+      const orbs: Seg[] = it.items.map((t) => ({
+        t: t.status === "completed" ? "●" : t.status === "in_progress" ? "◉" : "○",
+        c: t.status === "completed" ? "green" : t.status === "in_progress" ? "cyan" : undefined,
+        dim: t.status === "pending",
+      }));
       const lines: Seg[][] = [
-        [{ t: "tasks", bold: true }, { t: `  ${done}/${it.items.length}  ×`, dim: true }],
+        [{ t: "tasks", bold: true }, { t: "  " }, ...orbs, { t: `  ${done}/${it.items.length}  ×`, dim: true }],
         ...it.items.map((t) => {
           const mark =
             t.status === "completed"
