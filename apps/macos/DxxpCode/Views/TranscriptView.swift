@@ -1,24 +1,30 @@
 import SwiftUI
 
-/// Virtualized streaming transcript. Rows render per TranscriptItem kind;
-/// text rows host MarkdownText (which handles inline md + fenced code).
+/// Virtualized streaming transcript in a centered, readable column.
+/// Rows render per TranscriptItem kind; text rows host MarkdownText
+/// (which handles inline md + fenced code).
 struct TranscriptView: View {
     let session: SessionModel
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
-                    ForEach(session.items) { item in
-                        TranscriptRow(item: item, session: session)
-                            .id(item.id)
+                HStack {
+                    Spacer(minLength: 0)
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        ForEach(session.items) { item in
+                            TranscriptRow(item: item, session: session)
+                                .id(item.id)
+                        }
+                        Color.clear
+                            .frame(height: 1)
+                            .id("transcript-tail")
                     }
-                    Color.clear
-                        .frame(height: 1)
-                        .id("transcript-tail")
+                    .frame(maxWidth: 720)
+                    Spacer(minLength: 0)
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
             }
             .onChange(of: session.items.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.15)) {
@@ -44,6 +50,7 @@ private struct TranscriptRow: View {
                 .scaleEffect(x: TextScale.shared.factor, y: TextScale.shared.factor,
                              anchor: .topLeading)
                 .textSelection(.enabled)
+                .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
         case .tool(_, let tool, let detail, let result):
@@ -65,18 +72,12 @@ private struct TranscriptRow: View {
                              onDeny: { session.respondApproval(allow: false) })
 
         case .denied(_, let tool, let reason):
-            Label("\(tool): \(reason)", systemImage: "hand.raised.slash")
-                .font(.callout)
-                .foregroundStyle(.red)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            NoticeRow(icon: "hand.raised.slash", text: "\(tool): \(reason)", tint: .red)
 
         case .compacted(_, let before, let after):
-            Label("Context compacted: \(before) → \(after) blocks",
-                  systemImage: "arrow.down.right.and.arrow.up.left")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            NoticeRow(icon: "arrow.down.right.and.arrow.up.left",
+                      text: "Context compacted: \(before) → \(after) blocks",
+                      tint: .secondary)
 
         case .done(_, let result):
             DoneRow(result: result)
@@ -85,7 +86,25 @@ private struct TranscriptRow: View {
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
+    }
+}
+
+/// Small centered system message — denied notices, compaction notes.
+private struct NoticeRow: View {
+    let icon: String
+    let text: String
+    let tint: Color
+
+    var body: some View {
+        Label(text, systemImage: icon)
+            .font(.caption)
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(tint.opacity(0.10), in: Capsule())
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 }
 
@@ -100,42 +119,76 @@ private struct ToolRow: View {
             Button {
                 if result != nil { expanded.toggle() }
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: iconName)
-                        .frame(width: 16)
-                        .foregroundStyle(.secondary)
-                    Text(tool)
-                        .font(.callout.monospaced().weight(.medium))
-                    Text(detail)
-                        .font(.callout.monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer()
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(tint.opacity(0.14))
+                        Image(systemName: iconName)
+                            .font(.caption)
+                            .foregroundStyle(tint)
+                    }
+                    .frame(width: 22, height: 22)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(tool)
+                            .font(.callout.monospaced().weight(.semibold))
+                        if !detail.isEmpty {
+                            Text(detail)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    Spacer(minLength: 8)
                     if result == nil {
-                        ProgressView().controlSize(.mini)
+                        ProgressView().controlSize(.small)
+                    } else if result?.isError == true {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.red)
                     } else {
                         Image(systemName: expanded ? "chevron.down" : "chevron.right")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
             if expanded, let result {
-                Text(result.content.isEmpty ? "(no output)" : result.content)
-                    .font(.caption.monospaced())
-                    .textSelection(.enabled)
-                    .foregroundStyle(result.isError == true ? .red : .primary)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.04))
+                Divider().padding(.horizontal, 10)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Text(result.content.isEmpty ? "(no output)" : result.content)
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                        .foregroundStyle(result.isError == true ? .red : .primary)
+                        .padding(10)
+                }
             }
         }
-        .padding(8)
-        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.primary.opacity(0.06))
+        }
         .accessibilityLabel("\(tool) \(detail)")
+    }
+
+    private var tint: Color {
+        if result?.isError == true { return .red }
+        switch tool {
+        case "run_command": return .accentColor
+        case "read_file", "search_files", "list_files": return .teal
+        case "write_file", "edit_file": return .orange
+        case "delete_file": return .red
+        case "git_status", "git_diff", "git_log": return .purple
+        case "todo_write": return .green
+        case "propose_plan": return .accentColor
+        default: return .secondary
+        }
     }
 
     private var iconName: String {
@@ -158,16 +211,23 @@ private struct DoneRow: View {
     let result: RunResult
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: iconName)
-                .foregroundStyle(color)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(color.opacity(0.14))
+                Image(systemName: iconName)
+                    .font(.callout)
+                    .foregroundStyle(color)
+            }
+            .frame(width: 26, height: 26)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(result.status.capitalized)
                     .font(.callout.weight(.semibold))
                 if !result.summary.isEmpty {
                     Text(result.summary)
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
                 if let stat = result.diffStat, !stat.isEmpty {
                     Text(stat)
@@ -176,16 +236,20 @@ private struct DoneRow: View {
                 }
             }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(color.opacity(0.15))
+        }
     }
 
     private var iconName: String {
         switch result.status {
-        case "completed": return "checkmark.circle.fill"
-        case "cancelled", "denied": return "xmark.circle.fill"
-        default: return "exclamationmark.circle.fill"
+        case "completed": return "checkmark"
+        case "cancelled", "denied": return "xmark"
+        default: return "exclamationmark"
         }
     }
 

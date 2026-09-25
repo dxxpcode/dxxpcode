@@ -10,21 +10,23 @@ struct PlanCardView: View {
     let onReject: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Proposed Plan", systemImage: "list.number")
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            CardHeader(icon: "list.number", title: "Proposed Plan", tint: .accentColor)
 
             Text(plan.summary)
                 .font(.callout)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(plan.steps.enumerated()), id: \.offset) { index, step in
                     HStack(alignment: .top, spacing: 8) {
-                        Text("\(index + 1).")
-                            .font(.callout.monospaced())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20, alignment: .trailing)
+                        ZStack {
+                            Circle().fill(Color.accentColor.opacity(0.12))
+                            Text("\(index + 1)")
+                                .font(.caption.weight(.semibold).monospaced())
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .frame(width: 18, height: 18)
+                        .padding(.top, 1)
                         Text(step)
                             .font(.callout)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,37 +39,35 @@ struct PlanCardView: View {
                     Button("Approve ⌘⏎", action: onApprove)
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.return, modifiers: .command)
-                    Button("Reject ⌘.", action: onReject)
+                    Button("Reject ⌘.", role: .cancel, action: onReject)
                         .keyboardShortcut(".", modifiers: .command)
                 }
+                .controlSize(.regular)
             } else if let response {
-                responseBadge(response)
+                ResponseBadge(text: {
+                    switch response {
+                    case .approved: return "Approved"
+                    case .rejected: return "Rejected"
+                    case .autoApproved: return "Auto-approved"
+                    }
+                }(), color: {
+                    switch response {
+                    case .approved: return .green
+                    case .rejected: return .red
+                    case .autoApproved: return .secondary
+                    }
+                }())
             }
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
         .overlay {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.accentColor.opacity(awaiting ? 0.5 : 0.15))
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Proposed plan")
-    }
-
-    @ViewBuilder
-    private func responseBadge(_ response: TranscriptItem.PlanResponse) -> some View {
-        let (text, color): (String, Color) = switch response {
-        case .approved: ("Approved", .green)
-        case .rejected: ("Rejected", .red)
-        case .autoApproved: ("Auto-approved", .secondary)
-        }
-        Text(text)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
     }
 }
 
@@ -82,22 +82,20 @@ struct ApprovalCardView: View {
     let onDeny: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Approval Required", systemImage: "hand.raised")
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(.orange)
+        VStack(alignment: .leading, spacing: 10) {
+            CardHeader(icon: "hand.raised", title: "Approval Required", tint: .orange)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(request.tool)
-                    .font(.callout.monospaced().weight(.medium))
+                    .font(.callout.monospaced().weight(.semibold))
                 Text(preview)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
-                    .padding(8)
+                    .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
                 if let reason = request.reason, !reason.isEmpty {
-                    Text(reason)
+                    Label(reason, systemImage: "info.circle")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -115,18 +113,32 @@ struct ApprovalCardView: View {
                         .keyboardShortcut(.return, modifiers: .command)
                     Button("Always Allow ⌥⌘A", action: onAlways)
                         .keyboardShortcut("a", modifiers: [.command, .option])
-                    Button("Deny", action: onDeny)
+                    Button("Deny", role: .destructive, action: onDeny)
                         .keyboardShortcut(.escape, modifiers: [])
                 }
+                .controlSize(.regular)
             } else if let response {
-                responseBadge(response)
+                ResponseBadge(text: {
+                    switch response {
+                    case .allowed: return "Allowed"
+                    case .alwaysAllowed: return "Always allowed"
+                    case .denied: return "Denied"
+                    case .autoAllowed: return "Allowed earlier"
+                    }
+                }(), color: {
+                    switch response {
+                    case .allowed, .alwaysAllowed: return .green
+                    case .denied: return .red
+                    case .autoAllowed: return .secondary
+                    }
+                }())
             }
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
         .overlay {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.orange.opacity(awaiting ? 0.5 : 0.15))
         }
         .accessibilityElement(children: .contain)
@@ -143,15 +155,36 @@ struct ApprovalCardView: View {
         }
         return request.input.compactDescription
     }
+}
 
-    @ViewBuilder
-    private func responseBadge(_ response: TranscriptItem.ApprovalResponse) -> some View {
-        let (text, color): (String, Color) = switch response {
-        case .allowed: ("Allowed", .green)
-        case .alwaysAllowed: ("Always allowed", .green)
-        case .denied: ("Denied", .red)
-        case .autoAllowed: ("Allowed earlier", .secondary)
+/// Icon-in-tinted-square + semibold title used at the top of transcript cards.
+private struct CardHeader: View {
+    let icon: String
+    let title: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(tint)
+                Image(systemName: icon)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 22, height: 22)
+            Text(title)
+                .font(.callout.weight(.semibold))
         }
+    }
+}
+
+/// Capsule outcome badge shared by both cards.
+private struct ResponseBadge: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
         Text(text)
             .font(.caption.weight(.medium))
             .padding(.horizontal, 8)

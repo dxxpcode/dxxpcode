@@ -31,8 +31,15 @@ struct SidebarView: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
-                    Label("New Session", systemImage: "plus.bubble")
-                        .tag("new")
+                    Label {
+                        Text("New Session")
+                            .foregroundStyle(Color.accentColor)
+                    } icon: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .font(.callout.weight(.medium))
+                    .tag("new")
                     ForEach(filteredSessions(in: project)) { summary in
                         SessionRow(summary: summary)
                             .tag(summary.id)
@@ -42,13 +49,26 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
-            HStack {
+            HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                 TextField("Filter", text: $filter)
                     .textFieldStyle(.plain)
+                    .font(.callout)
+                if !filter.isEmpty {
+                    Button {
+                        filter = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .padding(8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(.bar)
         }
         .toolbar {
@@ -60,6 +80,7 @@ struct SidebarView: View {
                 } label: {
                     Label("Open Project", systemImage: "folder.badge.plus")
                 }
+                .help("Open a project folder")
             }
         }
         .navigationTitle("DxxpCode")
@@ -84,10 +105,17 @@ private struct ProjectRow: View {
 
     var body: some View {
         Label {
-            Text(project.name)
-                .fontWeight(isSelected ? .semibold : .regular)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(project.name)
+                    .font(.callout.weight(isSelected ? .semibold : .regular))
+                Text(project.root)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+            }
         } icon: {
-            Image(systemName: "folder")
+            Image(systemName: isSelected ? "folder.fill" : "folder")
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         }
         .padding(.vertical, 2)
@@ -98,28 +126,46 @@ private struct SessionRow: View {
     let summary: SessionSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(summary.task.isEmpty ? "Untitled session" : summary.task)
-                .lineLimit(2)
-            HStack(spacing: 4) {
-                if let result = summary.result {
-                    Text(result)
-                        .font(.caption2)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(statusColor(result).opacity(0.15), in: Capsule())
-                        .foregroundStyle(statusColor(result))
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: statusIcon)
+                .font(.callout)
+                .foregroundStyle(statusColor)
+                .frame(width: 16)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.task.isEmpty ? "Untitled session" : summary.task)
+                    .font(.callout)
+                    .lineLimit(2)
+                HStack(spacing: 6) {
+                    if let result = summary.result {
+                        Text(result)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(statusColor.opacity(0.15), in: Capsule())
+                            .foregroundStyle(statusColor)
+                    }
+                    Text(relativeDate(summary.updatedAt))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
-                Text(relativeDate(summary.updatedAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
     }
 
-    private func statusColor(_ result: String) -> Color {
-        switch result {
+    private var statusIcon: String {
+        switch summary.result {
+        case "completed": return "checkmark.circle.fill"
+        case "denied", "cancelled": return "hand.raised.fill"
+        case "error", "max_iterations": return "xmark.circle.fill"
+        case nil: return "bubble.left"
+        default: return "circle"
+        }
+    }
+
+    private var statusColor: Color {
+        switch summary.result {
         case "completed": return .green
         case "denied", "cancelled": return .orange
         case "error", "max_iterations": return .red

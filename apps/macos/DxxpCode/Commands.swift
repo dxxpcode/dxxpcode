@@ -102,6 +102,7 @@ struct AppCommands: Commands {
 }
 
 /// Simple NSOpenPanel wrapper — directory-only picker.
+@MainActor
 enum OpenProjectPanel {
     static func open(_ completion: @escaping (URL) -> Void) {
         let panel = NSOpenPanel()

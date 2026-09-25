@@ -6,13 +6,16 @@ struct EffortPicker: View {
 
     var body: some View {
         @Bindable var model = model
-        Picker("Effort", selection: $model.effort) {
+        Picker(selection: $model.effort) {
             ForEach(reasonEfforts, id: \.self) { effort in
                 Text(effort).tag(effort)
             }
+        } label: {
+            Label(model.effort, systemImage: "gauge.with.dots.needle.33percent")
         }
         .pickerStyle(.menu)
         .fixedSize()
+        .help("Reasoning effort for the next run")
     }
 }
 
@@ -23,7 +26,8 @@ struct AutoApproveToggle: View {
     var body: some View {
         @Bindable var model = model
         Toggle(isOn: $model.autoApprove) {
-            Image(systemName: model.autoApprove ? "bolt.shield" : "hand.raised")
+            Image(systemName: model.autoApprove ? "bolt.shield.fill" : "hand.raised")
+                .foregroundStyle(model.autoApprove ? Color.accentColor : Color.secondary)
         }
         .toggleStyle(.button)
         .help(model.autoApprove
