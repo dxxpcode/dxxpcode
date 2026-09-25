@@ -11,3 +11,4 @@ export { gatherContext } from "./context.ts";
 export type { AgentContext } from "./context.ts";
 export { checkpointCount, checkpointsDir, nextCheckpointSeq, takeCheckpoint, undoCheckpoint } from "./checkpoint.ts";
 export type { CheckpointFile, CheckpointInfo, UndoResult } from "./checkpoint.ts";
+export { redactSecrets } from "./redact.ts";

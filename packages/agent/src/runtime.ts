@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { CHECKPOINTED_TOOLS, takeCheckpoint } from "./checkpoint.ts";
 import { compactMessages } from "./compact.ts";
 import { gatherContext } from "./context.ts";
+import { redactSecrets } from "./redact.ts";
 
 export interface ApprovalRequest {
   tool: string;
@@ -261,7 +262,9 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
           if (cp) yield { type: "checkpoint", seq: cp.seq, paths: cp.files.map((f) => f.path) };
         }
         yield { type: "tool_start", tool: call.name, input: call.input };
-        const result = await executeTool(tool, call.input, ctx);
+        const raw = await executeTool(tool, call.input, ctx);
+        // Mask secrets before the output reaches the transcript or model context.
+        const result = { ...raw, content: redactSecrets(raw.content, env) };
         if (call.name === "run_command" && typeof call.input["command"] === "string") {
           session.commands.push(call.input["command"]);
         }
