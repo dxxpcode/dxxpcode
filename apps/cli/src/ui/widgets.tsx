@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { XX_MARK } from "../banner.ts";
-import { TOOL_DISPLAY, TOOL_ICONS } from "../render.ts";
+import { TOOL_COLORS, TOOL_DISPLAY, TOOL_ICONS } from "../render.ts";
 import { mdLine } from "./md.tsx";
 import { SURFACE, SURFACE_HI, fmtTokens, segWidth, type Seg } from "./shared.ts";
 import type { AppProps, Item } from "./types.ts";
@@ -269,7 +269,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       const icon = TOOL_ICONS[it.name] ?? "⏺";
       return (
         <Text>
-          <Text color="cyan">{icon} </Text>
+          <Text color={TOOL_COLORS[it.name] ?? "cyan"}>{icon} </Text>
           <Text bold>{name}</Text>
           {it.arg ? <Text dimColor>({it.arg})</Text> : null}
         </Text>
