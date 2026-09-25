@@ -375,3 +375,22 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       return <Text color="red">{it.text}</Text>;
   }
 }
+
+const SHIMMER = ["#3B5BDB", "#6741D9", "#AE3EC9", "#D6336C", "#F76707", "#F59F00"];
+
+/** Animated XX mark — a color wave sweeps the logo while the agent thinks. */
+export function ShimmerMark({ frame }: { frame: number }) {
+  return (
+    <Box flexDirection="column" marginRight={2}>
+      {XX_MARK.map((r, i) => (
+        <Text key={i}>
+          {[...r].map((ch, x) => (
+            <Text key={x} color={ch === " " ? undefined : SHIMMER[(x + i + frame) % SHIMMER.length]}>
+              {ch}
+            </Text>
+          ))}
+        </Text>
+      ))}
+    </Box>
+  );
+}
