@@ -216,14 +216,7 @@ export function useConfigMenus(d: MenuDeps) {
     const effMode =
       d.modeOverride ??
       (props.planOnly ? "plan" : autoRef.current ? "always-approve" : smartRef.current ? "smart" : "ask");
-    const acct = loadConfig();
     return [
-      [
-        "account",
-        acct.authToken
-          ? `${acct.accountEmail ?? "signed in"} · plan ${acct.plan ?? "free"}`
-          : "not signed in — /login",
-      ],
       ["provider", `${cur.provider.name} · ${cur.model}`],
       ["mode", effMode],
       ["effort", autoEffortRef.current ? "auto (Jev)" : (effortRef.current ?? "default")],
