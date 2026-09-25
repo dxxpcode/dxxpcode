@@ -19,7 +19,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { COMMANDS, FRAMES, SURFACE_HI, describe, fmtTokens } from "./shared.ts";
 import { atFragment, fileSuggestions, type FileIndex } from "./suggest.ts";
-import { Card, ItemView, MAJOR_ITEMS, Menu, TabBar } from "./widgets.tsx";
+import { Card, ItemView, MAJOR_ITEMS, Menu, TabBar, TwinkleMark } from "./widgets.tsx";
 import { useConfigMenus } from "./useMenus.tsx";
 import type { AppProps, Item, ItemInput, Pending } from "./types.ts";
 
@@ -696,6 +696,11 @@ export function App(props: AppProps) {
           </Box>
         )}
       </Static>
+      {spinLabel === null && pending.kind === "input" && (
+        <Box marginTop={1}>
+          <TwinkleMark />
+        </Box>
+      )}
       {spinLabel !== null && (
         <Box marginTop={1}>
           <Text>

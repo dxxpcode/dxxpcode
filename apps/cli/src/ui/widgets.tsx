@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Text } from "ink";
 import { XX_MARK } from "../banner.ts";
 import { TOOL_COLORS, TOOL_DISPLAY, TOOL_ICONS } from "../render.ts";
@@ -168,6 +168,48 @@ function TextBlock({ text }: { text: string }) {
     i++;
   }
   return <Box flexDirection="column">{out}</Box>;
+}
+
+/** Idle ambient animation: random diamonds on the XX mark brighten briefly. */
+export function TwinkleMark() {
+  const cells = React.useMemo(
+    () =>
+      XX_MARK.flatMap((row, i) => row.split("").map((ch, j) => ({ ch, i, j }))),
+    [],
+  );
+  const litRef = useRef<Map<number, number>>(new Map());
+  const tickRef = useRef(0);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      const lit = litRef.current;
+      const now = ++tickRef.current;
+      if (Math.random() < 0.6) {
+        lit.set(Math.floor(Math.random() * cells.length), now + 3 + Math.floor(Math.random() * 4));
+      }
+      for (const [k, v] of lit) if (v < now) lit.delete(k);
+      setTick(now);
+    }, 110);
+    return () => clearInterval(t);
+  }, [cells.length]);
+  let idx = 0;
+  return (
+    <Box flexDirection="column" marginRight={2}>
+      {XX_MARK.map((row, i) => (
+        <Text key={i}>
+          {row.split("").map((ch, j) => {
+            const k = idx++;
+            const lit = ch !== " " && litRef.current.has(k);
+            return (
+              <Text key={j} bold={lit} color={lit ? "yellow" : "cyan"} dimColor={!lit}>
+                {ch}
+              </Text>
+            );
+          })}
+        </Text>
+      ))}
+    </Box>
+  );
 }
 
 export function ItemView({ it, props }: { it: Item; props: AppProps }) {
