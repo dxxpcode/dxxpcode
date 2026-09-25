@@ -29,10 +29,8 @@ The most important boundary: **the terminal UI is extremely thin**. The agent ru
 ```
 apps/
   cli/                  terminal interface (`dxxpcode` binary)
-  agentd/               headless agent daemon (`dxxpcode-agent`) for desktop/other UIs
 packages/
   agent/                runtime: loop, context, planning, verification
-  bridge/               newline-delimited JSON-RPC 2.0 server wrapping runTask
   tools/                structured tools: filesystem, shell, git, search
   providers/            model adapters behind a common interface
   permissions/          safe / approval / restricted evaluation
@@ -46,7 +44,6 @@ Dependency direction is one-way:
 
 ```
 cli → agent → {tools, providers, sessions, project, permissions}
-agentd → bridge → agent
 tools → permissions
 ```
 
