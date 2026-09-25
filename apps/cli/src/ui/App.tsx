@@ -809,6 +809,7 @@ export function App(props: AppProps) {
             <TextInput
               key={inputKey}
               value={input}
+              placeholder="describe a task · / for commands · @ to attach files"
               onChange={(v) => {
                 setInput(v);
                 setCmdSel(0);
