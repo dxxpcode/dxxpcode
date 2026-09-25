@@ -19,8 +19,9 @@
       "@dxxpcode/providers": ["./packages/providers/src/index.ts"],
       "@dxxpcode/tools": ["./packages/tools/src/index.ts"],
       "@dxxpcode/sessions": ["./packages/sessions/src/index.ts"],
-      "@dxxpcode/agent": ["./packages/agent/src/index.ts"]
+      "@dxxpcode/agent": ["./packages/agent/src/index.ts"],
+      "@dxxpcode/bridge": ["./packages/bridge/src/index.ts"]
     }
   },
-  "include": ["packages/*/src", "apps/cli/src", "test"]
+  "include": ["packages/*/src", "apps/cli/src", "apps/agentd/src", "test"]
 }
