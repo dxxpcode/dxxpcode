@@ -9,6 +9,7 @@ export const DOCS_MD = `# install
 - \`/provider\` — guided connect; keys save to \`~/.dxxpcode/config.json\` (0600)
 - or env: \`ANTHROPIC_API_KEY\`, \`OPENAI_API_KEY\` (+ optional \`OPENAI_BASE_URL\` for compatible endpoints)
 - \`/providers\` — switch between configured providers; \`/model\` picks within the active one
+- \`/setup\` — onboarding wizard: provider, effort, optional \`TYPESAFE_API_KEY\`
 
 # workflow
 
