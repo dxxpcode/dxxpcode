@@ -109,7 +109,9 @@ Layout — the agent runtime is independent of the terminal UI:
 
 ```
 apps/cli               terminal interface (dxxpcode)
+apps/agentd            headless agent daemon (dxxpcode-agent): JSON-RPC over stdio
 packages/agent         runtime: context → plan → tools → verify → result
+packages/bridge        newline-delimited JSON-RPC 2.0 server wrapping the runtime
 packages/tools         read/write/edit/search/run_command/git_*
 packages/providers     Anthropic + OpenAI adapters (fetch-based, zero-dep) + MockProvider
 packages/permissions   safe / approval / restricted evaluation
