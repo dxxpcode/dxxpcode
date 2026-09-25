@@ -52,6 +52,7 @@ export function App(props: AppProps) {
   const thinkAt = useRef(0);
   const running = useRef(false);
   const runCtl = useRef<AbortController | null>(null);
+  const steerQueue = useRef<string[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
   const sessionRef = useRef(props.session);
@@ -236,6 +237,7 @@ export function App(props: AppProps) {
           approveTool,
           session: sessionRef.current,
           signal: ctl.signal,
+          steer: () => steerQueue.current.shift(),
         })) {
           switch (ev.type) {
             case "status":
@@ -319,6 +321,7 @@ export function App(props: AppProps) {
         setIsRunning(false);
         runCtl.current = null;
         setPending({ kind: "input" });
+        if (ctl.signal.aborted) steerQueue.current.length = 0;
       }
       if (result && result.status !== "plan_only") {
         push({ kind: "footer", result, secs: (Date.now() - t0) / 1000 });
@@ -327,6 +330,9 @@ export function App(props: AppProps) {
         sessionRef.current = loadSession(result.sessionId) ?? sessionRef.current;
         props.onSession(result.sessionId);
       }
+      // Queued steering that arrived after the last tool call runs as a follow-up.
+      const next = steerQueue.current.shift();
+      if (next) await runOnce(next);
       return result;
     },
     [props, push],
@@ -364,7 +370,17 @@ export function App(props: AppProps) {
   const submit = useCallback(
     (raw: string) => {
       let task = raw.trim();
-      if (!task || running.current) return;
+      if (!task) return;
+      // While the agent works, typed input steers: queued and injected after
+      // the current tool batch finishes.
+      if (running.current) {
+        steerQueue.current.push(task);
+        setInput("");
+        setHistIdx(-1);
+        setHist((h) => (h[0] === task ? h : [task, ...h].slice(0, 500)));
+        push({ kind: "note", text: `⎿ steering: ${task}` });
+        return;
+      }
       // Enter with an @mention dropdown open completes the mention unless the
       // typed path already resolves to a real file or directory.
       if (sugRef.current.mode === "file" && sugRef.current.names.length > 0) {

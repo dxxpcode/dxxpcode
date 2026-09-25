@@ -73,6 +73,8 @@ export interface RunOptions {
   effort?: ReasoningEffort;
   env?: NodeJS.ProcessEnv;
   signal?: AbortSignal;
+  /** Drain for steering messages typed while the agent works. Each call returns the next queued message or undefined. */
+  steer?: () => string | undefined;
 }
 
 const DEFAULT_MAX_ITERATIONS = 40;
@@ -282,6 +284,23 @@ export async function* runTask(opts: RunOptions): AsyncGenerator<AgentEvent> {
         results.push({ type: "tool_result", toolUseId: call.id, content: result.content, isError: result.isError });
       }
       appendToolResults(messages, results);
+
+      // Steering: inject messages the user sent while the tools ran.
+      const steered: string[] = [];
+      while (opts.steer) {
+        const s = opts.steer();
+        if (!s) break;
+        steered.push(s);
+      }
+      if (steered.length > 0) {
+        messages.push({
+          role: "user",
+          content: [
+            { type: "text", text: `The user sent this while you were working:\n${steered.join("\n")}` },
+          ],
+        });
+        persist();
+      }
 
       if (++iterations >= maxIterations) {
         yield finish({ ...base("max_iterations"), summary: "Iteration limit reached" });
