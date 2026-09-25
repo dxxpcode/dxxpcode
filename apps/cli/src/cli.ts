@@ -28,7 +28,7 @@ Usage:
   dxxpcode --help              This help
 
 Options:
-  --provider <name>            anthropic | openai | mock
+  --provider <name>            anthropic | openai
   --model <name>               Model override (DXXPCODE_MODEL)
   --effort <level>             Reasoning effort: minimal | low | medium | high | xhigh | max (DXXPCODE_EFFORT)
   --yes, -y                    Auto-approve actions needing confirmation
