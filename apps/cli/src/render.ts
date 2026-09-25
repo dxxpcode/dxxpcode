@@ -275,11 +275,50 @@ export function toolArg(input: Record<string, unknown>): string {
   return typeof cand === "string" && cand.length ? cand.slice(0, 80) : "";
 }
 
+/** Semantic accent per tool family: reads blue, writes green, shell amber, git purple. */
+export const TOOL_COLORS: Record<string, string> = {
+  read_file: "#93c5fd",
+  list_directory: "#93c5fd",
+  search_files: "#93c5fd",
+  write_file: "#16c858",
+  edit_file: "#16c858",
+  delete_file: "#fca5a5",
+  run_command: "#fbbf24",
+  run_background: "#fbbf24",
+  check_process: "#fbbf24",
+  kill_process: "#fca5a5",
+  git_status: "#c084fc",
+  git_diff: "#c084fc",
+  git_log: "#c084fc",
+  propose_plan: "#22d3ee",
+  todo_write: "#22d3ee",
+};
+
+const TOOL_ANSI: Record<string, string> = {
+  read_file: C.blue,
+  list_directory: C.blue,
+  search_files: C.blue,
+  write_file: C.green,
+  edit_file: C.green,
+  delete_file: C.red,
+  run_command: C.yellow,
+  run_background: C.yellow,
+  check_process: C.yellow,
+  kill_process: C.red,
+  git_status: C.magenta,
+  git_diff: C.magenta,
+  git_log: C.magenta,
+  propose_plan: C.cyan,
+  todo_write: C.cyan,
+};
+
 /** `⏺ Read(src/math.js)` — Claude-style tool invocation line. */
 export function toolLine(tool: string, input: Record<string, unknown>): string {
   const name = TOOL_DISPLAY[tool] ?? tool;
   const arg = toolArg(input);
-  return arg ? `${cyan(SYM.bullet)} ${bold(name)}${dim(`(${arg})`)}` : `${cyan(SYM.bullet)} ${bold(name)}`;
+  const c = TOOL_ANSI[tool] ?? C.cyan;
+  const bullet = COLOR ? c + SYM.bullet + C.reset : SYM.bullet;
+  return arg ? `${bullet} ${bold(name)}${dim(`(${arg})`)}` : `${bullet} ${bold(name)}`;
 }
 
 /** `  ⎿  result summary` — collapsed tool result (first line + count). */

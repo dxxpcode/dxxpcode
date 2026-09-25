@@ -7,7 +7,7 @@ import type { ReasoningEffort } from "@dxxpcode/providers";
 import { resolveProvider } from "@dxxpcode/providers";
 import { loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
 import { ProviderSetup, SetupWizard, type SetupResult, type WizardResult } from "./setup.tsx";
-import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
+import { diffTarget, TOOL_COLORS, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
 import { billingUrl, openUrl, waitForLoginCallback } from "../auth.ts";
@@ -34,6 +34,7 @@ export function App(props: AppProps) {
   const liveRef = useRef(""); // accumulated model text for the open burst
   const [liveText, setLiveText] = useState("");
   const [spinLabel, setSpinLabel] = useState<string | null>(null);
+  const [spinColor, setSpinColor] = useState("cyan");
   const [frame, setFrame] = useState(0);
   const [pending, setPending] = useState<Pending>({ kind: "input" });
   const [menuSel, setMenuSel] = useState(0);
@@ -259,6 +260,7 @@ export function App(props: AppProps) {
               push({ kind: "tool", name: ev.tool, arg });
               thinkAt.current = Date.now();
               setSpinLabel(`${TOOL_VERBS[ev.tool] ?? "Working"}${arg ? ` ${arg}` : ""}…`);
+              setSpinColor(TOOL_COLORS[ev.tool] ?? "cyan");
               break;
             }
             case "tool_end": {
@@ -697,8 +699,8 @@ export function App(props: AppProps) {
       {spinLabel !== null && (
         <Box marginTop={1}>
           <Text>
-            <Text color="cyan">{FRAMES[frame % FRAMES.length]}</Text>{" "}
-            <Text dimColor>{spinLabel}</Text>
+            <Text color={spinColor}>{FRAMES[frame % FRAMES.length]}</Text>{" "}
+            <Text color={spinColor}>{spinLabel}</Text>
             <Text dimColor>  ·  esc to interrupt</Text>
           </Text>
         </Box>
