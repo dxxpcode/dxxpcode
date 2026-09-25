@@ -1,0 +1,54 @@
+name: DxxpCode
+options:
+  bundleIdPrefix: ai.dxxpcode
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+targets:
+  DxxpCode:
+    type: application
+    platform: macOS
+    sources:
+      - path: DxxpCode
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.dxxpcode.app
+        PRODUCT_NAME: DxxpCode
+        INFOPLIST_FILE: DxxpCode/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: YES
+        CODE_SIGNING_ALLOWED: YES
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+  DxxpCodeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: DxxpCodeTests
+    dependencies:
+      - target: DxxpCode
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: "-"
+schemes:
+  DxxpCode:
+    build:
+      targets:
+        DxxpCode: all
+        DxxpCodeTests: [test]
+      parallelizeBuild: true
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - DxxpCodeTests
+    archive:
+      config: Release
