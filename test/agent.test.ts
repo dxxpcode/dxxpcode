@@ -345,3 +345,29 @@ test("secrets in tool output are redacted before the transcript and context", as
   assert.ok(!blob.includes("sk-proj-abc123def456ghi789"));
   assert.ok(!blob.includes("hunter2supersecret"));
 });
+
+test("steering messages are injected after the tool batch", async () => {
+  const { root, env } = setup();
+  const queue = ["use subtraction instead"];
+  const turns: MockTurn[] = [
+    { toolCalls: [{ name: "propose_plan", input: { summary: "x", steps: ["s"], trivial: true } }] },
+    { toolCalls: [{ name: "read_file", input: { path: "src/math.js" } }] },
+    { text: "done" },
+  ];
+  await collect({
+    task: "fix math",
+    provider: new MockProvider(turns),
+    model: "mock",
+    projectRoot: root,
+    env,
+    approvePlan: async () => true,
+    approveTool: async () => true,
+    steer: () => queue.shift(),
+  });
+  const saved = latestSessionFor(root, env)!;
+  const steerMsg = saved.messages.find(
+    (m) => m.role === "user" && JSON.stringify(m.content).includes("use subtraction instead"),
+  );
+  assert.ok(steerMsg, "steering message not in context");
+  assert.match(JSON.stringify(steerMsg.content), /while you were working/);
+});
