@@ -27,7 +27,6 @@ export const DOCS_MD = `# install
 - \`/compact\` — compress old tool output; \`/settings\` → Approval mode \`smart\` = Jev-decided approvals; effort \`auto (Jev)\` = Jev picks effort per task; \`/clear\` clears the transcript; \`/new\` starts a new session
 - \`/review\` — diff of uncommitted changes; \`/provider\` — connect a key
 - \`/changelog\` · \`/docs\` — this reference; \`/help\` · \`/exit\`
-- \`/login\` sign in via browser · \`/logout\` · \`/upgrade\` billing
 
 # mentions
 
@@ -42,13 +41,11 @@ export const DOCS_MD = `# install
 
 # account
 
-- \`/login\` opens the auth server sign-in in your browser and stores the token in config.json (owner-only)
-- \`/upgrade\` opens billing/plan management; \`plan\` shows on the \`/status\` Session tab
 - auth server defaults to \`https://dxxpcode.vercel.app\` — override with \`DXXPCODE_AUTH_URL\`, \`TYPESAFE_API_KEY\`
 
 # config file
 
-- \`~/.dxxpcode/config.json\`: provider, model (+ per-provider \`models\`), approvalMode, effort, keys, authToken, plan
+- \`~/.dxxpcode/config.json\`: provider, model (+ per-provider \`models\`), approvalMode, effort, keys
 `;
 
 /** In-terminal release history rendered by /changelog — mirror of CHANGELOG.md. */

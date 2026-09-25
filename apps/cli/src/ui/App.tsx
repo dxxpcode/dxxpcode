@@ -10,7 +10,6 @@ import { ProviderSetup, SetupWizard, type SetupResult, type WizardResult } from 
 import { diffTarget, TOOL_COLORS, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
-import { billingUrl, openUrl, waitForLoginCallback } from "../auth.ts";
 import { jevRouteEffort, smartApprove } from "../jev.ts";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
@@ -430,55 +429,6 @@ export function App(props: AppProps) {
           text: out
             ? `restored checkpoint ${out.seq}${out.restored.length ? ` — restored ${out.restored.join(", ")}` : ""}${out.removed.length ? ` — removed ${out.removed.join(", ")}` : ""}${out.headMoved ? ` — note: HEAD moved (${out.headMoved.from.slice(0, 7)} → ${out.headMoved.to.slice(0, 7)}) since this checkpoint` : ""}`
             : "⎿ nothing to undo",
-        });
-        return;
-      }
-      if (task === "/login") {
-        if (cfgRef.current.authToken) {
-          push({ kind: "note", text: `⎿ already signed in as ${cfgRef.current.accountEmail ?? "account"} — /logout to switch` });
-          return;
-        }
-        const pendingLogin = waitForLoginCallback(process.env);
-        pendingLogin.url
-          .then((u) => {
-            const opened = openUrl(u);
-            push({
-              kind: "note",
-              text: opened
-                ? `⎿ opened ${u} — finish sign-in in your browser`
-                : `⎿ open this URL to sign in: ${u}`,
-            });
-          })
-          .catch((e: Error) => push({ kind: "note", text: `⎿ sign-in failed: ${e.message}` }));
-        pendingLogin.result
-          .then((r) => {
-            cfgRef.current = { ...cfgRef.current, authToken: r.token, accountEmail: r.email, plan: r.plan ?? "free" };
-            saveConfig(cfgRef.current, process.env);
-            push({ kind: "note", text: `⎿ signed in${r.email ? ` as ${r.email}` : ""} · plan ${r.plan ?? "free"}` });
-          })
-          .catch((e: Error) => push({ kind: "note", text: `⎿ sign-in failed: ${e.message}` }));
-        return;
-      }
-      if (task === "/logout") {
-        if (!cfgRef.current.authToken) {
-          push({ kind: "note", text: "⎿ not signed in" });
-          return;
-        }
-        const { authToken: _t, accountEmail: _e, plan: _p, ...rest } = cfgRef.current;
-        cfgRef.current = rest;
-        saveConfig(cfgRef.current, process.env);
-        push({ kind: "note", text: "⎿ signed out — token removed from config.json" });
-        return;
-      }
-      if (task === "/upgrade") {
-        const url = cfgRef.current.authToken
-          ? `${billingUrl(process.env)}?token=${encodeURIComponent(cfgRef.current.authToken)}`
-          : billingUrl(process.env);
-        push({
-          kind: "note",
-          text: openUrl(url)
-            ? `⎿ opened ${url} — manage your plan in the browser`
-            : `⎿ manage your plan at: ${url}`,
         });
         return;
       }

@@ -21,11 +21,6 @@ export interface DxxpConfig {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   openaiBaseUrl?: string;
-  /** Account auth token from /login (browser callback flow). */
-  authToken?: string;
-  accountEmail?: string;
-  /** Entitlement reported by the auth server at login ("free" | "pro" | ...). */
-  plan?: string;
   /** Random per-install ID — generated once, powers the unique-installs stat. */
   installId?: string;
   /** TypeSafe API key for Jev-powered smart approvals. */
