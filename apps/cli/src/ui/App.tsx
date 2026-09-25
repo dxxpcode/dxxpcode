@@ -7,6 +7,7 @@ import type { ReasoningEffort } from "@dxxpcode/providers";
 import { resolveProvider } from "@dxxpcode/providers";
 import { loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
 import { ProviderSetup, SetupWizard, type SetupResult, type WizardResult } from "./setup.tsx";
+import { XX_MARK } from "../banner.ts";
 import { diffTarget, TOOL_COLORS, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
@@ -25,9 +26,30 @@ import type { AppProps, Item, ItemInput, Pending } from "./types.ts";
 
 export type { AppProps };
 
+/** "lub-dub" brightness cycle (~1.5s) for the top-left XX mark. */
+const HEARTBEAT = [1, 1, 0.3, 0.7, 0.7, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3];
+
 export function App(props: AppProps) {
   const { exit } = useApp();
   const idRef = useRef(0);
+
+  // The banner mark sits inside ink's <Static> region, which never repaints —
+  // so the pulse is an ANSI overlay repainting the same cells (rows 2-5, col 1).
+  useEffect(() => {
+    if (process.stdout.isTTY !== true) return;
+    let f = 0;
+    const t = setInterval(() => {
+      const level = HEARTBEAT[f++ % HEARTBEAT.length];
+      const code = level > 0.5 ? "\x1b[1m\x1b[36m" : "\x1b[2m\x1b[36m";
+      let out = "\x1b[s";
+      XX_MARK.forEach((row, i) => {
+        out += `\x1b[${2 + i};1H${code}${row}\x1b[0m`;
+      });
+      out += "\x1b[u";
+      process.stdout.write(out);
+    }, 110);
+    return () => clearInterval(t);
+  }, []);
   const [items, setItems] = useState<Item[]>(() =>
     props.task ? [] : [{ kind: "banner", id: idRef.current++ }],
   );
