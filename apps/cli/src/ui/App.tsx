@@ -6,7 +6,7 @@ import { compactMessages, runTask, undoCheckpoint } from "@dxxpcode/agent";
 import type { ReasoningEffort } from "@dxxpcode/providers";
 import { resolveProvider } from "@dxxpcode/providers";
 import { loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
-import { ProviderSetup, type SetupResult } from "./setup.tsx";
+import { ProviderSetup, SetupWizard, type SetupResult, type WizardResult } from "./setup.tsx";
 import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
@@ -69,6 +69,9 @@ export function App(props: AppProps) {
   const [setup, setSetup] = useState(false);
   const setupRef = useRef(setup);
   setupRef.current = setup;
+  const [wizard, setWizard] = useState(false);
+  const wizardRef = useRef(wizard);
+  wizardRef.current = wizard;
   const fileIndexRef = useRef<FileIndex | null>(null);
   // Trailing @fragment → file/dir suggestions; leading / → command suggestions.
   const atFrag = atFragment(input);
@@ -409,6 +412,10 @@ export function App(props: AppProps) {
         setSetup(true);
         return;
       }
+      if (task === "/setup") {
+        setWizard(true);
+        return;
+      }
       if (task === "/providers") {
         openProviderMenu();
         return;
@@ -534,7 +541,7 @@ export function App(props: AppProps) {
   }, [props.task, runOnce, finish]);
 
   useInput((ch, key) => {
-    if (setupRef.current) return; // ProviderSetup owns input while open
+    if (setupRef.current || wizardRef.current) return; // setup wizard owns input while open
     if (key.ctrl && ch === "c") {
       if (runCtl.current) runCtl.current.abort();
       finish(130);
@@ -631,6 +638,36 @@ export function App(props: AppProps) {
       }
     },
     [push],
+  );
+
+  const onWizardDone = useCallback(
+    (r: WizardResult | null) => {
+      setWizard(false);
+      if (!r) {
+        push({ kind: "note", text: "setup cancelled" });
+        return;
+      }
+      if (r.provider) onSetupDone(r.provider);
+      const cfg = { ...loadConfig() };
+      if (r.effortAuto) {
+        cfg.effortAuto = true;
+        autoEffortRef.current = true;
+      } else if (r.effort !== undefined) {
+        cfg.effort = r.effort;
+        cfg.effortAuto = false;
+        effortRef.current = r.effort;
+        autoEffortRef.current = false;
+      }
+      if (r.typeSafeApiKey) cfg.typeSafeApiKey = r.typeSafeApiKey;
+      saveConfig(cfg);
+      const bits = [
+        r.provider ? `provider ${r.provider.provider}` : null,
+        r.effortAuto ? "effort auto (Jev)" : r.effort ? `effort ${r.effort}` : null,
+        r.typeSafeApiKey ? "Jev key saved" : null,
+      ].filter(Boolean);
+      push({ kind: "note", text: bits.length ? `setup complete — ${bits.join(" · ")}` : "setup complete — nothing changed" });
+    },
+    [push, onSetupDone],
   );
 
   function choose(p: Pending, i: number) {
@@ -732,6 +769,11 @@ export function App(props: AppProps) {
           <ProviderSetup onDone={onSetupDone} />
         </Box>
       )}
+      {wizard && !exited && (
+        <Box marginTop={1}>
+          <SetupWizard onDone={onWizardDone} />
+        </Box>
+      )}
       {pending.kind === "prompt" && (
         <Box marginTop={1}>
           <Text color="cyan">❯ </Text>
@@ -748,7 +790,7 @@ export function App(props: AppProps) {
           />
         </Box>
       )}
-      {pending.kind === "input" && !exited && !setup && (
+      {pending.kind === "input" && !exited && !setup && !wizard && (
         <Box
           borderStyle="round"
           borderColor="gray"
@@ -778,6 +820,7 @@ export function App(props: AppProps) {
       {pending.kind === "input" &&
         !exited &&
         !setup &&
+        !wizard &&
         suggestions.map((c, i) => (
           <Text key={c.name} backgroundColor={i === sugSel ? SURFACE_HI : undefined}>
             {"  "}

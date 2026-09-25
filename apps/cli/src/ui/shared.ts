@@ -16,6 +16,7 @@ export const COMMANDS = [
   { name: "/settings", desc: "settings and session surface" },
   { name: "/effort", desc: "reasoning effort for the next task" },
   { name: "/provider", desc: "connect or switch the model provider" },
+  { name: "/setup", desc: "run the onboarding wizard — provider, effort, Jev key" },
   { name: "/providers", desc: "switch between configured providers" },
   { name: "/undo", desc: "restore files from the last checkpoint" },
   { name: "/compact", desc: "compress old tool output in the session context" },
