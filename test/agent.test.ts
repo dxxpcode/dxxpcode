@@ -308,3 +308,40 @@ test("checkpoints record HEAD; undo reports when HEAD moved", async () => {
   assert.ok(res?.headMoved);
   assert.equal(res!.headMoved!.from, cp!.headSha);
 });
+
+test("secrets in tool output are redacted before the transcript and context", async () => {
+  const { root, env } = setup();
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(
+    join(root, "keys.txt"),
+    "openai=sk-proj-abc123def456ghi789 gh=ghp_0123456789abcdefXYZ custom=hunter2supersecret\n",
+  );
+  const env2 = { ...env, MY_API_TOKEN: "hunter2supersecret" };
+  const turns: MockTurn[] = [
+    { toolCalls: [{ name: "propose_plan", input: { summary: "Read keys", steps: ["read"] } }] },
+    { toolCalls: [{ name: "read_file", input: { path: "keys.txt" } }] },
+    { text: "done" },
+  ];
+  const { events } = await collect({
+    task: "read keys",
+    provider: new MockProvider(turns),
+    model: "mock",
+    projectRoot: root,
+    env: env2,
+    approvePlan: async () => true,
+    approveTool: async () => true,
+  });
+  const toolEnd = events.find((e) => e.type === "tool_end" && e.tool === "read_file");
+  assert.ok(toolEnd && toolEnd.type === "tool_end");
+  const out = toolEnd.result.content;
+  assert.ok(!out.includes("sk-proj-abc123def456ghi789"), "openai key leaked");
+  assert.ok(!out.includes("ghp_0123456789abcdefXYZ"), "github token leaked");
+  assert.ok(!out.includes("hunter2supersecret"), "env secret leaked");
+  assert.match(out, /\[redacted\]/);
+
+  // The model-visible context in the saved session is masked too.
+  const saved = latestSessionFor(root, env2);
+  const blob = JSON.stringify(saved!.messages);
+  assert.ok(!blob.includes("sk-proj-abc123def456ghi789"));
+  assert.ok(!blob.includes("hunter2supersecret"));
+});
