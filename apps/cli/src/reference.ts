@@ -1,14 +1,19 @@
 /** In-terminal reference rendered by /docs — kept in sync with apps/site docs. */
 export const DOCS_MD = `# install
 
-- \`npm i -g dxxpcode\` — then \`cd your-project && dxxpcode\`
-- from source: \`npm install && npm run build && npm i -g ./apps/cli\`
-
-# desktop app
-
-- download from the repo's GitHub releases: \`.dmg\` (macOS), \`.msi\`/\`.exe\` (Windows), \`.deb\`/\`.AppImage\` (Linux)
+- download the desktop app from GitHub releases — \`.dmg\` (macOS), \`.msi\`/\`.exe\` (Windows), \`.deb\`/\`.AppImage\` (Linux)
 - the app bundles the agent — no Node or separate CLI install required
-- same commands work (\`/docs\`, \`/settings\`, \`/resume\` …) plus: clickable approvals, docs/changelog viewer, dark/light theme toggle, first-run onboarding card
+- first run opens a setup card; re-open it anytime via Settings → Run setup
+
+# in the app
+
+- \`/\` opens the command palette; \`@\` opens file mentions (\`@file#L-M\`, \`@dir/\`)
+- approvals are clickable (Allow / Always / Deny); type mid-run to steer; \`Esc\` interrupts
+- theme toggle in the header switches light / black dark mode
+
+# cli engine
+
+- the bundled \`dxxpcode\` binary also works standalone: \`dxxpcode "task"\`, \`--plan\`, \`--review\`, \`--resume\`, \`--undo\`, \`--yes\`
 - \`dxxpcode --app\` is the NDJSON protocol the app speaks — useful for other front-ends
 
 # connect a provider
