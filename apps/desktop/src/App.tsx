@@ -26,6 +26,8 @@ export default function App() {
   const [cmdSel, setCmdSel] = useState(0);
   const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
   const fileReqId = useRef(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -91,6 +93,9 @@ export default function App() {
         break;
       case "exit":
         void getCurrentWindow().close();
+        break;
+      case "session":
+        setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -262,6 +267,11 @@ export default function App() {
     void send({ type: "select", id: m.id, index });
   };
 
+  const cmd = (name: string) => {
+    setSettingsOpen(false);
+    void send({ type: "command", name });
+  };
+
   const submitPrompt = () => {
     const p = promptReq;
     if (!p) return;
@@ -288,11 +298,49 @@ export default function App() {
             <span className="chip">{ready.provider} · {ready.model}</span>
             {ready.effort && <span className="chip">{ready.effort}</span>}
             <span className="chip">{ready.mode}</span>
+            <button className="gear" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>⚙</button>
           </>
         )}
       </header>
 
-      <div className="transcript" ref={scrollRef}>
+      {settingsOpen && ready && (
+        <div className="settings">
+          <div className="card">
+            <div className="card-title">Settings</div>
+            <div className="card-body">
+              <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} action="Change…" onClick={() => cmd("/providers")} />
+              <SetRow label="Connect" value="add an API key for a new provider" action="Connect…" onClick={() => cmd("/provider")} />
+              <SetRow label="Model" value={ready.model} action="Change…" onClick={() => cmd("/model")} />
+              <SetRow label="Reasoning effort" value={ready.effort ?? "default"} action="Change…" onClick={() => cmd("/effort")} />
+              <SetRow label="Approval mode" value={ready.mode} action="Change…" onClick={() => cmd("/approval")} />
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">Session</div>
+            <div className="card-body">
+              <div className="setrow"><span className="setlabel">id</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+              <div className="setrow"><span className="setlabel">context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+              <div className="setbtns">
+                <button className="btn" onClick={() => cmd("/compact")}>Compact context</button>
+                <button className="btn" onClick={() => cmd("/undo")}>Undo checkpoint</button>
+                <button className="btn" onClick={() => cmd("/new")}>New session</button>
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">About</div>
+            <div className="card-body">
+              <div className="setrow"><span className="setlabel">version</span><span className="setval mono">v{ready.version}</span></div>
+              <div className="setbtns">
+                <button className="btn" onClick={() => cmd("/docs")}>Docs</button>
+                <button className="btn" onClick={() => cmd("/changelog")}>Changelog</button>
+                <button className="btn deny" onClick={() => cmd("/exit")}>Quit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="transcript" ref={scrollRef} style={settingsOpen ? { display: "none" } : undefined}>
         {items.map((it, i) => <ItemView key={i} item={it} />)}
         {approvals.map((a) => (
           <div className={`approval row${a.answered ? " answered" : ""}`} key={`ap${a.id}`}>
@@ -525,6 +573,16 @@ function ItemView({ item }: { item: Item }) {
     case "raw":
       return <div className="note row mono">{item.text}</div>;
   }
+}
+
+function SetRow({ label, value, action, onClick }: { label: string; value: string; action: string; onClick: () => void }) {
+  return (
+    <div className="setrow">
+      <span className="setlabel">{label}</span>
+      <span className="setval">{value}</span>
+      <button className="btn" onClick={onClick}>{action}</button>
+    </div>
+  );
 }
 
 function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {

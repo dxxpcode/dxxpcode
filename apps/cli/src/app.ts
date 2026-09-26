@@ -17,6 +17,7 @@
  *   {type:"markdown", title, text}
  *   {type:"diff_card", title, diff}
  *   {type:"steer", text} | {type:"note", text} | {type:"error", text}
+ *   {type:"session", id, tokens}                session assigned/cleared
  *   {type:"idle"} | {type:"exit"}
  *
  * Inbound commands (one JSON object per line):
@@ -104,6 +105,7 @@ const COMMAND_LIST = [
   { name: "/model", desc: "pick the model for the next task" },
   { name: "/status", desc: "session, config, and usage info" },
   { name: "/settings", desc: "approval mode, provider, model, effort" },
+  { name: "/approval", desc: "approval mode — ask, always, or smart (Jev)" },
   { name: "/effort", desc: "reasoning effort for the next task" },
   { name: "/providers", desc: "switch between configured providers" },
   { name: "/undo", desc: "restore files from the last checkpoint" },
@@ -141,6 +143,13 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
       mode: live.mode,
     });
 
+  const emitSession = () =>
+    emit({
+      type: "session",
+      id: session?.id ?? null,
+      tokens: session ? estimateTokens(session.messages) : 0,
+    });
+
   emit({
     type: "ready",
     version: deps.version,
@@ -163,6 +172,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
   const steerQueue: string[] = [];
   const taskQueue: string[] = [];
   let session = deps.session;
+  emitSession();
   let fileIndex: FileIndex | null = null;
   let abortRun: AbortController | null = null;
   let pumping = false;
@@ -398,6 +408,9 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
       case "/settings":
         await openSettingsMenu();
         return;
+      case "/approval":
+        await openApprovalMenu();
+        return;
       case "/model":
         await openModelMenu();
         return;
@@ -445,6 +458,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
       case "/new":
         session = undefined;
         deps.allowlist.clear();
+        emit({ type: "session", id: null, tokens: 0 });
         emit({ type: "note", text: "new session — context and session approvals reset" });
         return;
       case "/help":
@@ -546,7 +560,10 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
         emit(ev satisfies AgentEvent);
         if (ev.type === "done") result = ev.result;
       }
-      if (result?.sessionId) session = loadSession(result.sessionId) ?? session;
+      if (result?.sessionId) {
+        session = loadSession(result.sessionId) ?? session;
+        emitSession();
+      }
     } catch (err) {
       emit({
         type: "done",
