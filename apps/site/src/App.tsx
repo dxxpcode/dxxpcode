@@ -52,6 +52,32 @@ function InstallButton() {
   );
 }
 
+const RELEASE = "https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v0.1.0";
+const DOWNLOADS: [string, string][] = [
+  ["macOS", `${RELEASE}/dxxpcode-desktop_0.1.0_aarch64.dmg`],
+  ["Windows", `${RELEASE}/dxxpcode-desktop_0.1.0_x64-setup.exe`],
+  ["Linux", `${RELEASE}/dxxpcode-desktop_0.1.0_amd64.AppImage`],
+];
+
+function DesktopLinks() {
+  return (
+    <div className="mt-10 flex flex-col items-center gap-3">
+      <div className="h-px w-40 bg-border" />
+      <p className="text-[13px] text-muted-foreground">Or get the desktop app</p>
+      <div className="flex items-center gap-4 text-[13px]">
+        {DOWNLOADS.map(([os, url], i) => (
+          <span key={os} className="flex items-center gap-4">
+            {i > 0 && <span className="h-3 w-px bg-border" />}
+            <a href={url} className="text-foreground/80 transition-colors hover:text-foreground">
+              {os}
+            </a>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
 
@@ -93,6 +119,7 @@ export default function App() {
           <InstallButton />
         </div>
         <InstallCount />
+        <DesktopLinks />
       </main>
     </div>
   );
