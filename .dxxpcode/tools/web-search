@@ -1,0 +1,17 @@
+#!/bin/sh
+# web-search — search the web, print top results as "title · url · snippet".
+# Usage: web-search "<query>"
+# Auth: set TAVILY_API_KEY (https://tavily.com — free tier works).
+
+set -e
+[ -z "$TAVILY_API_KEY" ] && { echo "error: TAVILY_API_KEY not set" >&2; exit 1; }
+[ -z "$1" ] && { echo "usage: web-search <query>" >&2; exit 1; }
+
+curl -s https://api.tavily.com/search \
+  -H "Content-Type: application/json" \
+  -d "{\"api_key\":\"$TAVILY_API_KEY\",\"query\":$(printf '%s' "$1" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))'),\"max_results\":5}" \
+| python3 -c '
+import json, sys
+for r in json.load(sys.stdin).get("results", []):
+    print(f"{r.get(\"title\",\"\")} · {r.get(\"url\",\"\")}\n  {r.get(\"content\",\"\")}\n")
+'

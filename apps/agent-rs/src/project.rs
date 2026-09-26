@@ -206,6 +206,7 @@ Rules:
 - Some actions require user approval or are restricted (secrets, paths outside the project, destructive commands). If a tool call is denied, accept it and find another way — do not retry identical calls.
 - Never read .env files, SSH keys, or credential stores.
 - Prefer running the project's own test command over ad-hoc checks.
+- Project tools: `.dxxpcode/tools/` may hold user-provided scripts + docs. Check that directory before saying you can't do something — read a tool's file for usage, then invoke it with run_command.
 - Be concise — the user reads this in a terminal."#;
 
 pub fn gather_context(root: &str) -> (ProjectInfo, String) {
@@ -248,6 +249,20 @@ pub fn gather_context(root: &str) -> (ProjectInfo, String) {
         lines.push(String::new());
         lines.push(format!("Project instructions ({path}):"));
         lines.push(content);
+    }
+    let tools_dir = std::path::Path::new(root).join(".dxxpcode/tools");
+    if let Ok(entries) = std::fs::read_dir(&tools_dir) {
+        let names: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| !n.starts_with('.'))
+            .collect();
+        if !names.is_empty() {
+            let mut names = names;
+            names.sort();
+            lines.push(String::new());
+            lines.push(format!("Project tools (.dxxpcode/tools/): {}", names.join(", ")));
+        }
     }
     (project, lines.join("\n"))
 }
