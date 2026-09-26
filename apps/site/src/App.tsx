@@ -119,29 +119,26 @@ export default function App() {
           <DownloadButtons />
         </div>
 
-        <section className="mt-20 w-full max-w-2xl border-t border-border pt-10">
-          <p className="text-[12px] uppercase tracking-[0.14em] text-muted-foreground">
-            A native Rust core — not a bundled runtime
-          </p>
-          <div className="mt-6 grid grid-cols-3 gap-6 text-center sm:gap-10">
+        <section className="mt-14 w-full max-w-2xl">
+          <h2 className="text-[15px] font-medium tracking-[-0.01em]">Native Rust. Nothing bundled.</h2>
+          <div className="mt-6 grid grid-cols-3 divide-x divide-border border-y border-border">
             {[
-              { value: "3.6 MB", elsewhere: "80–300 MB", label: "agent engine on disk" },
-              { value: "Instant", elsewhere: "seconds", label: "cold start" },
-              { value: "2 MB", elsewhere: "100–400 MB", label: "idle memory" },
+              { value: "3.6 MB", label: "engine size", others: "80–300 MB" },
+              { value: "<5 ms", label: "cold start", others: "seconds" },
+              { value: "4 MB", label: "idle memory", others: "100–400 MB" },
             ].map((s) => (
-              <div key={s.value}>
-                <div className="font-mono text-[20px] font-medium tracking-tight">{s.value}</div>
-                <div className="mt-1 font-mono text-[11px] text-muted-foreground">
-                  vs elsewhere: {s.elsewhere}
-                </div>
-                <div className="mt-1.5 text-[12px] leading-snug text-muted-foreground">{s.label}</div>
+              <div key={s.label} className="flex flex-col items-center px-2 py-6">
+                <p className="font-mono text-[20px] font-medium tracking-tight">{s.value}</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">{s.label}</p>
+                <p className="mt-2 font-mono text-[11px] text-muted-foreground/70">
+                  <span className="block sm:inline">others </span>
+                  <span className="whitespace-nowrap">{s.others}</span>
+                </p>
               </div>
             ))}
           </div>
-          <p className="mt-6 text-[12.5px] leading-relaxed text-muted-foreground">
-            The comparison is with agent apps that ship a bundled JavaScript runtime (Electron,
-            Node, or bun) alongside their engine. Ours is a native Rust binary — the whole install
-            is smaller than what they bundle for the runtime alone.
+          <p className="mt-4 text-[12px] text-muted-foreground">
+            Compared with agents that bundle Electron, Node or Bun.
           </p>
         </section>
       </main>
