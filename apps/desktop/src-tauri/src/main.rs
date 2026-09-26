@@ -9,6 +9,21 @@ struct Pty {
     _child: Mutex<Box<dyn portable_pty::Child + Send + Sync>>,
 }
 
+/// Events emitted before the webview attached its listener. Flushed on `ui_ready`.
+struct Outbox {
+    ready: std::sync::atomic::AtomicBool,
+    buffered: Mutex<Vec<Vec<u8>>>,
+}
+
+#[tauri::command]
+fn ui_ready(outbox: State<'_, std::sync::Arc<Outbox>>, app: tauri::AppHandle) {
+    let buffered: Vec<Vec<u8>> = std::mem::take(&mut *outbox.buffered.lock().unwrap());
+    outbox.ready.store(true, std::sync::atomic::Ordering::SeqCst);
+    for ev in buffered {
+        let _ = app.emit("pty-out", ev);
+    }
+}
+
 #[tauri::command]
 fn pty_write(pty: State<'_, Pty>, data: &str) -> Result<(), String> {
     pty.writer
@@ -34,6 +49,10 @@ fn pty_resize(pty: State<'_, Pty>, cols: u16, rows: u16) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
+        .manage(std::sync::Arc::new(Outbox {
+            ready: std::sync::atomic::AtomicBool::new(false),
+            buffered: Mutex::new(Vec::new()),
+        }))
         .setup(|app| {
             let sys = native_pty_system();
             let pair = sys
@@ -49,6 +68,7 @@ fn main() {
             // overrides for dev (e.g. `node ../cli/dist/cli.js`).
             let program = std::env::var("DXXPCODE_BIN").unwrap_or_else(|_| "dxxpcode".to_string());
             let mut cmd = CommandBuilder::new(program);
+            cmd.arg("--app");
             cmd.cwd(std::env::current_dir().unwrap_or_else(|_| "/tmp".into()));
             let child = pair
                 .slave
@@ -60,6 +80,7 @@ fn main() {
                 .master
                 .try_clone_reader()
                 .map_err(|e| e.to_string())?;
+            let outbox = app.state::<std::sync::Arc<Outbox>>().inner().clone();
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let mut buf = [0u8; 8192];
@@ -67,7 +88,12 @@ fn main() {
                     match reader.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
-                            let _ = handle.emit("pty-out", buf[..n].to_vec());
+                            let chunk = buf[..n].to_vec();
+                            if outbox.ready.load(std::sync::atomic::Ordering::SeqCst) {
+                                let _ = handle.emit("pty-out", chunk);
+                            } else {
+                                outbox.buffered.lock().unwrap().push(chunk);
+                            }
                         }
                     }
                 }
@@ -81,7 +107,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![pty_write, pty_resize])
+        .invoke_handler(tauri::generate_handler![pty_write, pty_resize, ui_ready])
         .run(tauri::generate_context!())
         .expect("error while running dxxpcode desktop");
 }

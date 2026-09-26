@@ -32,6 +32,7 @@ Options:
   --model <name>               Model override (DXXPCODE_MODEL)
   --effort <level>             Reasoning effort: minimal | low | medium | high | xhigh | max (DXXPCODE_EFFORT)
   --yes, -y                    Auto-approve actions needing confirmation
+  --app                        Shell protocol: JSON events on stdout, JSON commands on stdin
   --max-iterations <n>         Agent iteration cap (default 40)
 
 Configuration:
@@ -60,6 +61,7 @@ interface Args {
   version: boolean;
   help: boolean;
   yes: boolean;
+  app: boolean;
   provider?: string;
   model?: string;
   effort?: import("@dxxpcode/sessions").DxxpConfig["effort"];
@@ -67,7 +69,7 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { plan: false, review: false, undo: false, resume: false, version: false, help: false, yes: false };
+  const args: Args = { plan: false, review: false, undo: false, resume: false, version: false, help: false, yes: false, app: false };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -79,6 +81,7 @@ function parseArgs(argv: string[]): Args {
       case "--version": case "-v": args.version = true; break;
       case "--help": case "-h": args.help = true; break;
       case "--yes": case "-y": args.yes = true; break;
+      case "--app": args.app = true; break;
       case "--provider": args.provider = argv[++i]; break;
       case "--model": args.model = argv[++i]; break;
       case "--effort": {
@@ -193,7 +196,7 @@ async function main(): Promise<number> {
   } catch (e) {
     if (e instanceof ProviderConfigError) {
       // First-run connect flow: pick a provider + paste a key in the TUI.
-      if (interactive) {
+      if (interactive && !args.app) {
         const { runProviderSetup } = await import("./ui/setup.tsx");
         const setup = await runProviderSetup();
         if (!setup) {
@@ -250,6 +253,28 @@ async function main(): Promise<number> {
   // One-shot install ping — generates a random ID once, POSTs to the stats endpoint.
   const { trackInstall } = await import("./track.ts");
   trackInstall(config, process.env);
+
+  if (args.app) {
+    // Shell protocol mode: NDJSON events on stdout, JSON commands on stdin.
+    const { runAppMode } = await import("./app.ts");
+    return runAppMode({
+      version: VERSION,
+      provider: provider.provider,
+      providerName: provider.provider.name,
+      model: provider.model,
+      effort,
+      project,
+      root,
+      session,
+      planOnly: args.plan,
+      autoApprove,
+      smartApproveMode,
+      maxIterations: args.maxIterations ?? config.maxIterations,
+      allowlist,
+      config,
+      mode,
+    });
+  }
 
   if (interactive) {
     // Background update check — resolved inside the TUI as a note.
