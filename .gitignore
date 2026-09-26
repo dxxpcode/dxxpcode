@@ -6,3 +6,4 @@ apps/desktop/src-tauri/gen/
 .DS_Store
 .dxxp/
 npm-debug.log*
+apps/desktop/src-tauri/binaries/

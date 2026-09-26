@@ -47,6 +47,37 @@ fn pty_resize(pty: State<'_, Pty>, cols: u16, rows: u16) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+fn cli_binary(app: &tauri::AppHandle) -> String {
+    if let Ok(p) = std::env::var("DXXPCODE_BIN") {
+        return p;
+    }
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            dirs.push(dir.to_path_buf());
+            dirs.push(dir.join("binaries"));
+        }
+    }
+    if let Ok(res) = app.path().resource_dir() {
+        dirs.push(res.clone());
+        dirs.push(res.join("binaries"));
+    }
+    for dir in dirs {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            let mut names: Vec<_> = entries
+                .flatten()
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|n| n == "dxxpcode" || n.starts_with("dxxpcode-"))
+                .collect();
+            names.sort();
+            if let Some(name) = names.into_iter().next() {
+                return dir.join(name).to_string_lossy().into_owned();
+            }
+        }
+    }
+    "dxxpcode".to_string()
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(std::sync::Arc::new(Outbox {
@@ -64,9 +95,10 @@ fn main() {
                 })
                 .map_err(|e| e.to_string())?;
 
-            // Spawn the real dxxpcode CLI (linked install or PATH). DXXPCODE_BIN
-            // overrides for dev (e.g. `node ../cli/dist/cli.js`).
-            let program = std::env::var("DXXPCODE_BIN").unwrap_or_else(|_| "dxxpcode".to_string());
+            // Spawn dxxpcode: DXXPCODE_BIN overrides for dev; otherwise the
+            // bundled sidecar (next to the exe or in the resource dir); finally
+            // fall back to a `dxxpcode` on PATH.
+            let program = cli_binary(app.handle());
             let mut cmd = CommandBuilder::new(program);
             cmd.arg("--app");
             cmd.cwd(std::env::current_dir().unwrap_or_else(|_| "/tmp".into()));

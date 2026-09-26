@@ -16,5 +16,10 @@
       }
     ]
   },
-  "bundle": { "active": false }
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "externalBin": ["binaries/dxxpcode"],
+    "icon": ["icons/icon.png"]
+  }
 }
