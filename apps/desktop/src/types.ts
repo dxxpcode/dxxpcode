@@ -6,7 +6,22 @@ export interface ReadyInfo {
   model: string;
   effort?: string;
   mode: string;
+  commands?: { name: string; desc: string }[];
   project: { name: string; languages: string[]; git?: { branch: string; dirty: boolean } | null };
+}
+
+export interface MenuState {
+  id: number;
+  title: string;
+  options: { label: string; desc?: string }[];
+  current?: number;
+  answered?: number;
+}
+
+export interface PromptState {
+  id: number;
+  title: string;
+  secret?: boolean;
 }
 
 export interface Todo { status: string; content: string; activeForm?: string }
@@ -21,6 +36,9 @@ export type Item =
   | { k: "note"; text: string; steer?: boolean }
   | { k: "denied"; tool: string; reason: string }
   | { k: "done"; status: string; summary: string; filesChanged: string[]; secs?: number; tokens?: number }
+  | { k: "table"; title: string; rows: [string, string][] }
+  | { k: "markdown"; title: string; text: string }
+  | { k: "diffcard"; title: string; diff: string }
   | { k: "raw"; text: string };
 
 export interface Approval {

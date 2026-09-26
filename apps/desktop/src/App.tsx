@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
-import type { Approval, Item, Plan, ReadyInfo, Todo } from "./types";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, TOOL_FAMILY, TOOL_ICONS, toolArg } from "./types";
 
 marked.setOptions({ breaks: true, gfm: true });
@@ -19,10 +20,18 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState("");
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const [promptReq, setPromptReq] = useState<PromptState | null>(null);
+  const [promptVal, setPromptVal] = useState("");
+  const [cmdSel, setCmdSel] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const push = (item: Item) => setItems((prev) => [...prev, item]);
+  const commands = ready?.commands ?? [];
+  const palette = input.startsWith("/")
+    ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
+    : [];
   const appendText = (t: string) =>
     setItems((prev) => {
       const last = prev[prev.length - 1];
@@ -38,6 +47,45 @@ export default function App() {
       case "user":
         push({ k: "user", text: String(ev.text) });
         setRunning(true);
+        break;
+      case "state":
+        setReady((prev) =>
+          prev
+            ? {
+                ...prev,
+                provider: String(ev.provider),
+                model: String(ev.model),
+                effort: ev.effort as string | undefined,
+                mode: String(ev.mode),
+              }
+            : prev,
+        );
+        break;
+      case "menu":
+        setMenu({
+          id: Number(ev.id), title: String(ev.title),
+          options: ev.options as MenuState["options"],
+          current: ev.current as number | undefined,
+        });
+        break;
+      case "prompt":
+        setPromptReq({ id: Number(ev.id), title: String(ev.title), secret: ev.secret === true });
+        setPromptVal("");
+        break;
+      case "table":
+        push({ k: "table", title: String(ev.title), rows: ev.rows as [string, string][] });
+        break;
+      case "markdown":
+        push({ k: "markdown", title: String(ev.title), text: String(ev.text) });
+        break;
+      case "diff_card":
+        push({ k: "diffcard", title: String(ev.title), diff: String(ev.diff) });
+        break;
+      case "error":
+        push({ k: "note", text: `error: ${ev.text}` });
+        break;
+      case "exit":
+        void getCurrentWindow().close();
         break;
       case "status":
         setStatus(String(ev.message));
@@ -153,8 +201,41 @@ export default function App() {
   const submit = () => {
     const text = input.trim();
     if (!text) return;
+    if (palette.length > 0 && !text.includes(" ")) {
+      // Palette open on an exact/partial command — take the selected suggestion.
+      const pick = palette[Math.min(cmdSel, palette.length - 1)];
+      if (pick && pick.name !== text) {
+        setInput(pick.name);
+        setCmdSel(0);
+        return;
+      }
+    }
     setInput("");
+    setCmdSel(0);
+    if (text === "/clear") {
+      setItems([]);
+      return;
+    }
+    if (text === "/exit") {
+      void getCurrentWindow().close();
+      return;
+    }
     void send({ type: "submit", text });
+  };
+
+  const pickMenu = (index: number) => {
+    const m = menu;
+    if (!m) return;
+    setMenu({ ...m, answered: index });
+    setTimeout(() => setMenu((cur) => (cur?.id === m.id ? null : cur)), 250);
+    void send({ type: "select", id: m.id, index });
+  };
+
+  const submitPrompt = () => {
+    const p = promptReq;
+    if (!p) return;
+    setPromptReq(null);
+    void send({ type: "prompt_submit", id: p.id, text: promptVal });
   };
 
   const answer = (id: number, choice: string) => {
@@ -204,7 +285,68 @@ export default function App() {
         {status && <><span className="pulse" /><span>{status}</span>{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
       </div>
 
+      {menu && (
+        <div className="menu-card">
+          <div className="card-title">{menu.title}</div>
+          <div className="menu-opts">
+            {menu.options.map((o, i) => (
+              <button
+                key={i}
+                className={`menu-opt${i === menu.current ? " cur" : ""}`}
+                disabled={menu.answered !== undefined}
+                onClick={() => pickMenu(i)}
+              >
+                <span className="menu-label">{o.label}</span>
+                {o.desc && <span className="menu-desc">{o.desc}</span>}
+              </button>
+            ))}
+          </div>
+          <div className="btns">
+            <button className="btn deny" onClick={() => pickMenu(-1)}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {promptReq && (
+        <div className="menu-card">
+          <div className="card-title">{promptReq.title}</div>
+          <div className="prompt-row">
+            <input
+              autoFocus
+              type={promptReq.secret ? "password" : "text"}
+              value={promptVal}
+              onChange={(e) => setPromptVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitPrompt();
+                else if (e.key === "Escape") {
+                  setPromptReq(null);
+                  void send({ type: "prompt_submit", id: promptReq.id, text: "" });
+                }
+              }}
+            />
+            <button className="btn allow" onClick={submitPrompt}>OK</button>
+          </div>
+        </div>
+      )}
       <div className="composer">
+        {palette.length > 0 && (
+          <div className="palette">
+            {palette.map((c, i) => (
+              <button
+                key={c.name}
+                className={`palette-row${i === Math.min(cmdSel, palette.length - 1) ? " sel" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setInput(c.name);
+                  setCmdSel(0);
+                  taRef.current?.focus();
+                }}
+              >
+                <span className="mono pcmd">{c.name}</span>
+                <span className="pdesc">{c.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="inputbox">
           <textarea
             ref={taRef}
@@ -218,16 +360,24 @@ export default function App() {
               e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (palette.length > 0 && e.key === "ArrowDown") {
+                e.preventDefault();
+                setCmdSel((s) => (s + 1) % palette.length);
+              } else if (palette.length > 0 && e.key === "ArrowUp") {
+                e.preventDefault();
+                setCmdSel((s) => (s - 1 + palette.length) % palette.length);
+              } else if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 submit();
-              } else if (e.key === "Escape" && running) {
-                void send({ type: "cancel" });
+              } else if (e.key === "Escape") {
+                if (palette.length > 0) setInput("");
+                else if (running) void send({ type: "cancel" });
               }
             }}
           />
         </div>
         <div className="hints">
+          <span><kbd>/</kbd> commands</span>
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
         </div>
@@ -267,6 +417,37 @@ function ItemView({ item }: { item: Item }) {
                 <span className="lbl">{t.status === "in_progress" && t.activeForm ? t.activeForm : t.content}</span>
               </div>
             ))}
+          </div>
+        </div>
+      );
+    case "table":
+      return (
+        <div className="card row">
+          <div className="card-title">{item.title}</div>
+          <div className="card-body">
+            <table className="kv">
+              <tbody>
+                {item.rows.map(([k, v], i) => (
+                  <tr key={i}><td className="k">{k}</td><td className="v mono">{v}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    case "markdown":
+      return (
+        <div className="card row">
+          <div className="card-title">{item.title}</div>
+          <div className="card-body text" dangerouslySetInnerHTML={md(item.text)} />
+        </div>
+      );
+    case "diffcard":
+      return (
+        <div className="card row">
+          <div className="card-title">{item.title}</div>
+          <div className="card-body" style={{ padding: "8px 0" }}>
+            <Diff diff={item.diff} />
           </div>
         </div>
       );
