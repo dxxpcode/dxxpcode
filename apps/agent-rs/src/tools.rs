@@ -499,6 +499,15 @@ const DEFAULT_TIMEOUT_MS: u64 = 120_000;
 const MAX_TIMEOUT_MS: u64 = 600_000;
 
 #[cfg(unix)]
+const SIG_KILL: i32 = libc::SIGKILL;
+#[cfg(unix)]
+const SIG_TERM: i32 = libc::SIGTERM;
+#[cfg(not(unix))]
+const SIG_KILL: i32 = 0;
+#[cfg(not(unix))]
+const SIG_TERM: i32 = 0;
+
+#[cfg(unix)]
 fn kill_group(pid: u32, sig: i32) {
     unsafe {
         libc::kill(-(pid as i32), sig);
@@ -583,13 +592,13 @@ fn exec_run_command(input: &Value, ctx: &Ctx) -> ToolResult {
             Ok(None) => {
                 if start.elapsed() > Duration::from_millis(timeout) {
                     timed_out = true;
-                    kill_group(pid, libc::SIGKILL);
+                    kill_group(pid, SIG_KILL);
                     let _ = child.wait();
                     break;
                 }
                 if ctx.aborted.load(std::sync::atomic::Ordering::Relaxed) {
                     cancelled = true;
-                    kill_group(pid, libc::SIGKILL);
+                    kill_group(pid, SIG_KILL);
                     let _ = child.wait();
                     break;
                 }
@@ -775,7 +784,7 @@ fn exec_kill_process(input: &Value, ctx: &Ctx) -> ToolResult {
     if !proc_alive(p) {
         return ToolResult::ok(format!("'{name}' is not running"));
     }
-    kill_group(p.pid, libc::SIGTERM);
+    kill_group(p.pid, SIG_TERM);
     ToolResult::ok(format!("sent SIGTERM to '{name}' (pid {})", p.pid))
 }
 
