@@ -6,6 +6,7 @@ export interface ReadyInfo {
   model: string;
   effort?: string;
   mode: string;
+  needsSetup?: boolean;
   commands?: { name: string; desc: string }[];
   project: { name: string; languages: string[]; git?: { branch: string; dirty: boolean } | null };
 }

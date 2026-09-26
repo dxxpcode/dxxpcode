@@ -27,7 +27,7 @@ body {
 }
 .mono { font-family: "IBM Plex Mono", "JetBrains Mono", Menlo, monospace; }
 
-.app { display: flex; flex-direction: column; height: 100%; }
+.app { display: flex; flex-direction: column; height: 100%; position: relative; }
 
 /* ---------- header ---------- */
 .header {
@@ -273,3 +273,64 @@ body {
 .setrow .setlabel { width: 120px; color: var(--dim); flex-shrink: 0; }
 .setrow .setval { flex: 1; color: var(--text); font-size: 12.5px; }
 .setbtns { display: flex; gap: 8px; padding-top: 8px; }
+
+/* onboarding */
+.onboarding {
+  position: absolute;
+  inset: 41px 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  z-index: 30;
+}
+.ob-card {
+  width: 380px;
+  padding: 32px 28px 24px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 32px rgba(0, 0, 0, 0.06);
+}
+.ob-mark {
+  display: block;
+  width: 52px;
+  height: auto;
+  margin: 0 auto 18px;
+  color: var(--text);
+}
+.ob-title {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 7px;
+}
+.ob-grad {
+  background: linear-gradient(90deg, var(--text), var(--faint));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.ob-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dim);
+  margin: 0 auto 20px;
+  max-width: 280px;
+}
+.ob-card .setbtns {
+  justify-content: center;
+}
+.ob-card .btn.primary {
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+}
+.ob-hint {
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 16px;
+}
