@@ -8,7 +8,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub fn str_arg(input: &Value, key: &str) -> Result<String, String> {
     match input.get(key).and_then(|v| v.as_str()) {
@@ -67,9 +67,78 @@ pub struct BgProc {
     pub command: String,
     pub pid: u32,
     pub log_file: PathBuf,
-    pub started: Instant,
-    pub child: Arc<Mutex<Child>>,
+    /// Unix seconds when the process was started.
+    pub started_unix: u64,
+    /// None for processes reattached after `--resume` (we can't wait on them,
+    /// but kill(pid, 0) liveness + the log file still work).
+    pub child: Option<Arc<Mutex<Child>>>,
     pub exit_code: Arc<Mutex<Option<i32>>>,
+}
+
+fn now_unix() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+fn pid_alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(pid as i32, 0) == 0
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        false
+    }
+}
+
+fn procs_file(root: &str) -> PathBuf {
+    Path::new(root).join(".dxxpcode").join("procs.json")
+}
+
+fn save_procs(root: &str, procs: &HashMap<String, BgProc>) {
+    let list: Vec<Value> = procs
+        .values()
+        .map(|p| json!({"name": p.name, "command": p.command, "pid": p.pid,
+            "log_file": p.log_file.display().to_string(), "started_unix": p.started_unix}))
+        .collect();
+    let path = procs_file(root);
+    if let Some(dir) = path.parent() {
+        let _ = fs::create_dir_all(dir);
+    }
+    let _ = fs::write(path, serde_json::to_string_pretty(&list).unwrap_or_default());
+}
+
+/// Reattach to still-running background processes recorded by earlier
+/// sessions (survives `--resume`). Dead pids are pruned.
+pub fn load_procs(root: &str) -> CtxProcTable {
+    let mut map = HashMap::new();
+    if let Ok(raw) = fs::read_to_string(procs_file(root)) {
+        if let Ok(list) = serde_json::from_str::<Vec<Value>>(&raw) {
+            for e in list {
+                let pid = e.get("pid").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                if pid == 0 || !pid_alive(pid) {
+                    continue;
+                }
+                let name = e.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                if name.is_empty() {
+                    continue;
+                }
+                map.insert(
+                    name.clone(),
+                    BgProc {
+                        name,
+                        command: e.get("command").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        pid,
+                        log_file: PathBuf::from(e.get("log_file").and_then(|v| v.as_str()).unwrap_or("")),
+                        started_unix: e.get("started_unix").and_then(|v| v.as_u64()).unwrap_or_else(now_unix),
+                        child: None,
+                        exit_code: Arc::new(Mutex::new(None)),
+                    },
+                );
+            }
+        }
+    }
+    Arc::new(Mutex::new(map))
 }
 
 fn o(pairs: &[(&str, Value)]) -> Value {
@@ -575,16 +644,7 @@ fn log_tail(path: &Path, max: usize) -> String {
 }
 
 fn proc_alive(p: &BgProc) -> bool {
-    p.exit_code.lock().unwrap().is_none() && {
-        #[cfg(unix)]
-        unsafe {
-            libc::kill(p.pid as i32, 0) == 0
-        }
-        #[cfg(not(unix))]
-        {
-            true
-        }
-    }
+    p.exit_code.lock().unwrap().is_none() && pid_alive(p.pid)
 }
 
 fn exec_run_background(input: &Value, ctx: &Ctx) -> ToolResult {
@@ -649,10 +709,14 @@ fn exec_run_background(input: &Value, ctx: &Ctx) -> ToolResult {
         });
     }
     let log_path = log_file.display().to_string();
-    ctx.procs.lock().unwrap().insert(
-        name.clone(),
-        BgProc { name: name.clone(), command: command.clone(), pid, log_file, started: Instant::now(), child, exit_code },
-    );
+    {
+        let mut procs = ctx.procs.lock().unwrap();
+        procs.insert(
+            name.clone(),
+            BgProc { name: name.clone(), command: command.clone(), pid, log_file, started_unix: now_unix(), child: Some(child), exit_code },
+        );
+        save_procs(&ctx.root, &procs);
+    }
     ToolResult::ok(format!("started '{name}' in the background (pid {pid})\nlog: {log_path}\nuse check_process to read output or kill_process to stop it"))
 }
 
@@ -666,11 +730,13 @@ fn exec_check_process(input: &Value, ctx: &Ctx) -> ToolResult {
         let lines: Vec<String> = procs
             .values()
             .map(|p| {
-                let secs = p.started.elapsed().as_secs();
+                let secs = now_unix().saturating_sub(p.started_unix);
                 let state = if proc_alive(p) {
                     format!("running (pid {}, {}s)", p.pid, secs)
+                } else if let Some(code) = *p.exit_code.lock().unwrap() {
+                    format!("exited ({code})")
                 } else {
-                    format!("exited ({:?})", p.exit_code.lock().unwrap())
+                    "not running".to_string()
                 };
                 format!("{}: {} — {}", p.name, state, p.command)
             })
@@ -682,8 +748,10 @@ fn exec_check_process(input: &Value, ctx: &Ctx) -> ToolResult {
     };
     let state = if proc_alive(p) {
         format!("running (pid {})", p.pid)
+    } else if let Some(code) = *p.exit_code.lock().unwrap() {
+        format!("exited ({code})")
     } else {
-        format!("exited ({:?})", p.exit_code.lock().unwrap())
+        "not running".to_string()
     };
     let tail = log_tail(&p.log_file, 16 * 1024);
     let n = opt_num(input, "tail_lines").unwrap_or(60.0) as usize;
@@ -705,7 +773,7 @@ fn exec_kill_process(input: &Value, ctx: &Ctx) -> ToolResult {
         return ToolResult::err(format!("no background process named '{name}'"));
     };
     if !proc_alive(p) {
-        return ToolResult::ok(format!("'{name}' already exited ({:?})", p.exit_code.lock().unwrap()));
+        return ToolResult::ok(format!("'{name}' is not running"));
     }
     kill_group(p.pid, libc::SIGTERM);
     ToolResult::ok(format!("sent SIGTERM to '{name}' (pid {})", p.pid))

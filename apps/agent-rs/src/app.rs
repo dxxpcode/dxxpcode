@@ -7,7 +7,7 @@ use crate::config::{
 };
 use crate::project::{detect_git, ProjectInfo};
 use crate::provider::{jev_route_effort, resolve_provider, smart_approve, Provider};
-use crate::tools::CtxProcTable;
+use crate::tools::{self, CtxProcTable};
 use crate::util::{expand_mentions, file_suggestions, list_project_files, FileIndex};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -939,7 +939,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         aborted: Arc::new(AtomicBool::new(false)),
         turn_tokens: Mutex::new(0),
         provider: Mutex::new(Some(deps.provider)),
-        procs: Arc::new(Mutex::new(HashMap::new())),
+        procs: tools::load_procs(&deps.root),
     });
 
     let dinfo = Arc::new(DepsInfo {

@@ -173,7 +173,7 @@ fn run_task_once(root: &str, task: String) {
     let mut approve_plan = |_plan: &serde_json::Value| true;
     let mut approve_tool = |_t: &str, _i: &serde_json::Value, _r: &str, _m: Option<&str>| true;
     let mut steer = || None;
-    let procs = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+    let procs = crate::tools::load_procs(root);
     let mut opts = agent::RunOpts {
         task,
         provider: &mut provider,
