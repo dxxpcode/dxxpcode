@@ -25,6 +25,7 @@
  *   {type:"select", id, index}                   pick a menu option (-1 = cancel)
  *   {type:"prompt_submit", id, text}             answer a prompt ("" = cancel)
  *   {type:"command", name:"/review", args?}      run a slash command
+ *   {type:"list_files", id, prefix}              @mention completions → {type:"files", id, items}
  *   {type:"cancel"}                              abort the active run
  */
 import { execFileSync } from "node:child_process";
@@ -38,7 +39,8 @@ import type { ProjectInfo } from "@dxxpcode/project";
 import { homeDir, loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
 import type { DxxpConfig, SessionRecord } from "@dxxpcode/sessions";
 import type { ProposedPlan } from "@dxxpcode/tools";
-import { expandMentions } from "./mentions.ts";
+import { expandMentions, listProjectFiles } from "./mentions.ts";
+import { fileSuggestions, type FileIndex } from "./ui/suggest.ts";
 import { jevRouteEffort, smartApprove } from "./jev.ts";
 import { CHANGELOG_MD, DOCS_MD } from "./reference.ts";
 
@@ -161,6 +163,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
   const steerQueue: string[] = [];
   const taskQueue: string[] = [];
   let session = deps.session;
+  let fileIndex: FileIndex | null = null;
   let abortRun: AbortController | null = null;
   let pumping = false;
   let turnTokens = 0;
@@ -626,6 +629,14 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
             pendingPrompts.delete(cmd.id);
             r(typeof cmd.text === "string" && cmd.text.length ? cmd.text : null);
           }
+        } else if (cmd.type === "list_files" && typeof cmd.id === "number") {
+          // @mention autocomplete — index builds lazily on first request.
+          fileIndex ??= listProjectFiles(deps.root);
+          emit({
+            type: "files",
+            id: cmd.id,
+            items: fileSuggestions(fileIndex, typeof cmd.text === "string" ? cmd.text : ""),
+          });
         } else if (cmd.type === "cancel") {
           abortRun?.abort();
         }
