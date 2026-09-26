@@ -1,13 +1,8 @@
 # DxxpCode
 
-An AI coding agent that lives entirely in your terminal. The CLI **is** the product — no desktop app, no dashboard, no embedded editor.
+An AI coding agent in a desktop app — one install, a custom terminal-native interface, and everything bundled. No terminal, editor, or Node setup required.
 
 ```
-$ cd ~/projects/my-app
-$ dxxpcode
-my-app (JavaScript/TypeScript)  main*
-provider: anthropic  model: claude-sonnet-4-5
-Ready. Describe a task; ctrl-c to exit.
 > Fix the failing authentication tests.
 → Inspecting project…
   → read_file src/auth/session.ts
@@ -18,20 +13,22 @@ Fix session expiry handling and cover it with tests
   2. Handle expired sessions
   3. Add regression tests
   4. Run authentication tests
-Proceed?  ❯ Yes / No   (↑/↓ navigate · Enter select)
+Proceed?   Allow / Always / Deny
 ```
 
 ## Install
 
-```sh
-npm install -g dxxpcode
-```
+Download the app — it bundles the agent; nothing else to install:
 
-Node.js ≥ 22.6 required.
+- **macOS** — `.dmg`
+- **Windows** — `.msi` or `.exe`
+- **Linux** — `.deb` or `.AppImage`
+
+Latest installers live on the [releases page](https://github.com/thenextdeveloper/DxxpCode-Terminal/releases).
 
 ## Configure a model provider
 
-DxxpCode talks to model providers through a replaceable interface. The easiest way is in the app itself — run `dxxpcode` with no key configured (or `/provider` anytime) and it walks you through picking a provider and pasting a key, saved owner-only to `~/.dxxpcode/config.json`. Or set an env var and go:
+On first launch a setup card walks you through picking a provider and pasting a key (reopen it anytime via Settings → Run setup). Keys save owner-only to `~/.dxxpcode/config.json`. Or set an env var and go:
 
 ```sh
 export ANTHROPIC_API_KEY=...   # default model: claude-sonnet-4-5
@@ -45,21 +42,16 @@ OpenAI-compatible endpoints (OpenRouter, local servers) work via `OPENAI_BASE_UR
 { "provider": "anthropic", "model": "claude-sonnet-4-5", "approvalMode": "ask" }
 ```
 
-## Commands
+## In the app
 
-| Command | Description |
-| --- | --- |
-| `dxxpcode` | Interactive session in the current project |
-| `dxxpcode "<task>"` | One-shot task |
-| `dxxpcode --plan "<task>"` | Investigate and print a plan — no changes |
-| `dxxpcode --review` | Colored diff of working-tree changes |
-| `dxxpcode --resume` | Continue the last session in this directory |
-| `dxxpcode --yes "<task>"` | Auto-approve actions that would prompt |
-| `dxxpcode --help` | Full option list |
+- Type `/` for the command palette (`/docs`, `/settings`, `/resume`, `/model`, `/effort`, …)
+- Type `@` for file mentions — `@file#L-M` attaches a line range, `@dir/` a directory listing
+- Type while the agent works to **steer** it mid-run; `Esc` interrupts
+- Approvals are clickable (Allow / Always / Deny); gear icon opens the settings panel; sun/moon toggles the black dark theme
 
-Piped input also works: `echo "add a /health endpoint" | dxxpcode`.
+### CLI engine
 
-Attach files as task context with `@path` mentions — `dxxpcode "explain @src/math.ts"` appends the file as a `<file>` block. In the interactive UI, typing `@` opens a file/directory picker (`Tab` completes). `@file#L-M` attaches just that line range, and `@dir/` attaches a directory listing. Mentions follow the same permissions as `read_file`: root-escaping and protected paths (`.env`, keys) are skipped with a note. Streamed answers render markdown: `**bold**`, `` `code` ``, `##` headers, `-` bullets, `>` quotes.
+The `dxxpcode` binary ships inside the app and also works standalone for scripting — `dxxpcode "task"`, `--plan`, `--review`, `--resume`, `--undo`, `--yes`. `dxxpcode --app` is the NDJSON protocol the app speaks, usable for other front-ends.
 
 ## How it works
 
@@ -92,7 +84,7 @@ Do not modify generated files.
 
 ### Sessions
 
-History lives in `~/.dxxpcode/sessions/` — tasks, messages, tool calls, changed files, and results. `dxxpcode --resume` restores the latest session for the current directory.
+History lives in `~/.dxxpcode/sessions/` — tasks, messages, tool calls, changed files, and results. `/resume` restores an earlier session for the current directory.
 
 ## Development
 
@@ -103,12 +95,13 @@ npm run typecheck # strict tsc across the workspace
 npm run build     # emits dist/ per package
 ```
 
-Run the CLI from source: `node --conditions=development apps/cli/src/cli.ts` (non-interactive). The interactive UI is [ink](https://github.com/vadimdemedes/ink)/React under `apps/cli/src/ui/` — run it with `npm run dev -w apps/cli` (tsx) or the built `dist/`. Piped/non-TTY output keeps the plain renderer.
+The desktop app (`apps/desktop`) is Tauri + React and talks to the agent over `dxxpcode --app` (NDJSON protocol). Build it with `npm run tauri:build` from `apps/desktop` — this compiles the CLI into a bundled sidecar binary and produces native installers. The terminal UI is [ink](https://github.com/vadimdemedes/ink)/React under `apps/cli/src/ui/` — run it with `npm run dev -w apps/cli` or the built `dist/`.
 
-Layout — the agent runtime is independent of the terminal UI:
+Layout — the agent runtime is independent of any interface:
 
 ```
-apps/cli               terminal interface (dxxpcode)
+apps/desktop           desktop app (Tauri + React)
+apps/cli               agent engine + CLI (dxxpcode, embedded in the app)
 packages/agent         runtime: context → plan → tools → verify → result
 packages/tools         read/write/edit/search/run_command/git_*
 packages/providers     Anthropic + OpenAI adapters (fetch-based, zero-dep) + MockProvider

@@ -108,18 +108,23 @@ export default function Docs() {
         <main className="min-w-0 flex-1">
           <div className="pt-10">
             <p className="text-[17px] leading-7 text-muted-foreground">
-              The AI coding agent that lives in your terminal — install, connect a provider, and ship.
+              The AI coding agent on your desktop — install, connect a provider, and ship.
             </p>
           </div>
 
           <Section id="start" title="Getting started">
-            <p>Requires Node 20 or later. Install the CLI globally:</p>
-            <Code>npm install -g dxxpcode</Code>
             <p>
-              Then run it inside any project directory — DxxpCode detects languages, git state, and
-              project instructions automatically:
+              Download the desktop app — it bundles everything; no Node install required:
             </p>
-            <Code>cd your-project{"\n"}dxxpcode</Code>
+            <ul className="list-disc space-y-1.5 pl-5">
+              <li>macOS — <Inline>.dmg</Inline></li>
+              <li>Windows — <Inline>.msi</Inline> or <Inline>.exe</Inline></li>
+              <li>Linux — <Inline>.deb</Inline> or <Inline>.AppImage</Inline></li>
+            </ul>
+            <p>
+              Launch it inside any project directory — DxxpCode detects languages, git state, and
+              project instructions automatically. First run opens a guided setup card.
+            </p>
             <p>
               Free during early access — you bring your own API key, and nothing leaves your machine
               except calls to your chosen provider.
@@ -128,8 +133,8 @@ export default function Docs() {
 
           <Section id="connect" title="Connect a provider">
             <p>
-              On first launch, DxxpCode walks you through connecting a provider in the terminal. You
-              can reopen that flow anytime with <Inline>/provider</Inline>, or skip it entirely with
+              On first launch, DxxpCode walks you through connecting a provider. You
+              can reopen that flow anytime via Settings → Run setup, or with <Inline>/provider</Inline>, or skip it entirely with
               environment variables:
             </p>
             <Code>
@@ -153,9 +158,9 @@ export default function Docs() {
               <li>It runs your tests, then summarizes what changed and the tokens used.</li>
             </ol>
             <p>
-              Every file mutation is checkpointed — <Inline>/undo</Inline> restores the last change.
-              Preview without changing anything via <Inline>dxxpcode --plan &quot;task&quot;</Inline>,
-              and pick up where you left off with <Inline>dxxpcode --resume</Inline>.
+              Every file mutation is checkpointed — <Inline>/undo</Inline> restores the last change,
+              and you can pick up where you left off with <Inline>/resume</Inline> or the Session
+              card’s Resume… button.
             </p>
             <p>
               Attach context inline with <Inline>@</Inline> mentions — typing{" "}
@@ -169,7 +174,11 @@ export default function Docs() {
             <table className="w-full text-[14px]">
               <tbody>
                 <Row name="/status" desc="Provider, model, mode, version, project, git, session, and token usage." />
-                <Row name="/config" desc="Settings menu — approval mode, model, reasoning effort." />
+                <Row name="/settings" desc="Settings panel — approval mode, model, reasoning effort." />
+                <Row name="/resume" desc="Pick a previous session to restore its context." />
+                <Row name="/docs" desc="Open this reference in the in-app doc viewer." />
+                <Row name="/changelog" desc="Open release notes in the in-app doc viewer." />
+                <Row name="/setup" desc="Re-run first-run onboarding (provider, effort, keys)." />
                 <Row name="/model" desc="Pick a model from the provider's live catalog (or enter a custom name)." />
                 <Row name="/effort" desc="Reasoning effort for the next task: default, minimal → max." />
                 <Row name="/undo" desc="Restore files from the last checkpoint." />

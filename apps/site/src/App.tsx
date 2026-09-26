@@ -1,56 +1,8 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { Logo } from "./components/Logo";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
-
-const INSTALL = "npm install -g dxxpcode";
-
-const COMPACT = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-
-function InstallCount() {
-  const [n, setN] = useState<number | null>(null);
-  useEffect(() => {
-    fetch("/api/stats")
-      .then((r) => r.json())
-      .then((d) => setN(typeof d.installs === "number" ? d.installs : null))
-      .catch(() => {});
-  }, []);
-  return (
-    <p className="mt-6 h-5 text-[13px] text-muted-foreground" aria-live="polite">
-      {n !== null && (
-        <>
-          Installed by <span className="font-mono text-foreground">{COMPACT.format(n).toLowerCase()}</span>{" "}
-          {n === 1 ? "developer" : "developers"}
-        </>
-      )}
-    </p>
-  );
-}
-
-function InstallButton() {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={() => {
-        void navigator.clipboard?.writeText(INSTALL);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      aria-label={`Copy "${INSTALL}"`}
-      className="group inline-flex h-10 items-center rounded-full border border-border font-mono text-[13px] transition-colors hover:bg-secondary"
-    >
-      <span className="pl-5 pr-4">
-        <span className="select-none text-muted-foreground">$ </span>
-        <span className="text-foreground/80">{INSTALL}</span>
-      </span>
-      <span className="h-5 w-px bg-border" />
-      <span className="flex h-full items-center pl-3.5 pr-4 text-muted-foreground transition-colors group-hover:text-foreground">
-        {copied ? <Check strokeWidth={1.5} className="h-4 w-4 text-foreground" /> : <Copy strokeWidth={1.5} className="h-4 w-4" />}
-      </span>
-    </button>
-  );
-}
 
 const RELEASE = "https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v0.1.0";
 const DOWNLOADS: [string, string][] = [
@@ -59,21 +11,26 @@ const DOWNLOADS: [string, string][] = [
   ["Linux", `${RELEASE}/dxxpcode-desktop_0.1.0_amd64.AppImage`],
 ];
 
-function DesktopLinks() {
+function DownloadButtons() {
   return (
-    <div className="mt-10 flex flex-col items-center gap-3">
-      <div className="h-px w-40 bg-border" />
-      <p className="text-[13px] text-muted-foreground">Or get the desktop app</p>
-      <div className="flex items-center gap-4 text-[13px]">
-        {DOWNLOADS.map(([os, url], i) => (
-          <span key={os} className="flex items-center gap-4">
-            {i > 0 && <span className="h-3 w-px bg-border" />}
-            <a href={url} className="text-foreground/80 transition-colors hover:text-foreground">
-              {os}
-            </a>
-          </span>
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex items-center gap-3">
+        {DOWNLOADS.map(([os, url]) => (
+          <a
+            key={os}
+            href={url}
+            className="inline-flex h-10 items-center rounded-full bg-foreground px-5 text-[13px] font-medium text-background transition-opacity hover:opacity-80"
+          >
+            {os}
+          </a>
         ))}
       </div>
+      <a
+        href="https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/tag/desktop-v0.1.0"
+        className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        All releases →
+      </a>
     </div>
   );
 }
@@ -111,15 +68,13 @@ export default function App() {
         <h1 className="text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
           The AI coding agent{" "}
           <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-            in your terminal
+            on your desktop
           </span>
         </h1>
 
         <div className="mt-7">
-          <InstallButton />
+          <DownloadButtons />
         </div>
-        <InstallCount />
-        <DesktopLinks />
       </main>
     </div>
   );
