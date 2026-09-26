@@ -107,6 +107,7 @@ const COMMAND_LIST = [
   { name: "/settings", desc: "approval mode, provider, model, effort" },
   { name: "/approval", desc: "approval mode — ask, always, or smart (Jev)" },
   { name: "/effort", desc: "reasoning effort for the next task" },
+  { name: "/setup", desc: "guided setup — provider, effort, optional Jev key" },
   { name: "/providers", desc: "switch between configured providers" },
   { name: "/undo", desc: "restore files from the last checkpoint" },
   { name: "/compact", desc: "compress old tool output in the session context" },
@@ -159,6 +160,11 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
     effort: live.effort,
     mode: live.mode,
     commands: COMMAND_LIST,
+    needsSetup:
+      !process.env.ANTHROPIC_API_KEY &&
+      !process.env.OPENAI_API_KEY &&
+      !deps.config.anthropicApiKey &&
+      !deps.config.openaiApiKey,
     project: {
       name: deps.project.name,
       languages: deps.project.languages,
@@ -309,33 +315,15 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
     );
     if (i === null) return;
     if (opts[i] === undefined) {
-      const which = await menu("Connect a provider", [
-        { label: "Anthropic", desc: "Claude models" },
-        { label: "OpenAI-compatible", desc: "OpenAI, OpenRouter, local endpoints" },
-      ]);
-      if (which === null) return;
-      const key = await prompt(
-        which === 0 ? "Anthropic API key:" : "OpenAI-compatible API key:",
-        true,
-      );
-      if (!key?.trim()) return;
-      let baseUrl: string | undefined;
-      if (which === 1) {
-        const b = await prompt("Base URL (blank = api.openai.com):");
-        if (b?.trim()) baseUrl = b.trim();
-      }
-      const cfg2 = { ...loadConfig() };
-      if (which === 0) cfg2.anthropicApiKey = key.trim();
-      else {
-        cfg2.openaiApiKey = key.trim();
-        if (baseUrl) cfg2.openaiBaseUrl = baseUrl;
-      }
-      saveConfig(cfg2);
-      emit({ type: "note", text: `${which === 0 ? "Anthropic" : "OpenAI-compatible"} key saved — pick it from /providers` });
+      await connectProvider();
       return;
     }
     const name = opts[i];
     if (name === live.provider.name) return;
+    switchProvider(name);
+  };
+
+  const switchProvider = (name: string) => {
     try {
       const fresh = loadConfig();
       const models = { ...(fresh.models ?? {}) };
@@ -343,7 +331,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
       const sel = resolveProvider({
         provider: name,
         model: models[name],
-        env,
+        env: process.env,
         keys: { anthropic: fresh.anthropicApiKey, openai: fresh.openaiApiKey },
       });
       live.provider = sel.provider;
@@ -354,6 +342,54 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
     } catch (e) {
       emit({ type: "error", text: e instanceof Error ? e.message : String(e) });
     }
+  };
+
+  const connectProvider = async (): Promise<boolean> => {
+    const which = await menu("Connect a provider", [
+      { label: "Anthropic", desc: "Claude models" },
+      { label: "OpenAI-compatible", desc: "OpenAI, OpenRouter, local endpoints" },
+    ]);
+    if (which === null) return false;
+    const key = await prompt(
+      which === 0 ? "Anthropic API key:" : "OpenAI-compatible API key:",
+      true,
+    );
+    if (!key?.trim()) return false;
+    let baseUrl: string | undefined;
+    if (which === 1) {
+      const b = await prompt("Base URL (blank = api.openai.com):");
+      if (b?.trim()) baseUrl = b.trim();
+    }
+    const cfg2 = { ...loadConfig() };
+    if (which === 0) cfg2.anthropicApiKey = key.trim();
+    else {
+      cfg2.openaiApiKey = key.trim();
+      if (baseUrl) cfg2.openaiBaseUrl = baseUrl;
+    }
+    saveConfig(cfg2);
+    const name = which === 0 ? "anthropic" : "openai";
+    switchProvider(name);
+    emit({
+      type: "note",
+      text: `${which === 0 ? "Anthropic" : "OpenAI-compatible"} key saved`,
+    });
+    return true;
+  };
+
+  const runOnboarding = async () => {
+    emit({ type: "note", text: "welcome to dxxpcode — connect a provider to get started" });
+    const ok = await connectProvider();
+    if (!ok) return;
+    await openEffortMenu();
+    const key = await prompt(
+      "Optional: TYPESAFE_API_KEY for smart approvals + auto effort (blank to skip):",
+      true,
+    );
+    if (key?.trim()) {
+      saveConfig({ ...loadConfig(), typeSafeApiKey: key.trim() });
+      emit({ type: "note", text: "Jev key saved" });
+    }
+    emit({ type: "note", text: "you're all set — ask dxxpcode anything" });
   };
 
   const openSettingsMenu = async () => {
@@ -423,7 +459,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
         await openProviderMenu();
         return;
       case "/setup":
-        await openProviderMenu();
+        await runOnboarding();
         return;
       case "/undo": {
         const out = session ? undoCheckpoint(deps.root, session.id, process.env) : null;

@@ -27,7 +27,7 @@ body {
 }
 .mono { font-family: "IBM Plex Mono", "JetBrains Mono", Menlo, monospace; }
 
-.app { display: flex; flex-direction: column; height: 100%; }
+.app { display: flex; flex-direction: column; height: 100%; position: relative; }
 
 /* ---------- header ---------- */
 .header {
@@ -273,3 +273,43 @@ body {
 .setrow .setlabel { width: 120px; color: var(--dim); flex-shrink: 0; }
 .setrow .setval { flex: 1; color: var(--text); font-size: 12.5px; }
 .setbtns { display: flex; gap: 8px; padding-top: 8px; }
+
+/* onboarding */
+.onboarding {
+  position: absolute;
+  inset: 41px 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  z-index: 30;
+}
+.ob-card {
+  width: 360px;
+  padding: 20px;
+  text-align: center;
+}
+.ob-card .card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ob-desc {
+  font-size: 13px;
+  color: var(--dim);
+  margin-bottom: 14px;
+}
+.ob-card .setbtns {
+  justify-content: center;
+}
+.ob-card .btn.primary {
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+}
+.ob-hint {
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 12px;
+}

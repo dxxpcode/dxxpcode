@@ -28,6 +28,7 @@ export default function App() {
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
+  const [onboarding, setOnboarding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -48,9 +49,12 @@ export default function App() {
 
   const handle = useCallback((ev: Ev) => {
     switch (ev.type) {
-      case "ready":
-        setReady(ev as unknown as ReadyInfo);
+      case "ready": {
+        const r = ev as unknown as ReadyInfo;
+        setReady(r);
+        if (r.needsSetup) setOnboarding(true);
         break;
+      }
       case "user":
         push({ k: "user", text: String(ev.text) });
         setRunning(true);
@@ -335,9 +339,23 @@ export default function App() {
               <div className="setbtns">
                 <button className="btn" onClick={() => cmd("/docs")}>Docs</button>
                 <button className="btn" onClick={() => cmd("/changelog")}>Changelog</button>
+                <button className="btn" onClick={() => cmd("/setup")}>Run setup…</button>
                 <button className="btn deny" onClick={() => cmd("/exit")}>Quit</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {onboarding && !settingsOpen && (
+        <div className="onboarding">
+          <div className="card ob-card">
+            <div className="card-title">Welcome to dxxpcode</div>
+            <p className="ob-desc">Connect a model provider to get started — takes about a minute.</p>
+            <div className="setbtns">
+              <button className="btn primary" onClick={() => { setOnboarding(false); cmd("/setup"); }}>Set up</button>
+              <button className="btn" onClick={() => setOnboarding(false)}>Skip for now</button>
+            </div>
+            <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
           </div>
         </div>
       )}
