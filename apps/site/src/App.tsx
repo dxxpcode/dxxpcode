@@ -141,6 +141,31 @@ export default function App() {
             Compared with agents that bundle Electron, Node or Bun.
           </p>
         </section>
+
+        <section className="mt-14 w-full max-w-2xl">
+          <h2 className="text-[15px] font-medium tracking-[-0.01em]">Why DxxpCode</h2>
+          <div className="mt-6 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-3">
+            {[
+              {
+                title: "Visible by default",
+                body: "A diff before every mutation, an approval gate on anything risky, and /undo checkpoints. No black box.",
+              },
+              {
+                title: "Native, not bundled",
+                body: "A 3.6 MB Rust engine — no Electron, Node or Bun hidden inside. It opens instantly and stays out of the way.",
+              },
+              {
+                title: "Your repo is the state",
+                body: "Plans and todos live in .dxxpcode/*.md — readable, diffable, committed with your code, resumable across sessions.",
+              },
+            ].map((f) => (
+              <div key={f.title} className="bg-background px-5 py-6 text-left">
+                <p className="text-[13px] font-medium">{f.title}</p>
+                <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );
