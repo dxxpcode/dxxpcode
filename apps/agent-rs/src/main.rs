@@ -27,11 +27,16 @@ fn main() {
     let mut model_flag: Option<String> = None;
     let mut effort_flag: Option<String> = None;
     let mut max_iterations: Option<u32> = None;
+    let mut task_prompt: Option<String> = None;
     let mut i = 0;
     while i < argv.len() {
         let a = &argv[i];
         match a.as_str() {
             "--app" => app_mode = true,
+            "--task" | "--print" => {
+                i += 1;
+                task_prompt = argv.get(i).cloned();
+            }
             "--plan" => plan = true,
             "--resume" => resume = true,
             "--version" | "-v" => version = true,
@@ -71,6 +76,15 @@ fn main() {
     if version {
         println!("dxxpcode {}", env!("CARGO_PKG_VERSION"));
         return;
+    }
+    if let Some(task) = task_prompt {
+        run_task_once(&root_wait(), task);
+        return;
+    }
+    fn root_wait() -> String {
+        std::env::current_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| ".".into())
     }
     if !app_mode {
         eprintln!("dxxpcode-rs supports --app mode only (the terminal UI is the TS CLI).");
@@ -137,4 +151,60 @@ fn main() {
         config: cfg,
         mode: mode.to_string(),
     }));
+}
+
+/// `dxxpcode --task "…"` — one-shot non-interactive run (auto-approved),
+/// used for spawning detached sub-agent sessions (e.g. /review agent).
+fn run_task_once(root: &str, task: String) {
+    use std::io::Write;
+    let cfg = load_config();
+    if std::env::var("OPENAI_BASE_URL").is_err() {
+        if let Some(b) = &cfg.openai_base_url {
+            std::env::set_var("OPENAI_BASE_URL", b);
+        }
+    }
+    let (mut provider, model) = match provider::resolve_provider(cfg.provider.as_deref(), cfg.model.as_deref(), &cfg) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    };
+    let mut approve_plan = |_plan: &serde_json::Value| true;
+    let mut approve_tool = |_t: &str, _i: &serde_json::Value, _r: &str, _m: Option<&str>| true;
+    let mut steer = || None;
+    let procs = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+    let mut opts = agent::RunOpts {
+        task,
+        provider: &mut provider,
+        model,
+        project_root: root.to_string(),
+        plan_only: false,
+        max_iterations: cfg.max_iterations,
+        approve_plan: &mut approve_plan,
+        approve_tool: &mut approve_tool,
+        session: None,
+        effort: cfg.effort.clone(),
+        aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        steer: &mut steer,
+        procs,
+    };
+    let mut ok = true;
+    agent::run_task(&mut opts, &mut |ev| {
+        match ev.get("type").and_then(|t| t.as_str()) {
+            Some("text") => {
+                if let Some(t) = ev.get("text").and_then(|t| t.as_str()) {
+                    print!("{t}");
+                    let _ = std::io::stdout().flush();
+                }
+            }
+            Some("done") => {
+                let status = ev.pointer("/result/status").and_then(|s| s.as_str()).unwrap_or("");
+                ok = status == "completed";
+                println!();
+            }
+            _ => {}
+        }
+    });
+    std::process::exit(if ok { 0 } else { 1 });
 }
