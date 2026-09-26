@@ -37,7 +37,7 @@ import type { ModelProvider, ReasoningEffort } from "@dxxpcode/providers";
 import { KNOWN_MODELS, resolveProvider } from "@dxxpcode/providers";
 import { detectGit } from "@dxxpcode/project";
 import type { ProjectInfo } from "@dxxpcode/project";
-import { homeDir, loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
+import { homeDir, listSessions, loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
 import type { DxxpConfig, SessionRecord } from "@dxxpcode/sessions";
 import type { ProposedPlan } from "@dxxpcode/tools";
 import { expandMentions, listProjectFiles } from "./mentions.ts";
@@ -114,6 +114,7 @@ const COMMAND_LIST = [
   { name: "/changelog", desc: "release history" },
   { name: "/clear", desc: "clear the transcript" },
   { name: "/new", desc: "start a new session — resets context and approvals" },
+  { name: "/resume", desc: "resume a previous session for this project" },
   { name: "/help", desc: "list available commands" },
   { name: "/exit", desc: "quit" },
 ];
@@ -455,6 +456,36 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
       case "/changelog":
         emit({ type: "markdown", title: "Changelog", text: CHANGELOG_MD });
         return;
+      case "/resume": {
+        const past = listSessions(process.env)
+          .filter((s) => s.projectRoot === deps.root)
+          .slice(0, 12);
+        if (past.length === 0) {
+          emit({ type: "note", text: "no sessions for this project yet" });
+          return;
+        }
+        const i = await menu(
+          "Resume a session",
+          past.map((s) => ({
+            label: `${s.updatedAt.slice(0, 16).replace("T", " ")} — ${s.task.slice(0, 60) || "(untitled)"}`,
+            desc: `${s.id.slice(0, 8)} · ${s.messages.length} msg`,
+          })),
+        );
+        if (i === null) return;
+        const picked = loadSession(past[i].id);
+        if (!picked) {
+          emit({ type: "error", text: `session ${past[i].id} is unreadable` });
+          return;
+        }
+        session = picked;
+        deps.allowlist.clear();
+        emitSession();
+        emit({
+          type: "note",
+          text: `resumed session ${picked.id.slice(0, 8)} — ${picked.messages.length} message(s) restored`,
+        });
+        return;
+      }
       case "/new":
         session = undefined;
         deps.allowlist.clear();

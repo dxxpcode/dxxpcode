@@ -321,6 +321,7 @@ export default function App() {
               <div className="setrow"><span className="setlabel">id</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
               <div className="setrow"><span className="setlabel">context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
               <div className="setbtns">
+                <button className="btn" onClick={() => cmd("/resume")}>Resume…</button>
                 <button className="btn" onClick={() => cmd("/compact")}>Compact context</button>
                 <button className="btn" onClick={() => cmd("/undo")}>Undo checkpoint</button>
                 <button className="btn" onClick={() => cmd("/new")}>New session</button>
