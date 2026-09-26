@@ -67,7 +67,15 @@ fn cli_binary(app: &tauri::AppHandle) -> String {
             let mut names: Vec<_> = entries
                 .flatten()
                 .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|n| n == "dxxpcode" || n.starts_with("dxxpcode-"))
+                // Match the agent sidecar (dxxpcode, dxxpcode.exe,
+                // dxxpcode-<triple>[.exe]) but never this app's own exe —
+                // "dxxpcode-desktop.exe" starts with "dxxpcode-" and would
+                // re-spawn the desktop app in a loop.
+                .filter(|n| {
+                    let base = n.strip_suffix(".exe").unwrap_or(n);
+                    !base.starts_with("dxxpcode-desktop")
+                        && (base == "dxxpcode" || base.starts_with("dxxpcode-"))
+                })
                 .collect();
             names.sort();
             if let Some(name) = names.into_iter().next() {

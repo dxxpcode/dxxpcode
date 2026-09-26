@@ -49,8 +49,9 @@ export function normalizePath(p: string): string {
 /** Resolve `target` against `root` and return the project-relative path, or null if it escapes. */
 export function resolveWithinRoot(root: string, target: string): string | null {
   const normalizedRoot = normalizePath(root).replace(/\/$/, "");
+  const winAbs = /^[a-zA-Z]:[\\/]/.test(target);
   const joined = normalizePath(
-    target.startsWith("/") ? target : `${normalizedRoot}/${target}`,
+    target.startsWith("/") || winAbs ? target : `${normalizedRoot}/${target}`,
   );
   // Resolve . and .. segments.
   const parts: string[] = [];
@@ -58,7 +59,8 @@ export function resolveWithinRoot(root: string, target: string): string | null {
     if (seg === "..") parts.pop();
     else if (seg !== "." && seg !== "") parts.push(seg);
   }
-  const resolved = "/" + parts.join("/");
+  // Keep the root's leading-slash shape: Windows roots ("C:/x") have none.
+  const resolved = (joined.startsWith("/") ? "/" : "") + parts.join("/");
   if (resolved === normalizedRoot) return "";
   if (resolved.startsWith(normalizedRoot + "/")) return resolved.slice(normalizedRoot.length + 1);
   return null;
