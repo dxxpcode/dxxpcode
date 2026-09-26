@@ -18,7 +18,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 
 const COMMAND_LIST: &[(&str, &str)] = &[
-    ("/review", "show the working-tree diff"),
+    ("/review", "working-tree diff — `/review agent` runs an AI review"),
     ("/model", "pick the model for the next task"),
     ("/status", "session, config, and usage info"),
     ("/settings", "approval mode, provider, model, effort"),
@@ -541,10 +541,64 @@ fn show_status(sh: &Arc<Shared>, deps_root: &str, project: &ProjectInfo, version
     emit(json!({"type": "table", "title": "Status", "rows": rows}));
 }
 
+/// `/review agent` — spawns this binary as a detached review sub-agent
+/// (`--task`), so the review runs in its own session with a fresh context
+/// and reports back as a transcript card. Full output stays observable.
+fn run_agent_review(deps: &DepsInfo) {
+    let diff = git_out(&deps.root, &["diff"]) + &git_out(&deps.root, &["diff", "--cached"]);
+    let untracked = git_out(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
+    let mut body = diff.trim().to_string();
+    if !untracked.trim().is_empty() {
+        body += &format!("\n\nuntracked files (not shown): {}", untracked.trim());
+    }
+    if body.is_empty() {
+        emit_note("No changes to review.");
+        return;
+    }
+    body.truncate(60_000);
+    let prompt = format!(
+        "Review this working-tree diff for: bugs and logic errors, security issues, error-handling gaps. \
+         Report findings concisely as markdown with file:line references. Do not modify any files.\n\n{body}"
+    );
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(e) => {
+            emit_note(format!("can't locate the agent binary: {e}"));
+            return;
+        }
+    };
+    let root = deps.root.clone();
+    emit_note("code review running — the sub-agent will report back…");
+    std::thread::spawn(move || {
+        let out = std::process::Command::new(exe)
+            .args(["--task", &prompt])
+            .current_dir(&root)
+            .stdin(std::process::Stdio::null())
+            .output();
+        match out {
+            Ok(o) if !o.stdout.is_empty() => {
+                emit(json!({
+                    "type": "markdown", "title": "Code review",
+                    "text": String::from_utf8_lossy(&o.stdout).to_string(),
+                }));
+            }
+            Ok(o) => emit_note(format!(
+                "review failed: {}",
+                String::from_utf8_lossy(&o.stderr).trim()
+            )),
+            Err(e) => emit_note(format!("couldn't spawn review agent: {e}")),
+        }
+    });
+}
+
 fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
     let name = raw.trim().split_whitespace().next().unwrap_or("");
     match name {
         "/review" => {
+            let arg = raw.trim().split_whitespace().nth(1);
+            if arg == Some("agent") {
+                run_agent_review(deps);
+            } else {
             let diff = git_out(&deps.root, &["diff"]) + &git_out(&deps.root, &["diff", "--cached"]);
             let untracked = git_out(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
             let untracked = untracked.trim();
@@ -559,6 +613,7 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
                 } else {
                     format!("untracked: {} file(s)", untracked.lines().count())
                 });
+            }
             }
         }
         "/status" => show_status(sh, &deps.root, &deps.project, &deps.version),
