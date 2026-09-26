@@ -4,6 +4,13 @@ export const DOCS_MD = `# install
 - \`npm i -g dxxpcode\` — then \`cd your-project && dxxpcode\`
 - from source: \`npm install && npm run build && npm i -g ./apps/cli\`
 
+# desktop app
+
+- download from the repo's GitHub releases: \`.dmg\` (macOS), \`.msi\`/\`.exe\` (Windows), \`.deb\`/\`.AppImage\` (Linux)
+- the app bundles the agent — no Node or separate CLI install required
+- same commands work (\`/docs\`, \`/settings\`, \`/resume\` …) plus: clickable approvals, docs/changelog viewer, dark/light theme toggle, first-run onboarding card
+- \`dxxpcode --app\` is the NDJSON protocol the app speaks — useful for other front-ends
+
 # connect a provider
 
 - \`/provider\` — guided connect; keys save to \`~/.dxxpcode/config.json\` (0600)
@@ -41,7 +48,7 @@ export const DOCS_MD = `# install
 
 # account
 
-- auth server defaults to \`https://dxxpcode.vercel.app\` — override with \`DXXPCODE_AUTH_URL\`, \`TYPESAFE_API_KEY\`
+- \`TYPESAFE_API_KEY\` enables smart approvals + auto effort routing (Jev)
 
 # config file
 
