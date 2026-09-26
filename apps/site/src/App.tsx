@@ -1,36 +1,79 @@
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { ArrowDown, Moon, Sun } from "lucide-react";
 import { Logo } from "./components/Logo";
+import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
 
-const RELEASE = "https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v0.1.0";
-const DOWNLOADS: [string, string][] = [
-  ["macOS", `${RELEASE}/dxxpcode-desktop_0.1.0_aarch64.dmg`],
-  ["Windows", `${RELEASE}/dxxpcode-desktop_0.1.0_x64-setup.exe`],
-  ["Linux", `${RELEASE}/dxxpcode-desktop_0.1.0_amd64.AppImage`],
+const VERSION = "0.1.0";
+const RELEASE = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
+const RELEASES = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/tag/desktop-v${VERSION}`;
+
+const DOWNLOADS: { os: Platform; url: string; build: string }[] = [
+  { os: "macOS", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_aarch64.dmg`, build: "Apple Silicon · .dmg" },
+  { os: "Windows", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_x64-setup.exe`, build: "x64 · .exe" },
+  { os: "Linux", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_amd64.AppImage`, build: "x64 · AppImage" },
 ];
 
+function detect(): Platform | null {
+  const ua = navigator.userAgent;
+  if (/Android|iPhone|iPad|iPod|Mobi/i.test(ua)) return null;
+  if (/Win/i.test(ua)) return "Windows";
+  if (/Linux|X11|CrOS/i.test(ua)) return "Linux";
+  return "macOS";
+}
+
+const quiet = "text-muted-foreground transition-colors hover:text-foreground";
+
 function DownloadButtons() {
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex items-center gap-3">
-        {DOWNLOADS.map(([os, url]) => (
-          <a
-            key={os}
-            href={url}
-            className="inline-flex h-10 items-center rounded-full bg-foreground px-5 text-[13px] font-medium text-background transition-opacity hover:opacity-80"
-          >
-            {os}
-          </a>
+  const [os] = useState(detect);
+  const primary = DOWNLOADS.find((d) => d.os === os);
+
+  if (!primary) {
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        Available for{" "}
+        {DOWNLOADS.map((d, i) => (
+          <span key={d.os}>
+            {i > 0 && (i === DOWNLOADS.length - 1 ? " and " : ", ")}
+            <a href={d.url} className="text-foreground underline-offset-4 hover:underline">
+              {d.os}
+            </a>
+          </span>
         ))}
-      </div>
+      </p>
+    );
+  }
+
+  const others = DOWNLOADS.filter((d) => d !== primary);
+  return (
+    <div className="flex flex-col items-center">
       <a
-        href="https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/tag/desktop-v0.1.0"
-        className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+        href={primary.url}
+        className="inline-flex h-11 items-center gap-2.5 rounded-full bg-foreground pl-5 pr-4 text-[14px] font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        All releases →
+        <PlatformIcon os={primary.os} className="h-4 w-4" />
+        Download for {primary.os}
+        <ArrowDown strokeWidth={1.5} className="h-4 w-4 opacity-60" />
       </a>
+      <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+        v{VERSION} · {primary.build}
+      </p>
+      <p className="mt-6 text-[13px] text-muted-foreground">
+        Also available for{" "}
+        {others.map((d, i) => (
+          <span key={d.os}>
+            {i > 0 && " · "}
+            <a href={d.url} className="text-foreground/80 transition-colors hover:text-foreground">
+              {d.os}
+            </a>
+          </span>
+        ))}
+        {" · "}
+        <a href={RELEASES} className={quiet}>
+          All releases
+        </a>
+      </p>
     </div>
   );
 }
