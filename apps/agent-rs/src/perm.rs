@@ -81,7 +81,11 @@ pub fn normalize_path(p: &str) -> String {
 /// Resolve `target` against `root`; returns the project-relative path or None.
 pub fn resolve_within_root(root: &str, target: &str) -> Option<String> {
     let norm_root = normalize_path(root).trim_end_matches('/').to_string();
-    let joined = if target.starts_with('/') {
+    let win_abs = {
+        let b = target.as_bytes();
+        b.len() > 2 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'/' || b[2] == b'\\')
+    };
+    let joined = if target.starts_with('/') || win_abs {
         normalize_path(target)
     } else {
         normalize_path(&format!("{norm_root}/{target}"))
@@ -96,7 +100,12 @@ pub fn resolve_within_root(root: &str, target: &str) -> Option<String> {
             s => parts.push(s),
         }
     }
-    let resolved = format!("/{}", parts.join("/"));
+    // Keep the root's leading-slash shape: Windows roots ("C:/x") have none.
+    let resolved = format!(
+        "{}{}",
+        if joined.starts_with('/') { "/" } else { "" },
+        parts.join("/")
+    );
     if resolved == norm_root {
         return Some(String::new());
     }

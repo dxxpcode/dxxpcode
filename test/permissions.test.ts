@@ -22,6 +22,15 @@ test("resolveWithinRoot rejects escapes", () => {
   assert.equal(resolveWithinRoot(ROOT, "src/../../etc/passwd"), null);
 });
 
+test("resolveWithinRoot handles Windows roots and targets", () => {
+  const WIN = "C:/Users/dev/proj";
+  assert.equal(resolveWithinRoot(WIN, "src/a.ts"), "src/a.ts");
+  assert.equal(resolveWithinRoot(WIN, "C:/Users/dev/proj/src/a.ts"), "src/a.ts");
+  assert.equal(resolveWithinRoot(WIN, "C:\\Users\\dev\\proj\\src\\a.ts"), "src/a.ts");
+  assert.equal(resolveWithinRoot(WIN, "C:/Users/dev/other.ts"), null);
+  assert.equal(resolveWithinRoot(WIN, "../outside.ts"), null);
+});
+
 test("isRestrictedPath catches secrets and credentials", () => {
   assert.ok(isRestrictedPath(".env"));
   assert.ok(isRestrictedPath(".env.production"));
