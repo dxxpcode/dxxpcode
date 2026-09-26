@@ -47,7 +47,9 @@ jobs:
       - name: Build desktop bundle
         shell: bash
         working-directory: apps/desktop
-        run: npx tauri build
+        run: |
+          npm run build
+          npx tauri build
 
       - uses: actions/upload-artifact@v4
         with:
