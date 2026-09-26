@@ -25,8 +25,6 @@ jobs:
         with:
           node-version: "24"
 
-      - uses: oven-sh/setup-bun@v2
-
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install Linux deps
@@ -37,7 +35,6 @@ jobs:
 
       - name: Install JS deps
         run: |
-          npm ci
           cd apps/desktop && npm ci --no-workspaces
 
       - name: Build CLI sidecar
