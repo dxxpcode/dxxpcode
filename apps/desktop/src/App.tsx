@@ -29,6 +29,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
   const [onboarding, setOnboarding] = useState(false);
+  const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) return saved === "dark";
@@ -96,7 +97,7 @@ export default function App() {
         push({ k: "table", title: String(ev.title), rows: ev.rows as [string, string][] });
         break;
       case "markdown":
-        push({ k: "markdown", title: String(ev.title), text: String(ev.text) });
+        setDocView({ title: String(ev.title), text: String(ev.text) });
         break;
       case "diff_card":
         push({ k: "diffcard", title: String(ev.title), diff: String(ev.diff) });
@@ -282,6 +283,7 @@ export default function App() {
 
   const cmd = (name: string) => {
     setSettingsOpen(false);
+    if (name === "/docs" || name === "/changelog" || name === "/help") setDocView({ title: "…", text: "" });
     void send({ type: "command", name });
   };
 
@@ -361,7 +363,21 @@ export default function App() {
           </div>
         </div>
       )}
-      {onboarding && !settingsOpen && (
+      {docView && (
+        <div className="docviewer" onClick={(e) => { if (e.target === e.currentTarget) setDocView(null); }}>
+          <div className="card doc-card">
+            <div className="card-title">
+              {docView.title}
+              <span className="spacer" />
+              <button className="doc-close" onClick={() => setDocView(null)} aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="doc-body text" dangerouslySetInnerHTML={md(docView.text)} />
+          </div>
+        </div>
+      )}
+      {onboarding && !settingsOpen && !docView && (
         <div className="onboarding">
           <div className="card ob-card">
             <Logo className="ob-mark" />
