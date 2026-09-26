@@ -1,5 +1,7 @@
 node_modules/
 dist/
+target/
+apps/desktop/src-tauri/gen/
 *.tsbuildinfo
 .DS_Store
 .dxxp/
