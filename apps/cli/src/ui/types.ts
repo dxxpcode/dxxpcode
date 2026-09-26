@@ -41,7 +41,17 @@ export type Pending =
       tabs?: string[];
       tab?: number;
     }
-  | { kind: "prompt"; title: string; resolve: (v: string | null) => void };
+  | { kind: "prompt"; title: string; resolve: (v: string | null) => void }
+  | {
+      kind: "editor";
+      /** Project-relative path. */
+      path: string;
+      lines: string[];
+      cursor: number;
+      /** When true the cursor line is a live TextInput. */
+      editing: boolean;
+      dirty: boolean;
+    };
 
 export interface AppProps {
   version: string;

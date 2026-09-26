@@ -18,6 +18,7 @@ export const COMMANDS = [
   { name: "/setup", desc: "run the onboarding wizard — provider, effort, Jev key" },
   { name: "/providers", desc: "switch between configured providers" },
   { name: "/undo", desc: "restore files from the last checkpoint" },
+  { name: "/open", desc: "open a file in the editor pane" },
   { name: "/compact", desc: "compress old tool output in the session context" },
   { name: "/docs", desc: "in-terminal reference — install, commands, flags, config" },
   { name: "/changelog", desc: "release history" },

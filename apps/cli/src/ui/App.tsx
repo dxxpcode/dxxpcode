@@ -11,10 +11,11 @@ import { diffTarget, TOOL_COLORS, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
 import { jevRouteEffort, smartApprove } from "../jev.ts";
+import { isRestrictedPath, resolveWithinRoot } from "@dxxpcode/permissions";
 import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff } from "./diff.ts";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { COMMANDS, FRAMES, SURFACE, SURFACE_HI, describe, fmtTokens } from "./shared.ts";
 import { atFragment, fileSuggestions, type FileIndex } from "./suggest.ts";
@@ -437,6 +438,32 @@ export function App(props: AppProps) {
         openProviderMenu();
         return;
       }
+      if (task === "/open" || task.startsWith("/open ")) {
+        const target = task.slice(5).trim();
+        if (!target) {
+          push({ kind: "note", text: "usage: /open <path>" });
+          return;
+        }
+        const rel = resolveWithinRoot(props.root, target);
+        if (rel === null || isRestrictedPath(rel)) {
+          push({ kind: "note", text: `⎿ can't open ${target}` });
+          return;
+        }
+        const abs = join(props.root, rel);
+        if (!existsSync(abs)) {
+          push({ kind: "note", text: `⎿ no such file: ${rel}` });
+          return;
+        }
+        setPending({
+          kind: "editor",
+          path: rel,
+          lines: readFileSync(abs, "utf8").split("\n"),
+          cursor: 0,
+          editing: false,
+          dirty: false,
+        });
+        return;
+      }
       if (task === "/undo") {
         const sess = sessionRef.current;
         const out = sess ? undoCheckpoint(props.root, sess.id, process.env) : null;
@@ -522,8 +549,12 @@ export function App(props: AppProps) {
       return;
     }
     if (key.escape) {
-      if (pendingRef.current.kind !== "input") {
-        const p = pendingRef.current;
+      const p = pendingRef.current;
+      if (p.kind === "editor" && p.editing) {
+        setPending({ ...p, editing: false });
+        return;
+      }
+      if (p.kind !== "input") {
         setPending({ kind: "input" });
         if (p.kind === "plan") p.resolve(false);
         else if (p.kind === "tool") p.resolve("n");
@@ -534,6 +565,35 @@ export function App(props: AppProps) {
       return;
     }
     const p = pendingRef.current;
+    if (p.kind === "editor") {
+      if (p.editing) return; // the line's TextInput owns input
+      const move = (d: number) =>
+        setPending({ ...p, cursor: Math.min(p.lines.length - 1, Math.max(0, p.cursor + d)) });
+      if (key.upArrow || ch === "k") move(-1);
+      else if (key.downArrow || ch === "j") move(1);
+      else if (ch === "e") {
+        setPromptVal(p.lines[p.cursor]);
+        setPending({ ...p, editing: true });
+      } else if (ch === "a") {
+        const lines = [...p.lines];
+        lines.splice(p.cursor + 1, 0, "");
+        setPromptVal("");
+        setPending({ ...p, lines, cursor: p.cursor + 1, editing: true, dirty: true });
+      } else if (ch === "d") {
+        const lines = p.lines.filter((_, i) => i !== p.cursor);
+        setPending({
+          ...p,
+          lines: lines.length ? lines : [""],
+          cursor: Math.min(p.cursor, Math.max(0, lines.length - 1)),
+          dirty: true,
+        });
+      } else if (ch === "s") {
+        writeFileSync(join(props.root, p.path), p.lines.join("\n"), "utf8");
+        setPending({ ...p, dirty: false });
+        push({ kind: "note", text: `⎿ saved ${p.path}` });
+      }
+      return;
+    }
     if (p.kind === "prompt") return; // inline TextInput owns input
     if (p.kind === "plan" || p.kind === "tool" || p.kind === "config") {
       const opts = p.kind === "config" ? p.options.length : p.kind === "plan" ? 2 : 3;
@@ -746,6 +806,59 @@ export function App(props: AppProps) {
       {wizard && !exited && (
         <Box marginTop={1}>
           <SetupWizard onDone={onWizardDone} />
+        </Box>
+      )}
+      {pending.kind === "editor" && !exited && (
+        <Box flexDirection="column" marginTop={1}>
+          <Box
+            borderStyle="round"
+            borderColor="cyan"
+            flexDirection="column"
+            paddingX={1}
+          >
+            <Text dimColor>
+              {pending.path}
+              {pending.dirty ? " *" : ""}
+              <Text dimColor>{`  ${pending.cursor + 1}/${pending.lines.length}`}</Text>
+            </Text>
+            {(() => {
+              const viewH = 12;
+              const start = Math.min(
+                Math.max(0, pending.cursor - Math.floor(viewH / 2)),
+                Math.max(0, pending.lines.length - viewH),
+              );
+              const numW = String(pending.lines.length).length;
+              return pending.lines.slice(start, start + viewH).map((l, i) => {
+                const ln = start + i;
+                const cur = ln === pending.cursor;
+                return (
+                  <Box key={ln}>
+                    <Text dimColor backgroundColor={cur ? SURFACE_HI : undefined}>
+                      {String(ln + 1).padStart(numW)}{" "}
+                    </Text>
+                    {cur && pending.editing ? (
+                      <TextInput
+                        value={promptVal}
+                        onChange={setPromptVal}
+                        onSubmit={(v) => {
+                          const lines = [...pending.lines];
+                          lines[pending.cursor] = v;
+                          setPending({ ...pending, lines, editing: false, dirty: true });
+                        }}
+                      />
+                    ) : (
+                      <Text wrap="truncate-end" backgroundColor={cur ? SURFACE_HI : undefined}>
+                        {l}
+                      </Text>
+                    )}
+                  </Box>
+                );
+              });
+            })()}
+          </Box>
+          <Text dimColor>
+            {"  "}↑/↓ move · e edit · a insert · d delete · s save · esc close
+          </Text>
         </Box>
       )}
       {pending.kind === "prompt" && (
