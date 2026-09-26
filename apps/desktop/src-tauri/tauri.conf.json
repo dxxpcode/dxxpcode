@@ -20,6 +20,6 @@
     "active": true,
     "targets": ["deb", "appimage", "dmg", "msi", "nsis"],
     "externalBin": ["binaries/dxxpcode"],
-    "icon": ["icons/icon.png"]
+    "icon": ["icons/icon.png", "icons/icon.ico"]
   }
 }
