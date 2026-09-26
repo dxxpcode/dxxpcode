@@ -5,7 +5,7 @@ import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const RELEASE = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
 const RELEASES = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/tag/desktop-v${VERSION}`;
 
