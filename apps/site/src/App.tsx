@@ -9,10 +9,15 @@ const VERSION = "0.1.0";
 const RELEASE = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
 const RELEASES = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/tag/desktop-v${VERSION}`;
 
-const DOWNLOADS: { os: Platform; url: string; build: string }[] = [
+const DOWNLOADS: { os: Platform; url: string; build: string; alts?: { label: string; url: string }[] }[] = [
   { os: "macOS", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_aarch64.dmg`, build: "Apple Silicon · .dmg" },
   { os: "Windows", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_x64-setup.exe`, build: "x64 · .exe" },
-  { os: "Linux", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_amd64.AppImage`, build: "x64 · AppImage" },
+  {
+    os: "Linux",
+    url: `${RELEASE}/dxxpcode-desktop_${VERSION}_amd64.AppImage`,
+    build: "x64 · AppImage",
+    alts: [{ label: ".deb", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_amd64.deb` }],
+  },
 ];
 
 function detect(): Platform | null {
@@ -58,6 +63,14 @@ function DownloadButtons() {
       </a>
       <p className="mt-3 font-mono text-[11px] text-muted-foreground">
         v{VERSION} · {primary.build}
+        {primary.alts?.map((a) => (
+          <span key={a.label}>
+            {" · "}
+            <a href={a.url} className="underline-offset-4 transition-colors hover:text-foreground hover:underline">
+              {a.label}
+            </a>
+          </span>
+        ))}
       </p>
       <p className="mt-6 text-[13px] text-muted-foreground">
         Also available for{" "}
