@@ -24,6 +24,8 @@ export default function App() {
   const [promptReq, setPromptReq] = useState<PromptState | null>(null);
   const [promptVal, setPromptVal] = useState("");
   const [cmdSel, setCmdSel] = useState(0);
+  const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
+  const fileReqId = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -32,6 +34,9 @@ export default function App() {
   const palette = input.startsWith("/")
     ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
     : [];
+  const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
+  const atFrag = palette.length === 0 && atMatch ? atMatch[1].split("#")[0] : null;
+  const files = atFrag !== null ? fileSugs.items : [];
   const appendText = (t: string) =>
     setItems((prev) => {
       const last = prev[prev.length - 1];
@@ -86,6 +91,10 @@ export default function App() {
         break;
       case "exit":
         void getCurrentWindow().close();
+        break;
+      case "files":
+        if (Number(ev.id) === fileReqId.current)
+          setFileSugs({ id: fileReqId.current, items: ev.items as { name: string; desc: string }[] });
         break;
       case "status":
         setStatus(String(ev.message));
@@ -198,9 +207,31 @@ export default function App() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [items, approvals, status]);
 
+  // Ask the CLI for @mention completions whenever the fragment changes.
+  useEffect(() => {
+    if (atFrag === null) return;
+    const id = ++fileReqId.current;
+    const t = setTimeout(() => {
+      void send({ type: "list_files", id, text: atFrag });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [atFrag]);
+
+  const completeMention = (name: string) => {
+    setInput((v) => v.replace(/@[^\s]*$/, `@${name}`) + (name.endsWith("/") ? "" : " "));
+    setFileSugs({ id: -1, items: [] });
+    taRef.current?.focus();
+  };
+
   const submit = () => {
     const text = input.trim();
     if (!text) return;
+    if (files.length > 0 && atFrag !== null) {
+      // File palette open — Enter completes the selected mention.
+      completeMention(files[Math.min(cmdSel, files.length - 1)].name);
+      setCmdSel(0);
+      return;
+    }
     if (palette.length > 0 && !text.includes(" ")) {
       // Palette open on an exact/partial command — take the selected suggestion.
       const pick = palette[Math.min(cmdSel, palette.length - 1)];
@@ -347,6 +378,23 @@ export default function App() {
             ))}
           </div>
         )}
+        {palette.length === 0 && files.length > 0 && (
+          <div className="palette">
+            {files.map((f, i) => (
+              <button
+                key={f.name}
+                className={`palette-row${i === Math.min(cmdSel, files.length - 1) ? " sel" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  completeMention(f.name);
+                }}
+              >
+                <span className="mono pcmd">{f.name}</span>
+                <span className="pdesc">{f.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="inputbox">
           <textarea
             ref={taRef}
@@ -360,24 +408,31 @@ export default function App() {
               e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
             }}
             onKeyDown={(e) => {
-              if (palette.length > 0 && e.key === "ArrowDown") {
+              const rows = palette.length > 0 ? palette.length : files.length;
+              if (rows > 0 && e.key === "ArrowDown") {
                 e.preventDefault();
-                setCmdSel((s) => (s + 1) % palette.length);
-              } else if (palette.length > 0 && e.key === "ArrowUp") {
+                setCmdSel((s) => (s + 1) % rows);
+              } else if (rows > 0 && e.key === "ArrowUp") {
                 e.preventDefault();
-                setCmdSel((s) => (s - 1 + palette.length) % palette.length);
+                setCmdSel((s) => (s - 1 + rows) % rows);
+              } else if (e.key === "Tab" && files.length > 0) {
+                e.preventDefault();
+                completeMention(files[Math.min(cmdSel, files.length - 1)].name);
+                setCmdSel(0);
               } else if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 submit();
               } else if (e.key === "Escape") {
-                if (palette.length > 0) setInput("");
-                else if (running) void send({ type: "cancel" });
+                if (palette.length > 0 || files.length > 0) {
+                  setFileSugs({ id: -1, items: [] });
+                  if (palette.length > 0) setInput("");
+                } else if (running) void send({ type: "cancel" });
               }
             }}
           />
         </div>
         <div className="hints">
-          <span><kbd>/</kbd> commands</span>
+          <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
         </div>
