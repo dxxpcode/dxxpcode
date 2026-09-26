@@ -396,13 +396,16 @@ export function App(props: AppProps) {
       setHistIdx(-1);
       setHist((h) => (h[0] === task ? h : [task, ...h].slice(0, 500)));
       if (task.startsWith("/")) {
+        // Commands may take arguments — resolve on the first word only.
+        const sp = task.indexOf(" ");
+        const cmd = sp < 0 ? task : task.slice(0, sp);
         const { sel, names } = sugRef.current;
-        if (task === names[0] || COMMANDS.some((c) => c.name === task)) {
+        if (cmd === names[0] || COMMANDS.some((c) => c.name === cmd)) {
           // exact command — handled below
-        } else if (names.length > 0) {
+        } else if (names.length > 0 && sp < 0) {
           task = names[sel];
         } else {
-          push({ kind: "note", text: `unknown command ${task} — /help lists commands` });
+          push({ kind: "note", text: `unknown command ${cmd} — /help lists commands` });
           return;
         }
       }
