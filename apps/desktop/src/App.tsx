@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import logoUrl from "./assets/logo.png";
+import logoDarkUrl from "./assets/logo-dark.png";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, TOOL_FAMILY, TOOL_ICONS, toolArg } from "./types";
 
@@ -700,8 +702,9 @@ function Diff({ diff }: { diff: string }) {
 
 function Logo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 442 270" fill="currentColor" role="img" aria-label="DxxpCode" className={className}>
-      <path d="M0 0L95 135L0 270H66L257 0H191L128.5 88L66 0ZM375 0L185.5 270H252L314 183L375.5 270H441L347 135L441.5 0ZM267 23L234 70L272 123.5L305.5 76.5ZM171 148L138 195L176 248.5L209.5 201.5Z" />
-    </svg>
+    <>
+      <img src={logoUrl} alt="DxxpCode" className={`${className ?? ""} logo-light`} />
+      <img src={logoDarkUrl} alt="" aria-hidden="true" className={`${className ?? ""} logo-dark`} />
+    </>
   );
 }
