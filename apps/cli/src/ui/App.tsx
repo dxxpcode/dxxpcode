@@ -15,7 +15,7 @@ import { loadHistory, saveHistory } from "./history.ts";
 import { mdLine } from "./md.tsx";
 import { parseDiff } from "./diff.ts";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { COMMANDS, FRAMES, SURFACE_HI, describe, fmtTokens } from "./shared.ts";
 import { atFragment, fileSuggestions, type FileIndex } from "./suggest.ts";
 import { Card, ItemView, MAJOR_ITEMS, Menu, TabBar } from "./widgets.tsx";
@@ -789,6 +789,24 @@ export function App(props: AppProps) {
             {isRunning
               ? `turn ${elapsed.toFixed(1)}s${tok ? ` · ↓${fmtTokens(tok)} tok` : ""}${effortRef.current ? ` · ${effortRef.current} effort` : ""}`
               : `${prov.model} · ${mode}${autoEffortRef.current ? " · auto effort" : effortRef.current ? ` · ${effortRef.current}` : ""}`}
+          </Text>
+        </Box>
+      )}
+      {pending.kind === "input" && !exited && !setup && !wizard && (
+        <Box justifyContent="space-between" paddingX={1}>
+          <Text dimColor>
+            {isRunning ? "⏎ steer · esc interrupt" : "@ attach · / commands"}
+          </Text>
+          <Text dimColor>
+            {[
+              basename(props.root),
+              props.project.git
+                ? `${props.project.git.branch}${props.project.git.dirty ? "*" : ""}`
+                : null,
+              `${prov.model}${autoEffortRef.current ? " · auto" : effortRef.current ? ` · ${effortRef.current}` : ""}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
         </Box>
       )}
