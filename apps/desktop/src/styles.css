@@ -37,12 +37,7 @@ body {
   background: var(--surface);
   flex-shrink: 0;
 }
-.logo {
-  font-family: "IBM Plex Mono", Menlo, monospace;
-  font-weight: 700; font-size: 15px; letter-spacing: 2px;
-  color: var(--text);
-}
-.header .proj { font-weight: 600; font-size: 13.5px; }
+.logo-mark { height: 16px; width: auto; color: var(--text); display: block; }
 .header .branch { color: var(--dim); font-size: 12px; }
 .header .spacer { flex: 1; }
 .chip {
