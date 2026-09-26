@@ -175,10 +175,14 @@ impl Shared {
             id
         };
         self.pending_approvals.lock().unwrap().insert(id, tx);
-        emit(json!({
+        let mut ev = json!({
             "type": "approval", "id": id, "kind": kind, "summary": summary,
             "reason": reason, "allowAlways": kind == "tool",
-        }));
+        });
+        if kind == "plan" {
+            ev["extraChoice"] = json!({"choice": "s", "label": "Approve + save plan"});
+        }
+        emit(ev);
         rx.recv().unwrap_or_else(|_| "n".into())
     }
 
@@ -698,7 +702,22 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
             .collect::<Vec<_>>()
             .join("\n");
         let choice = sh.ask("plan", &body, None);
-        choice == "y" || choice == "a"
+        if choice == "s" {
+            // Persist the approved plan to the repo so it survives sessions and
+            // can be versioned alongside the code.
+            let dir = std::path::Path::new(&deps.root).join(".dxxpcode");
+            let steps_md: Vec<String> = plan
+                .get("steps")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|s| s.as_str().map(|s| format!("- [ ] {s}"))).collect())
+                .unwrap_or_default();
+            let md = format!("# Plan\n\n{summary}\n\n{}\n", steps_md.join("\n"));
+            match std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(dir.join("plan.md"), &md)) {
+                Ok(()) => emit_note("plan saved to .dxxpcode/plan.md"),
+                Err(e) => emit_note(format!("couldn't save plan: {e}")),
+            }
+        }
+        choice == "y" || choice == "a" || choice == "s"
     };
 
     let mut approve_tool = |tool: &str, input: &Value, reason: &str, model_reason: Option<&str>| -> bool {
@@ -954,7 +973,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
                 if let Some(id) = cmd.get("id").and_then(|v| v.as_u64()) {
                     if let Some(tx) = sh.pending_approvals.lock().unwrap().remove(&id) {
                         let choice = cmd.get("choice").and_then(|v| v.as_str()).unwrap_or("n");
-                        let _ = tx.send(if choice == "a" { "a".into() } else if choice == "y" { "y".into() } else { "n".into() });
+                        let _ = tx.send(choice.to_string());
                     }
                 }
             }

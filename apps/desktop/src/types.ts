@@ -48,6 +48,7 @@ export interface Approval {
   summary: string;
   reason?: string;
   allowAlways: boolean;
+  extraChoice?: { choice: string; label: string };
   answered?: string;
 }
 

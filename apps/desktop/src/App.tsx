@@ -167,6 +167,7 @@ export default function App() {
             id: Number(ev.id), kind: ev.kind as "plan" | "tool",
             summary: String(ev.summary), reason: ev.reason as string | undefined,
             allowAlways: ev.allowAlways === true,
+            extraChoice: ev.extraChoice as { choice: string; label: string } | undefined,
           },
         ]);
         break;
@@ -399,11 +400,12 @@ export default function App() {
             <div className="summary">{a.summary}</div>
             {a.reason && <div className="reason">Reason: {a.reason}</div>}
             {a.answered ? (
-              <div className="reason">answered: {a.answered === "n" ? "denied" : a.answered === "a" ? "always allow" : "allowed"}</div>
+              <div className="reason">answered: {a.answered === "n" ? "denied" : a.answered === "a" ? "always allow" : a.answered === "s" ? "approved + saved" : "allowed"}</div>
             ) : (
               <div className="btns">
                 <button className="btn allow" onClick={() => answer(a.id, "y")}>Allow</button>
                 {a.allowAlways && <button className="btn" onClick={() => answer(a.id, "a")}>Always allow</button>}
+                {a.extraChoice && <button className="btn" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
                 <button className="btn deny" onClick={() => answer(a.id, "n")}>Deny</button>
               </div>
             )}
