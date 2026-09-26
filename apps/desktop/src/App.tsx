@@ -349,10 +349,13 @@ export default function App() {
       {onboarding && !settingsOpen && (
         <div className="onboarding">
           <div className="card ob-card">
-            <div className="card-title">Welcome to dxxpcode</div>
-            <p className="ob-desc">Connect a model provider to get started — takes about a minute.</p>
+            <svg viewBox="0 0 442 270" fill="currentColor" className="ob-mark" aria-hidden="true">
+              <path d="M0 0L95 135L0 270H66L257 0H191L128.5 88L66 0ZM375 0L185.5 270H252L314 183L375.5 270H441L347 135L441.5 0ZM267 23L234 70L272 123.5L305.5 76.5ZM171 148L138 195L176 248.5L209.5 201.5Z" />
+            </svg>
+            <div className="ob-title">Welcome to <span className="ob-grad">dxxpcode</span></div>
+            <p className="ob-desc">Your AI coding agent — one setup step and you're ready to ship.</p>
             <div className="setbtns">
-              <button className="btn primary" onClick={() => { setOnboarding(false); cmd("/setup"); }}>Set up</button>
+              <button className="btn primary" onClick={() => { setOnboarding(false); cmd("/setup"); }}>Get started</button>
               <button className="btn" onClick={() => setOnboarding(false)}>Skip for now</button>
             </div>
             <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
