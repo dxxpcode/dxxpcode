@@ -291,10 +291,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <span className="logo">XX</span>
+        <Logo className="logo-mark" />
         {ready && (
           <>
-            <span className="proj">{ready.project.name}</span>
             {ready.project.git && (
               <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
             )}
@@ -349,9 +348,7 @@ export default function App() {
       {onboarding && !settingsOpen && (
         <div className="onboarding">
           <div className="card ob-card">
-            <svg viewBox="0 0 442 270" fill="currentColor" className="ob-mark" aria-hidden="true">
-              <path d="M0 0L95 135L0 270H66L257 0H191L128.5 88L66 0ZM375 0L185.5 270H252L314 183L375.5 270H441L347 135L441.5 0ZM267 23L234 70L272 123.5L305.5 76.5ZM171 148L138 195L176 248.5L209.5 201.5Z" />
-            </svg>
+            <Logo className="ob-mark" />
             <div className="ob-title">Welcome to <span className="ob-grad">dxxpcode</span></div>
             <p className="ob-desc">Your AI coding agent — one setup step and you're ready to ship.</p>
             <div className="setbtns">
@@ -664,5 +661,13 @@ function Diff({ diff }: { diff: string }) {
         <div className={`ln ${r.cls}`} key={i}><span className="gutter">{r.gutter}</span><span>{r.text}</span></div>
       ))}
     </div>
+  );
+}
+
+function Logo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 442 270" fill="currentColor" role="img" aria-label="DxxpCode" className={className}>
+      <path d="M0 0L95 135L0 270H66L257 0H191L128.5 88L66 0ZM375 0L185.5 270H252L314 183L375.5 270H441L347 135L441.5 0ZM267 23L234 70L272 123.5L305.5 76.5ZM171 148L138 195L176 248.5L209.5 201.5Z" />
+    </svg>
   );
 }
