@@ -125,20 +125,23 @@ export default function App() {
           </p>
           <div className="mt-6 grid grid-cols-3 gap-6 text-center sm:gap-10">
             {[
-              { value: "3.6 MB", label: "agent binary — no bundled JS runtime" },
-              { value: "Instant", label: "cold start — nothing to warm up" },
-              { value: "2 MB", label: "idle memory for the agent process" },
+              { value: "3.6 MB", elsewhere: "80–300 MB", label: "agent engine on disk" },
+              { value: "Instant", elsewhere: "seconds", label: "cold start" },
+              { value: "2 MB", elsewhere: "100–400 MB", label: "idle memory" },
             ].map((s) => (
               <div key={s.value}>
                 <div className="font-mono text-[20px] font-medium tracking-tight">{s.value}</div>
+                <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                  vs elsewhere: {s.elsewhere}
+                </div>
                 <div className="mt-1.5 text-[12px] leading-snug text-muted-foreground">{s.label}</div>
               </div>
             ))}
           </div>
           <p className="mt-6 text-[12.5px] leading-relaxed text-muted-foreground">
-            Most agent apps ship an entire JavaScript runtime just to run their engine. Ours is a
-            native Rust binary — the whole install is smaller than what others bundle for the runtime
-            alone.
+            The comparison is with agent apps that ship a bundled JavaScript runtime (Electron,
+            Node, or bun) alongside their engine. Ours is a native Rust binary — the whole install
+            is smaller than what they bundle for the runtime alone.
           </p>
         </section>
       </main>
