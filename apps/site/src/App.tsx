@@ -118,6 +118,29 @@ export default function App() {
         <div className="mt-7">
           <DownloadButtons />
         </div>
+
+        <section className="mt-20 w-full max-w-2xl border-t border-border pt-10">
+          <p className="text-[12px] uppercase tracking-[0.14em] text-muted-foreground">
+            A native Rust core — not a bundled runtime
+          </p>
+          <div className="mt-6 grid grid-cols-3 gap-6 text-center sm:gap-10">
+            {[
+              { value: "3.6 MB", label: "agent binary — no bundled JS runtime" },
+              { value: "Instant", label: "cold start — nothing to warm up" },
+              { value: "2 MB", label: "idle memory for the agent process" },
+            ].map((s) => (
+              <div key={s.value}>
+                <div className="font-mono text-[20px] font-medium tracking-tight">{s.value}</div>
+                <div className="mt-1.5 text-[12px] leading-snug text-muted-foreground">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-[12.5px] leading-relaxed text-muted-foreground">
+            Most agent apps ship an entire JavaScript runtime just to run their engine. Ours is a
+            native Rust binary — the whole install is smaller than what others bundle for the runtime
+            alone.
+          </p>
+        </section>
       </main>
     </div>
   );
