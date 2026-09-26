@@ -6,6 +6,8 @@ import Docs from "./Docs";
 
 const INSTALL = "npm install -g dxxpcode";
 
+const COMPACT = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
+
 function InstallCount() {
   const [n, setN] = useState<number | null>(null);
   useEffect(() => {
@@ -14,10 +16,14 @@ function InstallCount() {
       .then((d) => setN(typeof d.installs === "number" ? d.installs : null))
       .catch(() => {});
   }, []);
-  if (n === null) return null;
   return (
-    <p className="mt-6 text-[13px] text-muted-foreground">
-      {n.toLocaleString()} {n === 1 ? "developer" : "developers"} installed dxxpcode
+    <p className="mt-6 h-5 text-[13px] text-muted-foreground" aria-live="polite">
+      {n !== null && (
+        <>
+          Installed by <span className="font-mono text-foreground">{COMPACT.format(n).toLowerCase()}</span>{" "}
+          {n === 1 ? "developer" : "developers"}
+        </>
+      )}
     </p>
   );
 }
