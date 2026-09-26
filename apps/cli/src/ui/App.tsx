@@ -16,7 +16,7 @@ import { mdLine } from "./md.tsx";
 import { parseDiff } from "./diff.ts";
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { COMMANDS, FRAMES, SURFACE_HI, describe, fmtTokens } from "./shared.ts";
+import { COMMANDS, FRAMES, SURFACE, SURFACE_HI, describe, fmtTokens } from "./shared.ts";
 import { atFragment, fileSuggestions, type FileIndex } from "./suggest.ts";
 import { Card, ItemView, MAJOR_ITEMS, Menu, TabBar } from "./widgets.tsx";
 import { useConfigMenus } from "./useMenus.tsx";
@@ -794,10 +794,14 @@ export function App(props: AppProps) {
       )}
       {pending.kind === "input" && !exited && !setup && !wizard && (
         <Box justifyContent="space-between" paddingX={1}>
-          <Text dimColor>
-            {isRunning ? "⏎ steer · esc interrupt" : "@ attach · / commands"}
-          </Text>
-          <Text dimColor>
+          <Box gap={1}>
+            {(isRunning ? ["⏎ steer", "esc interrupt"] : ["@ attach", "/ commands"]).map((c) => (
+              <Text key={c} backgroundColor={SURFACE} dimColor>
+                {` ${c} `}
+              </Text>
+            ))}
+          </Box>
+          <Box gap={1}>
             {[
               basename(props.root),
               props.project.git
@@ -806,8 +810,12 @@ export function App(props: AppProps) {
               `${prov.model}${autoEffortRef.current ? " · auto" : effortRef.current ? ` · ${effortRef.current}` : ""}`,
             ]
               .filter(Boolean)
-              .join(" · ")}
-          </Text>
+              .map((c) => (
+                <Text key={c} backgroundColor={SURFACE} dimColor>
+                  {` ${c} `}
+                </Text>
+              ))}
+          </Box>
         </Box>
       )}
       {pending.kind === "input" &&
