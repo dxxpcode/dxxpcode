@@ -328,6 +328,27 @@ fn parse_todos(input: &Value) -> Result<Vec<Value>, String> {
     Ok(items)
 }
 
+/// Mirrors the checklist to `.dxxpcode/todo.md` so it survives the session.
+fn persist_todos_file(root: &str, items: &[Value]) {
+    let dir = Path::new(root).join(".dxxpcode");
+    let md = format!(
+        "# TODO\n\n{}\n",
+        items
+            .iter()
+            .map(|it| {
+                let boxx = if it.get("status").and_then(|s| s.as_str()) == Some("completed") {
+                    "[x]"
+                } else {
+                    "[ ]"
+                };
+                format!("- {} {}", boxx, it.get("content").and_then(|c| c.as_str()).unwrap_or(""))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    let _ = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(dir.join("todo.md"), md));
+}
+
 fn render_todos(items: &[Value]) -> String {
     if items.is_empty() {
         return "checklist cleared".into();
@@ -721,6 +742,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     Ok(items) => {
                         session.todos = Some(items.clone());
                         persist(&mut session);
+                        persist_todos_file(&opts.project_root, &items);
                         emit(json!({"type": "todo", "items": items}));
                         results.push(tool_result_block(id, &render_todos(&items), false));
                     }
