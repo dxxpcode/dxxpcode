@@ -1,7 +1,7 @@
 import type { ProjectInfo } from "@dxxpcode/project";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { homedir } from "node:os";
-import { FANCY, bold, cyan, dim, rule } from "./render.ts";
+import { FANCY, bold, dim, rule } from "./render.ts";
 
 export interface BannerInfo {
   version: string;
@@ -14,11 +14,11 @@ export interface BannerInfo {
 
 const TIPS = [
   `Describe a task in plain language — ${dim('"fix the failing test in math.js"')}`,
-  `Attach files as context inline: ${cyan("@src/math.js")} in your task`,
-  `Preview without changes: ${cyan("dxxpcode --plan \"<task>\"")}`,
-  `Review diffs anytime: ${cyan("/review")} in-session, or ${cyan("dxxpcode --review")}`,
-  `Pick up where you left off: ${cyan("dxxpcode --resume")}`,
-  `Project instructions live in ${cyan(".dxxpcode/instructions.md")} (AGENTS.md works too)`,
+  `Attach files as context inline: ${bold("@src/math.js")} in your task`,
+  `Preview without changes: ${bold("dxxpcode --plan \"<task>\"")}`,
+  `Review diffs anytime: ${bold("/review")} in-session, or ${bold("dxxpcode --review")}`,
+  `Pick up where you left off: ${bold("dxxpcode --resume")}`,
+  `Project instructions live in ${bold(".dxxpcode/instructions.md")} (AGENTS.md works too)`,
 ];
 
 function shortHome(p: string): string {
@@ -48,12 +48,12 @@ export function renderBanner(info: BannerInfo): string[] {
       : []),
   ];
   const head = [
-    bold(cyan("DxxpCode")),
+    bold("DxxpCode"),
     dim(`v${info.version} · ${info.provider} · ${info.model}`),
     "",
     "",
   ];
-  const marked = head.map((line, i) => (i < XX_MARK.length ? `${cyan(XX_MARK[i])}  ${line}` : line));
+  const marked = head.map((line, i) => (i < XX_MARK.length ? `${bold(XX_MARK[i])}  ${line}` : line));
   return [...marked, ...meta];
 }
 
@@ -61,7 +61,7 @@ export function renderBanner(info: BannerInfo): string[] {
 export function renderTips(): string[] {
   return [
     dim(bold("Tips for getting started")),
-    ...TIPS.map((t, i) => `  ${cyan(String(i + 1))}. ${t}`),
+    ...TIPS.map((t, i) => `  ${bold(String(i + 1))}. ${t}`),
   ];
 }
 

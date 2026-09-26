@@ -4,7 +4,7 @@ const BOLD = "\x1b[1m";
 const ITALIC = "\x1b[3m";
 const UNDER = "\x1b[4m";
 const STRIKE = "\x1b[9m";
-const CODE = "\x1b[36;7m"; // cyan + inverse — reads like a code chip
+const CODE = "\x1b[48;5;235m"; // neutral gray chip
 const RESET = "\x1b[0m";
 
 export interface MdStyler {

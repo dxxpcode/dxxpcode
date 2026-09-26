@@ -7,8 +7,8 @@ import { createMdStyler } from "./md.ts";
 import { smartApprove } from "./jev.ts";
 import type { Prompter } from "./prompt.ts";
 import {
-  FANCY, SYM, bold, card, createSpinner, cyan, diffTarget, dim, errLine, green, line, panel,
-  red, renderDiff, resultLine, rule, toolLine, write, yellow,
+  FANCY, SYM, bold, card, createSpinner, diffTarget, dim, errLine, line, panel,
+  red, renderDiff, resultLine, rule, toolLine, write,
 } from "./render.ts";
 
 export interface RunCliOptions {
@@ -73,7 +73,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       return false;
     }
     nl();
-    return prompter.confirm(`${cyan("❯")} Proceed? ${dim("[y/N]")} `);
+    return prompter.confirm(`${bold("❯")} Proceed? ${dim("[y/N]")} `);
   };
 
   const approveTool = async (req: ApprovalRequest): Promise<boolean> => {
@@ -89,26 +89,26 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
     if (reason) body.push(dim(`Reason: ${reason}`));
     if (opts.autoApprove) {
       body.push(dim("auto-approved (--yes)"));
-      for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
+      for (const l of card(`${SYM.warn} Approval required`, body)) line(l);
       return true;
     }
     if (opts.smartApprove) {
       const v = await smartApprove(req, opts.smartApprove);
       if (v?.approve) {
         body.push(dim(`smart-approved (jev ${v.confidence.toFixed(2)})`));
-        for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
+        for (const l of card(`${SYM.warn} Approval required`, body)) line(l);
         return true;
       }
       if (v) body.push(dim(`jev escalated (${v.confidence.toFixed(2)}) — your call`));
     }
     if (!prompter.interactive) {
       body.push(dim("non-interactive run — denied; re-run with --yes to allow"));
-      for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
+      for (const l of card(`${SYM.warn} Approval required`, body)) line(l);
       return false;
     }
     body.push(dim("[a]lways allows this exact action for the session"));
-    for (const l of card(`${SYM.warn} Approval required`, body, yellow)) line(l);
-    const pick = await prompter.pick(`${cyan("❯")} Allow? ${dim("[y/N/a]")} `);
+    for (const l of card(`${SYM.warn} Approval required`, body)) line(l);
+    const pick = await prompter.pick(`${bold("❯")} Allow? ${dim("[y/N/a]")} `);
     if (pick === "a") {
       opts.allowlist?.add(key);
       return true;
@@ -142,7 +142,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
         spin.stop();
         emitThought();
         if (!textOpen) {
-          write(`${cyan(SYM.bullet)} `);
+          write(`${SYM.bullet} `);
           textOpen = true;
         }
         write(md.push(ev.text));
@@ -151,7 +151,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       case "plan": {
         const body = [
           ...(ev.plan.summary ? [dim(ev.plan.summary)] : []),
-          ...ev.plan.steps.map((s, i) => `${cyan(String(i + 1))}. ${s}`),
+          ...ev.plan.steps.map((s, i) => `${bold(String(i + 1))}. ${s}`),
         ];
         // Steps carry their own numbers — no gutter numbering.
         for (const l of panel("plan", body, false)) line(l);
@@ -175,7 +175,7 @@ export async function runAndRender(opts: RunCliOptions): Promise<RunResult> {
       case "todo": {
         const body = ev.items.map((it) => {
           const mark =
-            it.status === "completed" ? green("✓") : it.status === "in_progress" ? cyan("▶") : dim("○");
+            it.status === "completed" ? "✓" : it.status === "in_progress" ? bold("▶") : dim("○");
           const label = it.status === "in_progress" && it.activeForm ? it.activeForm : it.content;
           return `  ${mark} ${it.status === "completed" ? dim(label) : label}`;
         });
@@ -238,7 +238,7 @@ function renderResult(r: RunResult, elapsedMs: number): void {
   }
   const secs = (elapsedMs / 1000).toFixed(1);
   const mark =
-    r.status === "completed" ? green(SYM.ok) : r.status === "error" ? red(SYM.fail) : yellow(SYM.warn);
+    r.status === "completed" ? bold(SYM.ok) : r.status === "error" ? red(SYM.fail) : bold(SYM.warn);
   const tokens =
     r.usage && (r.usage.inputTokens || r.usage.outputTokens)
       ? ` · ${fmtTokens(r.usage.inputTokens + r.usage.outputTokens)} tokens`

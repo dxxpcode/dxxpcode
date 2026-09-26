@@ -2,8 +2,8 @@ import type { ApprovalRequest } from "@dxxpcode/agent";
 
 export const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-export const SURFACE = "#1a1b26";
-export const SURFACE_HI = "#262838";
+export const SURFACE = "#141414";
+export const SURFACE_HI = "#262626";
 
 export type Seg = { t: string; c?: string; bg?: string; bold?: boolean; dim?: boolean };
 export const segWidth = (l: Seg[]) => l.reduce((n, s) => n + s.t.length, 0);

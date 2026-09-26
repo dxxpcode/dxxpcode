@@ -9,10 +9,6 @@ const C = {
   dim: "\x1b[2m",
   red: "\x1b[31m",
   green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan: "\x1b[36m",
 };
 
 export function color(s: string, ...codes: string[]): string {
@@ -23,9 +19,7 @@ export function color(s: string, ...codes: string[]): string {
 export const dim = (s: string) => color(s, C.dim);
 export const bold = (s: string) => color(s, C.bold);
 export const green = (s: string) => color(s, C.green);
-export const yellow = (s: string) => color(s, C.yellow);
 export const red = (s: string) => color(s, C.red);
-export const cyan = (s: string) => color(s, C.cyan);
 
 export const SYM = { ok: "✓", warn: "⚠", fail: "✗", run: "→", bullet: "⏺", sub: "⎿", info: "◆" };
 
@@ -94,7 +88,7 @@ function wrap(s: string, w: number): string[] {
  * word-wrapped to the card width. Falls back to an indented block when
  * not on a TTY.
  */
-export function card(title: string, body: string[], accent = cyan): string[] {
+export function card(title: string, body: string[], accent = (s: string) => s): string[] {
   if (!FANCY) {
     return [title, ...body.map((l) => `  ${l}`)];
   }
@@ -116,7 +110,7 @@ export function pill(text: string): string[] {
   const cw = w - 4;
   const dash = (n: number) => "─".repeat(Math.max(0, n));
   const top = dim("╭" + dash(w - 2) + "╮");
-  const mid = wrap(`${cyan("❯")} ${text}`, cw).map(
+  const mid = wrap(`${bold("❯")} ${text}`, cw).map(
     (l) => dim("│") + " " + l + " ".repeat(Math.max(0, cw - visibleLen(l))) + " " + dim("│"),
   );
   const bot = dim("╰" + dash(w - 2) + "╯");
@@ -183,7 +177,7 @@ export function createSpinner(): Spinner {
   const draw = () => {
     if (TTY) {
       write(
-        `\r\x1b[2K  ${cyan(SPINNER_FRAMES[i++ % SPINNER_FRAMES.length])} ${dim(label)}${dim("  ·  esc to interrupt")}`,
+        `\r\x1b[2K  ${SPINNER_FRAMES[i++ % SPINNER_FRAMES.length]} ${dim(label)}${dim("  ·  esc to interrupt")}`,
       );
       drawn = true;
     }
@@ -275,49 +269,11 @@ export function toolArg(input: Record<string, unknown>): string {
   return typeof cand === "string" && cand.length ? cand.slice(0, 80) : "";
 }
 
-/** Semantic accent per tool family: reads blue, writes green, shell amber, git purple. */
-export const TOOL_COLORS: Record<string, string> = {
-  read_file: "#93c5fd",
-  list_directory: "#93c5fd",
-  search_files: "#93c5fd",
-  write_file: "#16c858",
-  edit_file: "#16c858",
-  delete_file: "#fca5a5",
-  run_command: "#fbbf24",
-  run_background: "#fbbf24",
-  check_process: "#fbbf24",
-  kill_process: "#fca5a5",
-  git_status: "#c084fc",
-  git_diff: "#c084fc",
-  git_log: "#c084fc",
-  propose_plan: "#22d3ee",
-  todo_write: "#22d3ee",
-};
-
-const TOOL_ANSI: Record<string, string> = {
-  read_file: C.blue,
-  list_directory: C.blue,
-  search_files: C.blue,
-  write_file: C.green,
-  edit_file: C.green,
-  delete_file: C.red,
-  run_command: C.yellow,
-  run_background: C.yellow,
-  check_process: C.yellow,
-  kill_process: C.red,
-  git_status: C.magenta,
-  git_diff: C.magenta,
-  git_log: C.magenta,
-  propose_plan: C.cyan,
-  todo_write: C.cyan,
-};
-
 /** `⏺ Read(src/math.js)` — Claude-style tool invocation line. */
 export function toolLine(tool: string, input: Record<string, unknown>): string {
   const name = TOOL_DISPLAY[tool] ?? tool;
   const arg = toolArg(input);
-  const c = TOOL_ANSI[tool] ?? C.cyan;
-  const bullet = COLOR ? c + SYM.bullet + C.reset : SYM.bullet;
+  const bullet = SYM.bullet;
   return arg ? `${bullet} ${bold(name)}${dim(`(${arg})`)}` : `${bullet} ${bold(name)}`;
 }
 
@@ -341,7 +297,7 @@ export function renderDiff(diff: string): string {
     if (hunk) {
       oldN = Number(hunk[1]);
       newN = Number(hunk[2]);
-      out.push(cyan(l));
+      out.push(dim(l));
       continue;
     }
     if (l.startsWith("+++") || l.startsWith("---") || l.startsWith("diff ") || l.startsWith("index ")) {

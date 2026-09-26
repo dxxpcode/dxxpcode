@@ -11,7 +11,7 @@ import { jevRouteEffort } from "./jev.ts";
 import { createPrompter } from "./prompt.ts";
 import { undoCheckpoint } from "@dxxpcode/agent";
 import { runAndRender } from "./run.ts";
-import { bold, cyan, dim, errLine, green, line, pill, red, renderDiff, rule } from "./render.ts";
+import { bold, dim, errLine, green, line, pill, red, renderDiff, rule } from "./render.ts";
 
 const VERSION = "0.1.0";
 
@@ -284,7 +284,7 @@ async function main(): Promise<number> {
   // Non-interactive: plain renderer (piped stdin, CI logs).
   const prompter = createPrompter({ interactive: false });
   const ruleStr = rule();
-  const header = `${cyan("◆")} ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
+  const header = `◆ ${bold(project.name)}${project.languages.length ? dim(` (${project.languages.join(", ")})`) : ""}${project.git ? dim(`  ${project.git.branch}${project.git.dirty ? "*" : ""}`) : ""}`;
   line(header);
   line(dim(`${provider.provider.name} · ${provider.model} · ${mode}`));
   if (ruleStr) line(ruleStr);

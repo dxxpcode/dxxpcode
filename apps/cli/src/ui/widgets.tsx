@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { XX_MARK } from "../banner.ts";
-import { TOOL_COLORS, TOOL_DISPLAY, TOOL_ICONS } from "../render.ts";
+import { TOOL_DISPLAY, TOOL_ICONS } from "../render.ts";
 import { mdLine } from "./md.tsx";
 import { SURFACE, SURFACE_HI, fmtTokens, segWidth, type Seg } from "./shared.ts";
 import type { AppProps, Item } from "./types.ts";
@@ -161,7 +161,7 @@ function TextBlock({ text }: { text: string }) {
     }
     out.push(
       <Text key={k++}>
-        {i === 0 ? <Text color="cyan">⏺ </Text> : "  "}
+        {i === 0 ? <Text>⏺ </Text> : "  "}
         {mdLine(lines[i])}
       </Text>,
     );
@@ -184,7 +184,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
               ))}
             </Box>
             <Box flexDirection="column">
-              <Text bold color="cyan">
+              <Text bold>
                 DxxpCode
               </Text>
               <Text dimColor>
@@ -221,7 +221,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
           ].map((t, i) => (
             <Text key={i}>
               {"  "}
-              <Text color="cyan">{i + 1}</Text>
+              <Text bold>{i + 1}</Text>
               {`. ${t}`}
             </Text>
           ))}
@@ -229,7 +229,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
         </Box>
       );
     case "pill":
-      return <Card lines={[[{ t: "❯ ", c: "cyan" }, { t: it.text }]]} />;
+      return <Card lines={[[{ t: "❯ ", bold: true }, { t: it.text }]]} />;
     case "status":
       return (
         <Card
@@ -245,7 +245,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       return (
         <Text dimColor>
           {"  "}
-          <Text color="magenta">◆</Text> Thought for {it.secs.toFixed(1)}s
+          ◆ Thought for {it.secs.toFixed(1)}s
         </Text>
       );
     case "text":
@@ -269,7 +269,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       const icon = TOOL_ICONS[it.name] ?? "⏺";
       return (
         <Text>
-          <Text color={TOOL_COLORS[it.name] ?? "cyan"}>{icon} </Text>
+          <Text>{icon} </Text>
           <Text bold>{name}</Text>
           {it.arg ? <Text dimColor>({it.arg})</Text> : null}
         </Text>
@@ -288,7 +288,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       const lines: Seg[][] = [
         [{ t: "plan", bold: true }, { t: "  ×", dim: true }],
         ...(it.summary ? [[{ t: it.summary, dim: true }]] : []),
-        ...it.steps.map((s, i) => [{ t: `${i + 1}`, c: "cyan" }, { t: `. ${s}` }]),
+        ...it.steps.map((s, i) => [{ t: `${i + 1}`, bold: true }, { t: `. ${s}` }]),
       ];
       return <Card lines={lines} />;
     }
@@ -296,7 +296,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       const done = it.items.filter((t) => t.status === "completed").length;
       const orbs: Seg[] = it.items.map((t) => ({
         t: t.status === "completed" ? "●" : t.status === "in_progress" ? "◉" : "○",
-        c: t.status === "completed" ? "green" : t.status === "in_progress" ? "cyan" : undefined,
+        bold: t.status === "in_progress",
         dim: t.status === "pending",
       }));
       const lines: Seg[][] = [
@@ -304,9 +304,9 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
         ...it.items.map((t) => {
           const mark =
             t.status === "completed"
-              ? { t: "✓ ", c: "green" }
+              ? { t: "✓ " }
               : t.status === "in_progress"
-                ? { t: "▶ ", c: "cyan" }
+                ? { t: "▶ ", bold: true }
                 : { t: "○ ", dim: true };
           const label = t.status === "in_progress" && t.activeForm ? t.activeForm : t.content;
           return [mark, { t: label, dim: t.status !== "in_progress" }];
@@ -324,14 +324,12 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
               r.kind === "add" ? "+" : r.kind === "del" ? "−" : " "
             } ${r.text}`,
             c:
-              r.kind === "hunk"
-                ? "cyan"
-                : r.kind === "add"
+              r.kind === "add"
                   ? "green"
                   : r.kind === "del"
                     ? "red"
                     : undefined,
-            dim: r.kind === "ctx",
+            dim: r.kind === "ctx" || r.kind === "hunk",
           },
         ]),
       ];
@@ -360,7 +358,7 @@ export function ItemView({ it, props }: { it: Item; props: AppProps }) {
       return (
         <Box flexDirection="column">
           <Text>
-            <Text color={ok ? "green" : "yellow"}>{ok ? "✓" : "⚠"} </Text>
+            <Text>{ok ? "✓" : "⚠"} </Text>
             <Text bold>{ok ? "Completed" : r.status}</Text>
             <Text dimColor>
               {" · "}

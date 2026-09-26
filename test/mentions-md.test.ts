@@ -65,13 +65,13 @@ test("md styler renders bold, code, headers and bullets", () => {
   const md = createMdStyler(true);
   const out = md.push("## Title\n- item **bold** and `code`\n") + md.flush();
   assert.match(out, /\x1b\[1m\x1b\[4mTitle/);
-  assert.match(out, /• item \x1b\[1mbold\x1b\[0m and \x1b\[36;7mcode\x1b\[0m/);
+  assert.match(out, /• item \x1b\[1mbold\x1b\[0m and \x1b\[48;5;235mcode\x1b\[0m/);
 });
 
 test("md styler handles markers split across chunks", () => {
   const md = createMdStyler(true);
   const out = md.push("use `read_fil") + md.push("e` next") + md.flush();
-  assert.match(out, /\x1b\[36;7mread_file\x1b\[0m next/);
+  assert.match(out, /\x1b\[48;5;235mread_file\x1b\[0m next/);
 });
 
 test("md styler resets unclosed markers at newline and flush", () => {

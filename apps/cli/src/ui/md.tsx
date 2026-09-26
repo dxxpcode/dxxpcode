@@ -1,5 +1,6 @@
 import React from "react";
 import { Text } from "ink";
+import { SURFACE_HI } from "./shared.ts";
 
 /**
  * Inline markdown → ink <Text> nodes: **bold**, *italic*, `code`,
@@ -17,7 +18,7 @@ export function mdInline(s: string): React.ReactNode[] {
     if (t.startsWith("**")) out.push(<Text key={k++} bold>{t.slice(2, -2)}</Text>);
     else if (t.startsWith("`"))
       out.push(
-        <Text key={k++} color="cyan" inverse>
+        <Text key={k++} backgroundColor={SURFACE_HI}>
           {` ${t.slice(1, -1)} `}
         </Text>,
       );

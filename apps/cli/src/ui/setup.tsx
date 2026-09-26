@@ -4,6 +4,7 @@ import TextInput from "ink-text-input";
 import { join } from "node:path";
 import { homeDir } from "@dxxpcode/sessions";
 import type { ReasoningEffort } from "@dxxpcode/providers";
+import { SURFACE_HI } from "./shared.ts";
 
 export interface SetupResult {
   provider: "anthropic" | "openai";
@@ -16,7 +17,6 @@ const PROVIDERS = [
   { id: "openai" as const, label: "OpenAI-compatible", desc: "OpenAI, OpenRouter, local endpoints" },
 ];
 
-const SURFACE_HI = "#262838";
 
 /**
  * Connect a model provider: pick provider → paste key (masked) → optional
@@ -65,7 +65,7 @@ export function ProviderSetup({ onDone }: { onDone: (r: SetupResult | null) => v
   return (
     <Box flexDirection="column">
       <Text>
-        <Text color="cyan" bold>
+        <Text bold>
           ◆ Connect a model provider
         </Text>
       </Text>
@@ -198,7 +198,7 @@ export function SetupWizard({ onDone }: { onDone: (r: WizardResult | null) => vo
   return (
     <Box flexDirection="column">
       <Text>
-        <Text color="cyan" bold>
+        <Text bold>
           ◆ Setup — dxxpcode
         </Text>
       </Text>

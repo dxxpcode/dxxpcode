@@ -7,7 +7,7 @@ import type { ReasoningEffort } from "@dxxpcode/providers";
 import { resolveProvider } from "@dxxpcode/providers";
 import { loadConfig, loadSession, saveConfig, saveSession } from "@dxxpcode/sessions";
 import { ProviderSetup, SetupWizard, type SetupResult, type WizardResult } from "./setup.tsx";
-import { diffTarget, TOOL_COLORS, TOOL_VERBS, toolArg } from "../render.ts";
+import { diffTarget, TOOL_VERBS, toolArg } from "../render.ts";
 import { expandMentions, listProjectFiles } from "../mentions.ts";
 import { CHANGELOG_MD, DOCS_MD } from "../reference.ts";
 import { jevRouteEffort, smartApprove } from "../jev.ts";
@@ -33,7 +33,6 @@ export function App(props: AppProps) {
   const liveRef = useRef(""); // accumulated model text for the open burst
   const [liveText, setLiveText] = useState("");
   const [spinLabel, setSpinLabel] = useState<string | null>(null);
-  const [spinColor, setSpinColor] = useState("cyan");
   const [frame, setFrame] = useState(0);
   const [pending, setPending] = useState<Pending>({ kind: "input" });
   const [menuSel, setMenuSel] = useState(0);
@@ -261,7 +260,6 @@ export function App(props: AppProps) {
               push({ kind: "tool", name: ev.tool, arg });
               thinkAt.current = Date.now();
               setSpinLabel(`${TOOL_VERBS[ev.tool] ?? "Working"}${arg ? ` ${arg}` : ""}…`);
-              setSpinColor(TOOL_COLORS[ev.tool] ?? "cyan");
               break;
             }
             case "tool_end": {
@@ -665,15 +663,15 @@ export function App(props: AppProps) {
       {spinLabel !== null && (
         <Box marginTop={1}>
           <Text>
-            <Text color={spinColor}>{FRAMES[frame % FRAMES.length]}</Text>{" "}
-            <Text color={spinColor}>{spinLabel}</Text>
+            <Text>{FRAMES[frame % FRAMES.length]}</Text>{" "}
+            <Text>{spinLabel}</Text>
             <Text dimColor>  ·  esc to interrupt</Text>
           </Text>
         </Box>
       )}
       {liveText.length > 0 && (
         <Text>
-          <Text color="cyan">⏺ </Text>
+          <Text>⏺ </Text>
           {liveText.split("\n").map((l, i) => (
             <React.Fragment key={i}>
               {i > 0 ? "\n" : ""}
@@ -719,7 +717,7 @@ export function App(props: AppProps) {
         <Box flexDirection="column">
           <Box marginTop={1}>
             <Card
-              accent="yellow"
+              accent="#737373"
               lines={[
                 [
                   { t: "⚠ Approval required — " },
@@ -750,7 +748,7 @@ export function App(props: AppProps) {
       )}
       {pending.kind === "prompt" && (
         <Box marginTop={1}>
-          <Text color="cyan">❯ </Text>
+          <Text bold>❯ </Text>
           <Text dimColor>{pending.title} </Text>
           <TextInput
             value={promptVal}
@@ -773,7 +771,7 @@ export function App(props: AppProps) {
           justifyContent="space-between"
         >
           <Box>
-            <Text color="cyan">❯ </Text>
+            <Text bold>❯ </Text>
             <TextInput
               key={inputKey}
               value={input}
@@ -799,7 +797,7 @@ export function App(props: AppProps) {
         suggestions.map((c, i) => (
           <Text key={c.name} backgroundColor={i === sugSel ? SURFACE_HI : undefined}>
             {"  "}
-            <Text color="cyan">{c.name}</Text>
+            <Text bold>{c.name}</Text>
             <Text dimColor>{"  "}{c.desc}</Text>
             {" ".repeat(
               Math.max(
