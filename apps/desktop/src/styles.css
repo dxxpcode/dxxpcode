@@ -287,6 +287,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   animation: pulse 1.2s ease-in-out infinite;
 }
 @keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.9; } }
+.statusline .tokrate { color: var(--faint); font-variant-numeric: tabular-nums; }
 
 .composer { padding: 10px 20px 18px; }
 .inputbox {
