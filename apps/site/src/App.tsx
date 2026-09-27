@@ -37,31 +37,37 @@ function DownloadButtons() {
 
   if (!primary) {
     return (
-      <p className="text-[13px] text-muted-foreground">
-        Available for{" "}
-        {DOWNLOADS.map((d, i) => (
-          <span key={d.os}>
-            {i > 0 && (i === DOWNLOADS.length - 1 ? " and " : ", ")}
-            <a href={d.url} className="text-foreground underline-offset-4 hover:underline">
-              {d.os}
-            </a>
-          </span>
-        ))}
-      </p>
+      <div className="flex flex-col items-center gap-6">
+        <p className="text-[13px] text-muted-foreground">
+          Available for{" "}
+          {DOWNLOADS.map((d, i) => (
+            <span key={d.os}>
+              {i > 0 && (i === DOWNLOADS.length - 1 ? " and " : ", ")}
+              <a href={d.url} className="text-foreground underline-offset-4 hover:underline">
+                {d.os}
+              </a>
+            </span>
+          ))}
+        </p>
+        <GitHubStars />
+      </div>
     );
   }
 
   const others = DOWNLOADS.filter((d) => d !== primary);
   return (
     <div className="flex flex-col items-center">
-      <a
-        href={primary.url}
-        className="inline-flex h-11 items-center gap-2.5 rounded-full bg-foreground pl-5 pr-4 text-[14px] font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <PlatformIcon os={primary.os} className="h-4 w-4" />
-        Download for {primary.os}
-        <ArrowDown strokeWidth={1.5} className="h-4 w-4 opacity-60" />
-      </a>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <a
+          href={primary.url}
+          className="inline-flex h-11 items-center gap-2.5 rounded-full bg-foreground pl-5 pr-4 text-[14px] font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <PlatformIcon os={primary.os} className="h-4 w-4" />
+          Download for {primary.os}
+          <ArrowDown strokeWidth={1.5} className="h-4 w-4 opacity-60" />
+        </a>
+        <GitHubStars />
+      </div>
       <p className="mt-3 font-mono text-[11px] text-muted-foreground">
         v{VERSION} · {primary.build}
         {primary.alts?.map((a) => (
@@ -105,13 +111,12 @@ export default function App() {
 
   return (
     <div className="flex min-h-[100svh] flex-col bg-background">
-      <header className="grid h-16 grid-cols-[1fr_auto_1fr] items-center px-6">
+      <header className="grid h-16 grid-cols-3 items-center px-6">
         <span />
         <a href="/" className="justify-self-center" aria-label="DxxpCode">
           <Logo className="h-[18px] w-auto" />
         </a>
-        <nav className="flex items-center gap-3 justify-self-end text-[13px] text-muted-foreground">
-          <GitHubStars />
+        <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
           <button
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
