@@ -63,7 +63,6 @@ button { font-family: var(--font-sans); }
   transition: all 0.15s var(--ease);
 }
 .chip:hover { border-color: var(--border-strong); background: var(--surface); }
-.chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
 /* ---------- transcript ---------- */
 .transcript {
@@ -260,7 +259,6 @@ button { font-family: var(--font-sans); }
 }
 .hints .modelchip:first-of-type { margin-left: auto; }
 .modelchip:hover { color: var(--text); }
-.modelchip .chip-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
 .hints kbd {
   font-family: var(--font-mono); font-size: 10px;
   border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px;
