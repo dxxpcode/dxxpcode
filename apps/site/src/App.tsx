@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, Moon, Sun } from "lucide-react";
+import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import Changelog from "./Changelog";
@@ -104,12 +105,13 @@ export default function App() {
 
   return (
     <div className="flex min-h-[100svh] flex-col bg-background">
-      <header className="grid h-16 grid-cols-3 items-center px-6">
+      <header className="grid h-16 grid-cols-[1fr_auto_1fr] items-center px-6">
         <span />
         <a href="/" className="justify-self-center" aria-label="DxxpCode">
           <Logo className="h-[18px] w-auto" />
         </a>
-        <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
+        <nav className="flex items-center gap-3 justify-self-end text-[13px] text-muted-foreground">
+          <GitHubStars />
           <button
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
