@@ -9,6 +9,14 @@ import { TOOL_DISPLAY, TOOL_FAMILY, TOOL_ICONS, toolArg } from "./types";
 marked.setOptions({ breaks: true, gfm: true });
 const md = (t: string) => ({ __html: marked.parse(t, { async: false }) });
 
+// Render a still-growing stream: close an unclosed ``` fence so it paints as a
+// code block instead of flickering raw markers while it's being written.
+function closePartialMd(t: string): string {
+  const fences = t.match(/(^|\n)```/g);
+  if (fences && fences.length % 2 === 1) t += "\n```";
+  return t;
+}
+
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
 interface Ev { type: string; [k: string]: unknown }
@@ -221,6 +229,21 @@ export default function App() {
           status: string; summary: string; filesChanged?: string[];
           usage?: { inputTokens?: number; outputTokens?: number };
         };
+        if (r.status === "cancelled") {
+          // Mark a text stream cut short by esc.
+          if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+          setItems((prev) => {
+            const next = [...prev];
+            for (let i = next.length - 1; i >= 0; i--) {
+              if (next[i].k === "text") {
+                next[i] = { ...next[i], interrupted: true };
+                break;
+              }
+              if (next[i].k === "user" || next[i].k === "done") break;
+            }
+            return next;
+          });
+        }
         push({
           k: "done", status: r.status, summary: r.summary ?? "",
           filesChanged: r.filesChanged ?? [],
@@ -627,8 +650,9 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
     case "text":
       return (
         <div className="text row">
-          <span dangerouslySetInnerHTML={md(item.text)} />
+          <span dangerouslySetInnerHTML={md(streaming ? closePartialMd(item.text) : item.text)} />
           {streaming && <span className="caret" aria-hidden />}
+          {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
       );
     case "tool":
