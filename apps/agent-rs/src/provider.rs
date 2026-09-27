@@ -467,6 +467,9 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
     if let Some(text) = t.get("text").and_then(|v| v.as_str()) {
         for chunk in text.as_bytes().chunks(24) {
             emit(ProviderEvent::Text(String::from_utf8_lossy(chunk).to_string()));
+            if let Some(ms) = t.get("chunkDelayMs").and_then(|v| v.as_u64()) {
+                std::thread::sleep(std::time::Duration::from_millis(ms));
+            }
         }
     }
     let mut n = 0;
