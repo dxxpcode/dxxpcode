@@ -59,6 +59,7 @@ export default function App() {
 
   const push = (item: Item) => {
     if (textBuf.current && flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+    closeThink();
     setItems((prev) => [...prev, item]);
   };
   const commands = ready?.commands ?? [];
@@ -71,7 +72,32 @@ export default function App() {
   // Batch streamed deltas: buffer and flush once per frame-ish so React
   // re-renders ~30x/sec max instead of once per NDJSON chunk.
   const textBuf = useRef("");
+  const thinkBuf = useRef("");
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushThink = useCallback(() => {
+    thinkTimer.current = null;
+    const t = thinkBuf.current;
+    thinkBuf.current = "";
+    if (!t) return;
+    setItems((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.k === "think" && last.live) return [...prev.slice(0, -1), { k: "think", text: last.text + t, live: true }];
+      return [...prev, { k: "think", text: t, live: true }];
+    });
+  }, []);
+  const appendThink = (t: string) => {
+    thinkBuf.current += t;
+    if (!thinkTimer.current) thinkTimer.current = setTimeout(flushThink, 32);
+  };
+  const closeThink = useCallback(() => {
+    if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
+    setItems((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.k === "think" && last.live) return [...prev.slice(0, -1), { ...last, live: false }];
+      return prev;
+    });
+  }, [flushThink]);
   const flushText = useCallback(() => {
     flushTimer.current = null;
     const t = textBuf.current;
@@ -149,7 +175,12 @@ export default function App() {
       case "status":
         setStatus(String(ev.message));
         break;
+      case "think":
+        appendThink(String(ev.text));
+        break;
       case "text":
+        // Text following a thinking block ends it.
+        closeThink();
         appendText(String(ev.text));
         setStatus(null);
         break;
@@ -253,6 +284,8 @@ export default function App() {
       }
       case "idle":
         if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+        if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
+        closeThink();
         setRunning(false);
         setStatus(null);
         break;
@@ -654,6 +687,19 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
           {streaming && <span className="caret" aria-hidden />}
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
+      );
+    case "think":
+      // Reasoning tokens: live dim stream while arriving, collapsible after.
+      return item.live ? (
+        <div className="think row">
+          <div className="think-head"><span className="think-dot" />Thinking</div>
+          <div className="think-text">{item.text}<span className="caret tool-caret" aria-hidden /></div>
+        </div>
+      ) : (
+        <details className="think row">
+          <summary>Thought <span className="think-n">({item.text.split(/\s+/).filter(Boolean).length} words)</span></summary>
+          <div className="think-text">{item.text}</div>
+        </details>
       );
     case "tool":
       return <ToolRow item={item} />;

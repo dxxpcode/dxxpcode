@@ -521,6 +521,9 @@ fn stream_turn(
             text_parts.push(t.clone());
             emit(json!({"type": "text", "text": t}));
         }
+        ProviderEvent::Thinking(t) => {
+            emit(json!({"type": "think", "text": t}));
+        }
         ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
         ProviderEvent::Done { usage: u, .. } => usage = u,
     });
