@@ -57,12 +57,15 @@ export default function App() {
   const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
-  const [obStep, setObStep] = useState<"welcome" | "pick" | "key">("welcome");
+  const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project">("welcome");
   const [obProvider, setObProvider] = useState<"anthropic" | "openai">("anthropic");
   const [obKey, setObKey] = useState("");
   const [obBase, setObBase] = useState("");
   const [obBusy, setObBusy] = useState(false);
   const [obError, setObError] = useState<string | null>(null);
+  // Set when we respawn the sidecar for a project switch; the next ready
+  // event then finishes onboarding instead of re-showing it.
+  const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("theme");
@@ -172,7 +175,16 @@ export default function App() {
       case "ready": {
         const r = ev as unknown as ReadyInfo;
         setReady(r);
-        if (r.needsSetup) { setOnboarding(true); setObStep("welcome"); }
+        if (projectSwitchPending.current) {
+          projectSwitchPending.current = false;
+          setOnboarding(false);
+          setObStep("welcome");
+        } else if (r.needsSetup) { setOnboarding(true); setObStep("welcome"); }
+        // A fresh ready = respawned sidecar (project switch) or first boot —
+        // reset the transcript so the new session starts clean.
+        setItems([]);
+        setApprovals([]);
+        setSessionInfo({ id: null, tokens: 0 });
         break;
       }
       case "user":
@@ -228,8 +240,7 @@ export default function App() {
       case "setup_result": {
         setObBusy(false);
         if (ev.ok === true) {
-          setOnboarding(false);
-          setObStep("welcome");
+          setObStep("project");
           setObKey("");
           setObBase("");
           setObError(null);
@@ -514,6 +525,17 @@ export default function App() {
               <div className="setlist">
                 <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
                 <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                <SetAction
+                  label="Open a project…"
+                  onClick={() => {
+                    void invoke<string | null>("pick_folder").then((dir) => {
+                      if (dir) {
+                        projectSwitchPending.current = true;
+                        void invoke("restart_sidecar", { cwd: dir });
+                      }
+                    });
+                  }}
+                />
                 <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
                 <SetAction label="Compact context" onClick={() => cmd("/compact")} />
                 <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
@@ -583,6 +605,29 @@ export default function App() {
                 <div className="setbtns">
                   <button className="btn" onClick={() => setObStep("welcome")}>Back</button>
                 </div>
+              </>
+            )}
+            {obStep === "project" && (
+              <>
+                <div className="ob-title">Open a project</div>
+                <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
+                <div className="setbtns">
+                  <button className="btn primary" onClick={() => setOnboarding(false)}>Use {ready?.project.name ?? "this folder"}</button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      void invoke<string | null>("pick_folder").then((dir) => {
+                        if (dir) {
+                          projectSwitchPending.current = true;
+                          void invoke("restart_sidecar", { cwd: dir });
+                        }
+                      });
+                    }}
+                  >
+                    Choose folder…
+                  </button>
+                </div>
+                <p className="ob-hint">Switch anytime with Settings → Open a project</p>
               </>
             )}
             {obStep === "key" && (
