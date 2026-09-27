@@ -23,10 +23,10 @@ const SETUP_STEPS = ["Provider", "API key", "Effort", "Smart approvals"];
 
 function setupStep(title: string): number {
   const t = title.toLowerCase();
+  if (t.includes("typesafe") || t.includes("optional")) return 3;
   if (t.includes("connect a provider")) return 0;
   if (t.includes("api key") || t.includes("base url")) return 1;
   if (t.includes("effort")) return 2;
-  if (t.includes("typesafe") || t.includes("optional")) return 3;
   return 0;
 }
 
