@@ -24,7 +24,7 @@ Download the app — it bundles the agent; nothing else to install:
 - **Windows** — `.msi` or `.exe`
 - **Linux** — `.deb` or `.AppImage`
 
-Latest installers live on the [releases page](https://github.com/thenextdeveloper/DxxpCode-Terminal/releases).
+Latest installers live on the [releases page](https://github.com/dxxpcode/DxxpCode-Terminal/releases).
 
 ## Configure a model provider
 
@@ -51,7 +51,7 @@ OpenAI-compatible endpoints (OpenRouter, local servers) work via `OPENAI_BASE_UR
 
 ### CLI engine
 
-The `dxxpcode` binary ships inside the app and also works standalone for scripting — `dxxpcode "task"`, `--plan`, `--review`, `--resume`, `--undo`, `--yes`. `dxxpcode --app` is the NDJSON protocol the app speaks, usable for other front-ends.
+The `dxxpcode` binary ships inside the app and also works standalone for scripting — `dxxpcode --task "…"`, `--plan`, `--resume`, `--yes`. `dxxpcode --app` is the NDJSON protocol the app speaks, usable for other front-ends.
 
 ## How it works
 
@@ -88,30 +88,31 @@ History lives in `~/.dxxpcode/sessions/` — tasks, messages, tool calls, change
 
 ## Development
 
+The agent engine is Rust (`apps/agent-rs`) — a ~4MB native binary the desktop app bundles as a sidecar:
+
 ```sh
-npm install
-npm test          # node --test over .ts sources (type stripping)
-npm run typecheck # strict tsc across the workspace
-npm run build     # emits dist/ per package
+cd apps/agent-rs && cargo build && cargo test
 ```
 
-The desktop app (`apps/desktop`) is Tauri + React and talks to the agent over `dxxpcode --app` (NDJSON protocol). Build it with `npm run tauri:build` from `apps/desktop` — this compiles the CLI into a bundled sidecar binary and produces native installers. The terminal UI is [ink](https://github.com/vadimdemedes/ink)/React under `apps/cli/src/ui/` — run it with `npm run dev -w apps/cli` or the built `dist/`.
+The desktop app (`apps/desktop`) is Tauri + React and talks to the engine over `dxxpcode --app` (NDJSON protocol):
 
-Layout — the agent runtime is independent of any interface:
+```sh
+cd apps/desktop && npm install && npm run dev
+```
+
+The original TypeScript implementation lives in `packages/` + `apps/cli` (ink/React terminal UI) — `npm install`, `npm test`, `npm run typecheck`, `npm run build` at the root still work for it.
+
+Layout:
 
 ```
 apps/desktop           desktop app (Tauri + React)
-apps/cli               agent engine + CLI (dxxpcode, embedded in the app)
-packages/agent         runtime: context → plan → tools → verify → result
-packages/tools         read/write/edit/search/run_command/git_*
-packages/providers     Anthropic + OpenAI adapters (fetch-based, zero-dep) + MockProvider
-packages/permissions   safe / approval / restricted evaluation
-packages/sessions      ~/.dxxpcode persistence + config
-packages/project       project detection + instructions
-test/                  unit + agent e2e tests + fixture repo
+apps/agent-rs          Rust agent engine — providers, tools, permissions, sessions
+apps/cli               TypeScript CLI + ink terminal UI (legacy)
+apps/site              landing page (Vite)
+packages/*             TypeScript agent runtime, tools, providers, sessions (legacy)
 ```
 
-See [PRODUCT.md](PRODUCT.md) for scope and [ARCHITECTURE.md](ARCHITECTURE.md) for internals.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup details, the mock-provider test harness, and PR conventions. [PRODUCT.md](PRODUCT.md) covers scope and [ARCHITECTURE.md](ARCHITECTURE.md) the internals.
 
 ## License
 
