@@ -175,6 +175,8 @@ fn restart_sidecar(
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(std::sync::Arc::new(Outbox {
             ready: std::sync::atomic::AtomicBool::new(false),
             buffered: Mutex::new(Vec::new()),

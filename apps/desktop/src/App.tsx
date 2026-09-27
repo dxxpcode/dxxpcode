@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, TOOL_FAMILY, TOOL_ICONS, toolArg } from "./types";
 
@@ -54,6 +56,20 @@ export default function App() {
   const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // In-app updates: checked once on launch, downloaded in the background,
+  // then surfaced as a restart row in Settings → About.
+  const [update, setUpdate] = useState<{ version: string; status: "downloading" | "ready" } | null>(null);
+  useEffect(() => {
+    check()
+      .then((u) => {
+        if (!u) return;
+        setUpdate({ version: u.version, status: "downloading" });
+        u.downloadAndInstall()
+          .then(() => setUpdate({ version: u.version, status: "ready" }))
+          .catch(() => setUpdate(null));
+      })
+      .catch(() => {});
+  }, []);
   const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
@@ -546,6 +562,12 @@ export default function App() {
               <div className="setgroup-title">About</div>
               <div className="setlist">
                 <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
+                {update?.status === "downloading" && (
+                  <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
+                )}
+                {update?.status === "ready" && (
+                  <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
+                )}
                 <SetAction label="Documentation" onClick={() => cmd("/docs")} />
                 <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
                 <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
