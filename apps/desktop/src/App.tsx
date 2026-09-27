@@ -570,7 +570,7 @@ export default function App() {
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
           {ready && (
             <button className="modelchip" title="Provider & model — click to change" onClick={() => cmd("/providers")}>
-              <span className="chip-dot" />{ready.provider} · {ready.model}
+              <span className="chip-dot" />{ready.model}
             </button>
           )}
           {ready?.effort && (
