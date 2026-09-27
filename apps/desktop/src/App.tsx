@@ -20,11 +20,11 @@ const SUGGEST_ICONS = {
   diff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>,
 };
 
-const SUGGESTIONS: { label: string; desc: string; icon: keyof typeof SUGGEST_ICONS; tint: string; prompt: string }[] = [
-  { label: "Explore this codebase", desc: "Map the structure and key files", icon: "compass", tint: "blue", prompt: "Give me a tour of this codebase — the main entry points, structure, and how the pieces fit together." },
-  { label: "Build a feature", desc: "Describe it, approve the plan, ship it", icon: "spark", tint: "purple", prompt: "" },
-  { label: "Fix a bug", desc: "Paste the error or describe the symptom", icon: "bug", tint: "amber", prompt: "" },
-  { label: "Review recent changes", desc: "Diff + agent review of your work", icon: "diff", tint: "green", prompt: "/review agent" },
+const SUGGESTIONS: { label: string; icon: keyof typeof SUGGEST_ICONS; tint: string; prompt: string }[] = [
+  { label: "Explore this codebase", icon: "compass", tint: "blue", prompt: "Give me a tour of this codebase — the main entry points, structure, and how the pieces fit together." },
+  { label: "Build a feature", icon: "spark", tint: "purple", prompt: "" },
+  { label: "Fix a bug", icon: "bug", tint: "amber", prompt: "" },
+  { label: "Review recent changes", icon: "diff", tint: "green", prompt: "/review agent" },
 ];
 
 export default function App() {
@@ -419,7 +419,6 @@ export default function App() {
                 >
                   <span className={`hero-icon tint-${s.tint}`}>{SUGGEST_ICONS[s.icon]}</span>
                   <span className="hero-label">{s.label}</span>
-                  <span className="hero-desc">{s.desc}</span>
                 </button>
               ))}
             </div>

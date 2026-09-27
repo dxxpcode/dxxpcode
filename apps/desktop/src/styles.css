@@ -402,7 +402,6 @@ button { font-family: var(--font-sans); }
 .hero-icon.tint-amber  { color: var(--amber); }
 .hero-icon.tint-green  { color: var(--green); }
 .hero-label { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
-.hero-desc { font-size: 11.5px; color: var(--faint); line-height: 1.45; }
 @media (max-width: 640px) {
   .hero-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
