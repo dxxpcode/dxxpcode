@@ -37,3 +37,12 @@ Sessions persist to `$DXXPCODE_HOME/sessions/<slug>-<ts>-<rand>.json` keyed by a
 
 ## Signals
 SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 1. `run_command` spawns detached (`detached:true`) and kills the whole process group (`kill(-pid, SIGKILL)`), so grandchildren die too — observed exit ~8ms after SIGINT on `sleep 30`, zero orphans (verify with `pgrep -x sleep`). Ctrl-C/ctrl-D at the REPL `>` prompt exit cleanly with code 0. EOF mid-approval resolves the pending prompt as "" → denied, and subsequent prompts deny cleanly (the readline-close path is guarded — no ERR_USE_AFTER_CLOSE).
+
+## Testing the desktop app (apps/desktop)
+
+- Run `npm run dev` in `apps/desktop` (vite serves on :5173 per tauri.conf devUrl), then launch `apps/desktop/src-tauri/target/debug/dxxpcode-desktop`. Rebuild the sidecar first with `cargo build` in `apps/agent-rs`.
+- The sidecar resolution prefers `DXXPCODE_BIN` — always set `DXXPCODE_BIN=<repo>/apps/agent-rs/target/debug/dxxpcode` so it does not spawn a stale `src-tauri/target/debug/dxxpcode` or a PATH-installed binary.
+- Launch with a fresh `HOME` (e.g. `env HOME=/tmp/fresh XAUTHORITY=/home/ubuntu/.Xauthority DISPLAY=:0 ./src-tauri/target/debug/dxxpcode-desktop`) to trigger `needsSetup` → the onboarding wizard.
+- Onboarding protocol: the UI sends `{"type":"setup","provider":"anthropic"|"openai"|"mock","key"?:...,"base_url"?:...}`; the sidecar validates via `list_models()` BEFORE writing config and replies `{"type":"setup_result","ok":...,"error"?}`. `provider:"mock"` installs a session-only demo provider (model chip shows `demo`) and writes nothing to `~/.dxxpcode/config.json`.
+- Verify "not saved" claims by inspecting `$HOME/.dxxpcode/config.json` after a failed validation — it should only contain `installId`.
+- Kill the app with `kill $(pgrep -x dxxpcode-deskto)`; focus it with `wmctrl -i -a <winid>` (get the id from `wmctrl -l`).
