@@ -324,7 +324,6 @@ export default function App() {
               <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
             )}
             <span className="spacer" />
-            <button className="chip" title="Provider & model" onClick={() => cmd("/providers")}><span className="chip-dot" />{ready.provider} · {ready.model}</button>
             {ready.effort && <button className="chip" title="Reasoning effort" onClick={() => cmd("/effort")}>{ready.effort}</button>}
             <button className="chip" title="Approval mode" onClick={() => cmd("/approval")}>{ready.mode}</button>
             <button className="ctl" title={dark ? "Light mode" : "Dark mode"} onClick={() => setDark((v) => !v)}>
@@ -571,6 +570,11 @@ export default function App() {
           <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
+          {ready && (
+            <button className="modelchip" title="Provider & model — click to change" onClick={() => cmd("/providers")}>
+              <span className="chip-dot" />{ready.provider} · {ready.model}
+            </button>
+          )}
         </div>
       </div>
     </div>
