@@ -17,6 +17,18 @@ function closePartialMd(t: string): string {
   return t;
 }
 
+// Streaming text: render everything but the newest fragment statically, and
+// wrap the tail in an .ease span so only the freshly arrived words fade/slide
+// in (re-mounting the tail is fine — it's the part that's animating anyway).
+function mdStream(t: string) {
+  const closed = closePartialMd(t);
+  const cut = Math.max(0, closed.length - 28);
+  const sp = closed.indexOf(" ", cut);
+  const tail = sp > 0 ? closed.slice(sp + 1) : closed.slice(cut);
+  const head = closed.slice(0, closed.length - tail.length);
+  return { __html: `${marked.parse(head, { async: false })}<span class="ease">${marked.parseInline(tail, { async: false })}</span>` };
+}
+
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
 interface Ev { type: string; [k: string]: unknown }
@@ -694,7 +706,7 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
     case "text":
       return (
         <div className="text row">
-          <span dangerouslySetInnerHTML={md(streaming ? closePartialMd(item.text) : item.text)} />
+          <span dangerouslySetInnerHTML={streaming ? mdStream(item.text) : md(item.text)} />
           {streaming && <span className="caret" aria-hidden />}
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
