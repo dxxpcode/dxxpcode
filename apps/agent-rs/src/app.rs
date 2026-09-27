@@ -516,10 +516,28 @@ fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
             cfg.openai_base_url = Some(b.clone());
         }
     }
+    // Pick a model that actually exists on this endpoint: keep a saved
+    // per-provider choice, else prefer the built-in default, else fall back
+    // to the first model the endpoint returned.
+    let mut models_map = cfg.models.clone().unwrap_or_default();
+    let existing = models_map.get(which).cloned();
+    let builtin_default = if which == "anthropic" { "claude-opus-5-5" } else { "gpt-6" };
+    let chosen = existing
+        .filter(|m| models.contains(m))
+        .unwrap_or_else(|| {
+            if models.iter().any(|m| m == builtin_default) {
+                builtin_default.to_string()
+            } else {
+                models[0].clone()
+            }
+        });
+    models_map.insert(which.to_string(), chosen);
+    cfg.models = Some(models_map);
+    cfg.model = None; // let switch_provider re-resolve from cfg.models
     save_config(&cfg);
     switch_provider(sh, which);
     let model = sh.model.lock().unwrap().clone();
-    emit_note(format!("connected — {} model(s) available", models.len()));
+    emit_note(format!("connected — {} model(s) available, default {model}", models.len()));
     done(true, which, Some(model), None);
 }
 
