@@ -63,7 +63,6 @@ button { font-family: var(--font-sans); }
   transition: all 0.15s var(--ease);
 }
 .chip:hover { border-color: var(--border-strong); background: var(--surface); }
-.chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
 /* ---------- transcript ---------- */
 .transcript {
@@ -252,15 +251,14 @@ button { font-family: var(--font-sans); }
 .inputbox textarea::placeholder { color: var(--faint); }
 .hints { display: flex; gap: 16px; align-items: center; padding: 8px 4px 0; font-size: 11px; color: var(--faint); }
 .modelchip {
-  margin-left: auto;
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--font-mono); font-size: 10.5px;
   color: var(--faint); background: none; border: none;
   padding: 1px 2px; border-radius: 5px; cursor: pointer;
   transition: color 0.15s var(--ease);
 }
+.hints .modelchip:first-of-type { margin-left: auto; }
 .modelchip:hover { color: var(--text); }
-.modelchip .chip-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
 .hints kbd {
   font-family: var(--font-mono); font-size: 10px;
   border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px;

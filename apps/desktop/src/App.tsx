@@ -324,8 +324,6 @@ export default function App() {
               <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
             )}
             <span className="spacer" />
-            {ready.effort && <button className="chip" title="Reasoning effort" onClick={() => cmd("/effort")}>{ready.effort}</button>}
-            <button className="chip" title="Approval mode" onClick={() => cmd("/approval")}>{ready.mode}</button>
             <button className="ctl" title={dark ? "Light mode" : "Dark mode"} onClick={() => setDark((v) => !v)}>
               {dark ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -572,7 +570,12 @@ export default function App() {
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
           {ready && (
             <button className="modelchip" title="Provider & model — click to change" onClick={() => cmd("/providers")}>
-              <span className="chip-dot" />{ready.provider} · {ready.model}
+              {ready.model}
+            </button>
+          )}
+          {ready?.effort && (
+            <button className="modelchip" title="Reasoning effort — click to change" onClick={() => cmd("/effort")}>
+              {ready.effort}
             </button>
           )}
         </div>
