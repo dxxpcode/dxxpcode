@@ -60,6 +60,16 @@ export default function App() {
   const push = (item: Item) => {
     if (textBuf.current && flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
     closeThink();
+    // Reasoning that directly precedes a tool call anchors to that tool's row.
+    if (item.k === "tool") {
+      setItems((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.k === "think" && !last.live)
+          return [...prev.slice(0, -1), { ...item, think: { text: last.text, ms: last.ms } }];
+        return [...prev, item];
+      });
+      return;
+    }
     setItems((prev) => [...prev, item]);
   };
   const commands = ready?.commands ?? [];
@@ -841,6 +851,15 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
           </>
         )}
       </div>
+      {item.think && (
+        <details className="think tool-think">
+          <summary>
+            {item.think.ms != null ? `Thought for ${Math.max(1, Math.round(item.think.ms / 1000))}s` : "Thought"}
+            <span className="think-n">{item.think.text.trim().split("\n")[0].slice(0, 64)}…</span>
+          </summary>
+          <div className="think-text">{item.think.text}</div>
+        </details>
+      )}
       {tail && <div className="out live">{tail}</div>}
       {item.diff ? (
         <div className="card" style={{ margin: "6px 0 0 22px" }}>
