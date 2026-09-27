@@ -49,7 +49,10 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const push = (item: Item) => setItems((prev) => [...prev, item]);
+  const push = (item: Item) => {
+    if (textBuf.current && flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+    setItems((prev) => [...prev, item]);
+  };
   const commands = ready?.commands ?? [];
   const palette = input.startsWith("/")
     ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
@@ -57,12 +60,25 @@ export default function App() {
   const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
   const atFrag = palette.length === 0 && atMatch ? atMatch[1].split("#")[0] : null;
   const files = atFrag !== null ? fileSugs.items : [];
-  const appendText = (t: string) =>
+  // Batch streamed deltas: buffer and flush once per frame-ish so React
+  // re-renders ~30x/sec max instead of once per NDJSON chunk.
+  const textBuf = useRef("");
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushText = useCallback(() => {
+    flushTimer.current = null;
+    const t = textBuf.current;
+    textBuf.current = "";
+    if (!t) return;
     setItems((prev) => {
       const last = prev[prev.length - 1];
       if (last?.k === "text") return [...prev.slice(0, -1), { k: "text", text: last.text + t }];
       return [...prev, { k: "text", text: t }];
     });
+  }, []);
+  const appendText = (t: string) => {
+    textBuf.current += t;
+    if (!flushTimer.current) flushTimer.current = setTimeout(flushText, 32);
+  };
 
   const handle = useCallback((ev: Ev) => {
     switch (ev.type) {
@@ -197,6 +213,7 @@ export default function App() {
         break;
       }
       case "idle":
+        if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
         setRunning(false);
         setStatus(null);
         break;
@@ -230,8 +247,17 @@ export default function App() {
     };
   }, [handle]);
 
+  // Stick to bottom: auto-scroll only while the user is already at the bottom;
+  // scrolling up pauses follow so the transcript doesn't fight the reader.
+  const stickBottom = useRef(true);
+  const onTranscriptScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }, []);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    const el = scrollRef.current;
+    if (el && stickBottom.current) el.scrollTo({ top: el.scrollHeight });
   }, [items, approvals, status]);
 
   // Ask the CLI for @mention completions whenever the fragment changes.
@@ -396,7 +422,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <div className="transcript" ref={scrollRef} style={settingsOpen ? { display: "none" } : undefined}>
+      <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { display: "none" } : undefined}>
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
           <div className="hero">
             <Logo className="hero-mark" />
@@ -417,7 +443,9 @@ export default function App() {
             </div>
           </div>
         )}
-        {items.map((it, i) => <ItemView key={i} item={it} />)}
+        {items.map((it, i) => (
+          <ItemView key={i} item={it} streaming={running && i === items.length - 1} />
+        ))}
         {approvals.map((a) => (
           <div className={`approval row${a.answered ? " answered" : ""}`} key={`ap${a.id}`}>
             <div className="title"><span className="dot" />Approval required</div>
@@ -576,12 +604,17 @@ export default function App() {
   );
 }
 
-function ItemView({ item }: { item: Item }) {
+function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row"><span className="chev">❯</span>{item.text}</div>;
     case "text":
-      return <div className="text row" dangerouslySetInnerHTML={md(item.text)} />;
+      return (
+        <div className="text row">
+          <span dangerouslySetInnerHTML={md(item.text)} />
+          {streaming && <span className="caret" aria-hidden />}
+        </div>
+      );
     case "tool":
       return <ToolRow item={item} />;
     case "plan":
