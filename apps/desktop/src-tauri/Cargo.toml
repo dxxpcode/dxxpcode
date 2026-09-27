@@ -11,3 +11,6 @@ tauri = { version = "2", features = [] }
 portable-pty = "0.8"
 serde = { version = "1", features = ["derive"] }
 tauri-plugin-dialog = "2"
+tauri-plugin-updater = "2.13.0"
+tauri-plugin-process = "2.4.0"
+serde_json = "1.0.151"
