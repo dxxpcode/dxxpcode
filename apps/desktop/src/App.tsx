@@ -13,18 +13,11 @@ const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + 
 
 interface Ev { type: string; [k: string]: unknown }
 
-const SUGGEST_ICONS = {
-  compass: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg>,
-  spark: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>,
-  bug: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="8" height="10" rx="4"/><path d="M12 8V5M9 5l3 3 3-3M4 13h4M16 13h4M5 18l3-2M19 18l-3-2"/></svg>,
-  diff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>,
-};
-
-const SUGGESTIONS: { label: string; icon: keyof typeof SUGGEST_ICONS; tint: string; prompt: string }[] = [
-  { label: "Explore this codebase", icon: "compass", tint: "blue", prompt: "Give me a tour of this codebase — the main entry points, structure, and how the pieces fit together." },
-  { label: "Build a feature", icon: "spark", tint: "purple", prompt: "" },
-  { label: "Fix a bug", icon: "bug", tint: "amber", prompt: "" },
-  { label: "Review recent changes", icon: "diff", tint: "green", prompt: "/review agent" },
+const SUGGESTIONS: { label: string; prompt: string }[] = [
+  { label: "Explore this codebase", prompt: "Give me a tour of this codebase — the main entry points, structure, and how the pieces fit together." },
+  { label: "Build a feature", prompt: "" },
+  { label: "Fix a bug", prompt: "" },
+  { label: "Review recent changes", prompt: "/review agent" },
 ];
 
 export default function App() {
@@ -417,8 +410,10 @@ export default function App() {
                   className="hero-card"
                   onClick={() => { setInput(s.prompt); taRef.current?.focus(); }}
                 >
-                  <span className={`hero-icon tint-${s.tint}`}>{SUGGEST_ICONS[s.icon]}</span>
                   <span className="hero-label">{s.label}</span>
+                  <span className="hero-arrow" aria-hidden>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                  </span>
                 </button>
               ))}
             </div>
