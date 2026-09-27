@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, Moon, Sun } from "lucide-react";
+import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import Changelog from "./Changelog";
@@ -36,42 +37,50 @@ function DownloadButtons() {
 
   if (!primary) {
     return (
-      <p className="text-[13px] text-muted-foreground">
-        Available for{" "}
-        {DOWNLOADS.map((d, i) => (
-          <span key={d.os}>
-            {i > 0 && (i === DOWNLOADS.length - 1 ? " and " : ", ")}
-            <a href={d.url} className="text-foreground underline-offset-4 hover:underline">
-              {d.os}
-            </a>
-          </span>
-        ))}
-      </p>
+      <div className="flex flex-col items-center gap-6">
+        <p className="text-[13px] text-muted-foreground">
+          Available for{" "}
+          {DOWNLOADS.map((d, i) => (
+            <span key={d.os}>
+              {i > 0 && (i === DOWNLOADS.length - 1 ? " and " : ", ")}
+              <a href={d.url} className="text-foreground underline-offset-4 hover:underline">
+                {d.os}
+              </a>
+            </span>
+          ))}
+        </p>
+        <GitHubStars />
+      </div>
     );
   }
 
   const others = DOWNLOADS.filter((d) => d !== primary);
   return (
     <div className="flex flex-col items-center">
-      <a
-        href={primary.url}
-        className="inline-flex h-11 items-center gap-2.5 rounded-full bg-foreground pl-5 pr-4 text-[14px] font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <PlatformIcon os={primary.os} className="h-4 w-4" />
-        Download for {primary.os}
-        <ArrowDown strokeWidth={1.5} className="h-4 w-4 opacity-60" />
-      </a>
-      <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-        v{VERSION} · {primary.build}
-        {primary.alts?.map((a) => (
-          <span key={a.label}>
-            {" · "}
-            <a href={a.url} className="underline-offset-4 transition-colors hover:text-foreground hover:underline">
-              {a.label}
-            </a>
-          </span>
-        ))}
-      </p>
+      <div className="flex flex-wrap items-start justify-center gap-3">
+        <div className="flex flex-col items-center">
+          <a
+            href={primary.url}
+            className="inline-flex h-11 items-center gap-2.5 rounded-full bg-foreground pl-5 pr-4 text-[14px] font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <PlatformIcon os={primary.os} className="h-4 w-4" />
+            Download for {primary.os}
+            <ArrowDown strokeWidth={1.5} className="h-4 w-4 opacity-60" />
+          </a>
+          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+            v{VERSION} · {primary.build}
+            {primary.alts?.map((a) => (
+              <span key={a.label}>
+                {" · "}
+                <a href={a.url} className="underline-offset-4 transition-colors hover:text-foreground hover:underline">
+                  {a.label}
+                </a>
+              </span>
+            ))}
+          </p>
+        </div>
+        <GitHubStars />
+      </div>
       <p className="mt-6 text-[13px] text-muted-foreground">
         Also available for{" "}
         {others.map((d, i) => (
