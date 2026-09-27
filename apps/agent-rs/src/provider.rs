@@ -21,6 +21,8 @@ impl Usage {
 #[derive(Debug)]
 pub enum ProviderEvent {
     Text(String),
+    /// Reasoning/thinking tokens (Claude extended thinking, o-series).
+    Thinking(String),
     ToolUse { id: String, name: String, input: Value },
     Done { stop_reason: String, usage: Option<Usage> },
 }
@@ -242,7 +244,11 @@ fn anthropic_chat(
             }
             "content_block_delta" => {
                 let dt = parsed.pointer("/delta/type").and_then(|v| v.as_str());
-                if dt == Some("text_delta") {
+                if dt == Some("thinking_delta") {
+                    if let Some(t) = parsed.pointer("/delta/thinking").and_then(|v| v.as_str()) {
+                        emit(ProviderEvent::Thinking(t.to_string()));
+                    }
+                } else if dt == Some("text_delta") {
                     if let Some(t) = parsed.pointer("/delta/text").and_then(|v| v.as_str()) {
                         emit(ProviderEvent::Text(t.to_string()));
                     }
@@ -354,6 +360,14 @@ fn openai_chat(
         }
         let choice = parsed.pointer("/choices/0").cloned();
         let Some(choice) = choice else { return };
+        // Reasoning deltas — o-series `reasoning_content`, others `reasoning`.
+        for key in ["reasoning_content", "reasoning"] {
+            if let Some(t) = choice.pointer(&format!("/delta/{key}")).and_then(|v| v.as_str()) {
+                if !t.is_empty() {
+                    emit(ProviderEvent::Thinking(t.to_string()));
+                }
+            }
+        }
         if let Some(text) = choice.pointer("/delta/content").and_then(|v| v.as_str()) {
             if !text.is_empty() {
                 emit(ProviderEvent::Text(text.to_string()));
@@ -441,6 +455,11 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
     };
     if let Some(ms) = t.get("delayMs").and_then(|v| v.as_u64()) {
         std::thread::sleep(std::time::Duration::from_millis(ms));
+    }
+    if let Some(text) = t.get("think").and_then(|v| v.as_str()) {
+        for chunk in text.as_bytes().chunks(24) {
+            emit(ProviderEvent::Thinking(String::from_utf8_lossy(chunk).to_string()));
+        }
     }
     if let Some(text) = t.get("text").and_then(|v| v.as_str()) {
         for chunk in text.as_bytes().chunks(24) {

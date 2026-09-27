@@ -123,6 +123,27 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 
 .interrupted { color: var(--faint); font-size: 12px; font-style: italic; }
 
+/* ---------- thinking blocks ---------- */
+.think { color: var(--faint); }
+.think .think-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+}
+.think .think-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--faint); animation: caretblink 1.2s var(--ease) infinite;
+}
+.think .think-text {
+  font-size: 12.5px; font-style: italic; white-space: pre-wrap;
+  margin: 4px 0 0 12px; opacity: 0.85;
+}
+.think summary {
+  font-size: 12px; font-weight: 600; cursor: pointer; user-select: none;
+  color: var(--faint); transition: color 0.15s var(--ease);
+}
+.think summary:hover { color: var(--dim); }
+.think summary .think-n { font-weight: 400; font-style: italic; }
+
 .note { color: var(--faint); font-size: 12px; padding-left: 4px; }
 .note.steer { color: var(--dim); }
 
