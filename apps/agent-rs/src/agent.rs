@@ -13,7 +13,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 const DEFAULT_MAX_ITERATIONS: u32 = 40;
 
@@ -433,10 +434,52 @@ fn run_plan_tool(
         return tool_result_block(id, &format!("denied: {}", decision.reason), true);
     }
     emit(json!({"type": "tool_start", "tool": name, "input": input}));
-    let result = (tool.execute)(input, ctx);
+    let result = exec_streaming(tool, name, input, ctx, emit);
     session.tool_calls.push(json!({"name": name, "input": input, "isError": result.is_error}));
     emit(json!({"type": "tool_end", "tool": name, "result": tool_result_json(&result)}));
     tool_result_block(id, &result.content, result.is_error)
+}
+
+/// Run a tool while streaming its live output to the UI as `tool_delta`
+/// events — a scoped drainer thread forwards `ctx.live_out` while the
+/// (blocking) `tool.execute` runs on this thread.
+fn exec_streaming(
+    tool: &tools::Tool,
+    name: &str,
+    input: &Value,
+    ctx: &Ctx,
+    emit: &mut Emit<'_>,
+) -> ToolResult {
+    let live = Arc::new(Mutex::new(String::new()));
+    let stop = Arc::new(AtomicBool::new(false));
+    *ctx.live_out.lock().unwrap() = Some(Arc::clone(&live));
+    let result = std::thread::scope(|s| {
+        let drainer = s.spawn(|| {
+            let mut sent = 0usize;
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                let chunk = {
+                    let g = live.lock().unwrap();
+                    if g.len() > sent {
+                        let c = g[sent..].to_string();
+                        sent = g.len();
+                        Some(c)
+                    } else {
+                        None
+                    }
+                };
+                if let Some(c) = chunk {
+                    emit(json!({"type": "tool_delta", "tool": name, "text": c}));
+                }
+                std::thread::sleep(Duration::from_millis(80));
+            }
+        });
+        let r = (tool.execute)(input, ctx);
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        let _ = drainer.join();
+        r
+    });
+    *ctx.live_out.lock().unwrap() = None;
+    result
 }
 
 fn tool_result_json(r: &ToolResult) -> Value {
@@ -511,6 +554,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         root: opts.project_root.clone(),
         aborted: Arc::clone(&opts.aborted),
         procs: Arc::clone(&opts.procs),
+        live_out: Arc::new(Mutex::new(None)),
     };
 
     let mut session = opts.session.take().unwrap_or_else(|| SessionRecord {
@@ -777,7 +821,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 }
             }
             emit(json!({"type": "tool_start", "tool": name, "input": input}));
-            let raw = (tool.execute)(input, &ctx);
+            let raw = exec_streaming(tool, name, input, &ctx, emit);
             let result = ToolResult {
                 content: redact_secrets(&raw.content),
                 ..raw

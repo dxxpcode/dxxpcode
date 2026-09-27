@@ -149,6 +149,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   border-radius: var(--radius-sm); padding: 8px 10px;
 }
 .tool .out.err { color: var(--red); }
+.tool .out.live {
+  margin: 6px 0 0 22px;
+  border-style: dashed;
+  color: var(--faint);
+}
+.tool .elapsed { color: var(--faint); font-size: 11px; font-family: var(--font-mono); }
+.tool .tool-caret { width: 6px; height: 11px; vertical-align: -1px; }
 .tool.reads { border-color: var(--blue); } .tool.reads .icon, .tool.reads .name { color: var(--blue); }
 .tool.writes { border-color: var(--green); } .tool.writes .icon, .tool.writes .name { color: var(--green); }
 .tool.shell { border-color: var(--amber); } .tool.shell .icon, .tool.shell .name { color: var(--amber); }
