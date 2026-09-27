@@ -114,7 +114,7 @@ export default function App() {
   return (
     <div className="flex min-h-[100svh] flex-col bg-background">
       <header className="grid h-16 grid-cols-3 items-center px-6">
-        <a href="/" className="justify-self-start text-[15px] font-semibold tracking-[-0.03em] text-foreground">
+        <a href="/" className="justify-self-start font-mono text-[14px] font-medium tracking-[-0.02em] text-muted-foreground transition-colors hover:text-foreground">
           DxxpCode
         </a>
         <a href="/" className="justify-self-center" aria-label="DxxpCode">
