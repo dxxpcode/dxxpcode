@@ -60,6 +60,10 @@ pub struct Ctx {
     pub aborted: Arc<std::sync::atomic::AtomicBool>,
     /// Background process table (run_background/check_process/kill_process).
     pub procs: Arc<Mutex<HashMap<String, BgProc>>>,
+    /// While a tool executes, a buffer holding its live partial output —
+    /// a drainer thread in the agent streams it to the UI as `tool_delta`.
+    /// Installed around `(tool.execute)` by the agent.
+    pub live_out: Arc<Mutex<Option<Arc<Mutex<String>>>>>,
 }
 
 pub struct BgProc {
@@ -586,10 +590,18 @@ fn exec_run_command(input: &Value, ctx: &Ctx) -> ToolResult {
     let start = Instant::now();
     let mut timed_out = false;
     let mut cancelled = false;
+    let mut sent = 0usize;
     loop {
         match child.try_wait() {
             Ok(Some(_)) => break,
             Ok(None) => {
+                if let Some(live) = ctx.live_out.lock().unwrap().as_ref() {
+                    let g = out.lock().unwrap();
+                    if g.len() > sent {
+                        live.lock().unwrap().push_str(&g[sent..]);
+                        sent = g.len();
+                    }
+                }
                 if start.elapsed() > Duration::from_millis(timeout) {
                     timed_out = true;
                     kill_group(pid, SIG_KILL);

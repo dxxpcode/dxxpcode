@@ -152,9 +152,25 @@ export default function App() {
         push({
           k: "tool", tool: String(ev.tool),
           arg: toolArg((ev.input as Record<string, unknown>) ?? {}),
-          pending: true,
+          pending: true, startedAt: Date.now(),
         });
         break;
+      case "tool_delta": {
+        // Live partial output from a running tool (e.g. run_command).
+        const delta = String(ev.text);
+        setItems((prev) => {
+          const next = [...prev];
+          for (let i = next.length - 1; i >= 0; i--) {
+            const it = next[i];
+            if (it.k === "tool" && it.pending && it.tool === ev.tool) {
+              next[i] = { ...it, out: (it.out ?? "") + delta };
+              return next;
+            }
+          }
+          return next;
+        });
+        break;
+      }
       case "tool_end": {
         const res = ev.result as { content?: string; isError?: boolean; diff?: string };
         setItems((prev) => {
@@ -718,26 +734,47 @@ function SetAction({ label, onClick, danger }: { label: string; onClick: () => v
   );
 }
 
+function Elapsed({ since }: { since: number }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.floor((Date.now() - since) / 1000);
+  return <span className="elapsed">{s}s</span>;
+}
+
 function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
   const fam = TOOL_FAMILY[item.tool] ?? "planx";
   const name = TOOL_DISPLAY[item.tool] ?? item.tool;
   const icon = TOOL_ICONS[item.tool] ?? "•";
   const first = item.out?.split("\n").filter((l) => l.trim())[0]?.slice(0, 120);
+  // While running, show the tail of the streamed output; once finished it
+  // collapses into the usual details/summary.
+  const tail = item.pending && item.out?.trim()
+    ? item.out.trimEnd().split("\n").slice(-6).join("\n")
+    : null;
   return (
     <div className={`tool row ${fam}`}>
       <div className="head">
         <span className="icon">{icon}</span>
         <span className="name">{name}</span>
         {item.arg && <span className="arg">{item.arg}</span>}
-        {item.pending && <span style={{ color: "var(--faint)", fontSize: 12 }}>…</span>}
+        {item.pending && (
+          <>
+            <span className="caret tool-caret" aria-hidden />
+            {item.startedAt && <Elapsed since={item.startedAt} />}
+          </>
+        )}
       </div>
+      {tail && <div className="out live">{tail}</div>}
       {item.diff ? (
         <div className="card" style={{ margin: "6px 0 0 22px" }}>
           <div className="card-body" style={{ padding: "8px 0" }}>
             <Diff diff={item.diff} />
           </div>
         </div>
-      ) : item.out && item.out.trim() ? (
+      ) : !item.pending && item.out && item.out.trim() ? (
         <details>
           <summary className={item.isError ? "" : ""}>{item.isError ? "error: " : ""}{first}{item.out.split("\n").length > 1 ? ` (+${item.out.split("\n").length - 1} lines)` : ""}</summary>
           <div className={`out${item.isError ? " err" : ""}`}>{item.out}</div>
