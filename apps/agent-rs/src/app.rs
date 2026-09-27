@@ -445,6 +445,84 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
     true
 }
 
+/// Onboarding wizard backend: validate the entered key by listing models
+/// before saving anything. Replies {"type":"setup_result","ok":bool,...}.
+fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
+    let which = cmd.get("provider").and_then(|v| v.as_str()).unwrap_or("");
+    let done = |ok: bool, provider: &str, model: Option<String>, error: Option<String>| {
+        emit(json!({"type": "setup_result", "ok": ok, "provider": provider, "model": model, "error": error}));
+    };
+
+    if which == "mock" {
+        // Demo mode — session-only, nothing persisted. A tiny scripted
+        // conversation so the demo isn't a dead end.
+        let script = vec![
+            json!({"text": "Demo mode — this answer comes from the built-in mock provider, no API key needed.\n\nAsk anything; each reply is canned. To use a real model, connect a provider in Settings → Connect a provider."}),
+            json!({"text": "Still in demo mode. Connect a real provider (Anthropic, OpenAI-compatible) via Settings → Connect a provider to run real tasks."}),
+            json!({"text": "Demo mode uses a scripted provider — it can't read files or run commands. Connect a provider to unlock the agent."}),
+        ];
+        *sh.provider.lock().unwrap() = Some(crate::provider::Provider::Mock { script, turn: 0 });
+        *sh.provider_name.lock().unwrap() = "mock".to_string();
+        *sh.model.lock().unwrap() = "demo".to_string();
+        sh.emit_state();
+        emit_note("demo mode — nothing is saved; connect a provider anytime");
+        done(true, "mock", Some("demo".into()), None);
+        return;
+    }
+
+    let key = cmd.get("key").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    if key.is_empty() {
+        done(false, which, None, Some("API key is empty".into()));
+        return;
+    }
+    let base_url = cmd
+        .get("base_url")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.trim_end_matches('/').to_string());
+
+    let candidate = match which {
+        "anthropic" => crate::provider::Provider::Anthropic { key: key.clone() },
+        "openai" => crate::provider::Provider::OpenAi {
+            key: key.clone(),
+            base_url: base_url.clone().unwrap_or_else(|| "https://api.openai.com/v1".into()),
+        },
+        _ => {
+            done(false, which, None, Some(format!("unknown provider \"{which}\"")));
+            return;
+        }
+    };
+
+    // Live validation — a bad key should fail here, not on the first task.
+    let models = match candidate.list_models() {
+        Ok(m) if !m.is_empty() => m,
+        Ok(_) => {
+            done(false, which, None, Some("key accepted but no models returned — check the base URL".into()));
+            return;
+        }
+        Err(e) => {
+            done(false, which, None, Some(e.0));
+            return;
+        }
+    };
+
+    let mut cfg = load_config();
+    if which == "anthropic" {
+        cfg.anthropic_api_key = Some(key);
+    } else {
+        cfg.openai_api_key = Some(key);
+        if let Some(b) = &base_url {
+            cfg.openai_base_url = Some(b.clone());
+        }
+    }
+    save_config(&cfg);
+    switch_provider(sh, which);
+    let model = sh.model.lock().unwrap().clone();
+    emit_note(format!("connected — {} model(s) available", models.len()));
+    done(true, which, Some(model), None);
+}
+
 fn run_onboarding(sh: &Arc<Shared>) {
     emit_note("welcome to dxxpcode — connect a provider to get started");
     if !connect_provider(sh) {
@@ -1023,6 +1101,13 @@ pub fn run_app(deps: AppDeps) -> i32 {
                     let n = name.to_string();
                     std::thread::spawn(move || handle_command(&sh2, &d2, &n));
                 }
+            }
+            // Onboarding wizard: validate a provider key (or pick the demo),
+            // then save + switch. Replies with {"type":"setup_result", ...}.
+            "setup" => {
+                let sh2 = Arc::clone(&sh);
+                let c = cmd.clone();
+                std::thread::spawn(move || run_wizard_setup(&sh2, &c));
             }
             "approve" => {
                 if let Some(id) = cmd.get("id").and_then(|v| v.as_u64()) {
