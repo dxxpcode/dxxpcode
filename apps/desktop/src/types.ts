@@ -30,7 +30,7 @@ export interface Plan { summary: string; steps: string[]; trivial?: boolean }
 
 export type Item =
   | { k: "user"; text: string }
-  | { k: "text"; text: string }
+  | { k: "text"; text: string; interrupted?: boolean }
   | { k: "tool"; tool: string; arg: string; out?: string; isError?: boolean; diff?: string; pending: boolean; startedAt?: number }
   | { k: "plan"; plan: Plan }
   | { k: "todos"; items: Todo[] }

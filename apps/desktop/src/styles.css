@@ -121,6 +121,8 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 @keyframes caretblink { 0%, 55% { opacity: 1; } 60%, 100% { opacity: 0.15; } }
 
+.interrupted { color: var(--faint); font-size: 12px; font-style: italic; }
+
 .note { color: var(--faint); font-size: 12px; padding-left: 4px; }
 .note.steer { color: var(--dim); }
 
