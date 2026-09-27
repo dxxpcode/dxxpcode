@@ -4,6 +4,14 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-09-27
+
+- Desktop: in-app updates via tauri-plugin-updater — background check + download, "Update ready — restart" in Settings
+- Desktop: "Open a project" onboarding step + Settings row — folder picker respawns the sidecar at the chosen directory
+- Desktop: onboarding wizard — provider picker, live key validation, demo mode; default model picked from the endpoint's live list
+
+## [0.2.0] — 2026-09-27
+
 - `/compact` forces context compaction and `/status` shows `~Nk tok / 60k` context usage
 - Background processes: `run_background`, `check_process`, `kill_process` tools with per-name logs under `~/.dxxpcode/bg/`
 - Git-aware checkpoints: each records HEAD; `/undo` warns when HEAD moved since the checkpoint
