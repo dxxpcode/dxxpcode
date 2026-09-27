@@ -82,8 +82,8 @@ export default function App() {
     if (!t) return;
     setItems((prev) => {
       const last = prev[prev.length - 1];
-      if (last?.k === "think" && last.live) return [...prev.slice(0, -1), { k: "think", text: last.text + t, live: true }];
-      return [...prev, { k: "think", text: t, live: true }];
+      if (last?.k === "think" && last.live) return [...prev.slice(0, -1), { ...last, text: last.text + t }];
+      return [...prev, { k: "think", text: t, live: true, startedAt: Date.now() }];
     });
   }, []);
   const appendThink = (t: string) => {
@@ -94,7 +94,8 @@ export default function App() {
     if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
     setItems((prev) => {
       const last = prev[prev.length - 1];
-      if (last?.k === "think" && last.live) return [...prev.slice(0, -1), { ...last, live: false }];
+      if (last?.k === "think" && last.live)
+        return [...prev.slice(0, -1), { ...last, live: false, ms: last.startedAt ? Date.now() - last.startedAt : undefined }];
       return prev;
     });
   }, [flushThink]);
@@ -692,12 +693,15 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
       // Reasoning tokens: live dim stream while arriving, collapsible after.
       return item.live ? (
         <div className="think row">
-          <div className="think-head"><span className="think-dot" />Thinking</div>
+          <div className="think-head"><span className="think-dot" /><span className="think-shimmer">Thinking</span></div>
           <div className="think-text">{item.text}<span className="caret tool-caret" aria-hidden /></div>
         </div>
       ) : (
         <details className="think row">
-          <summary>Thought <span className="think-n">({item.text.split(/\s+/).filter(Boolean).length} words)</span></summary>
+          <summary>
+            {item.ms != null ? `Thought for ${Math.max(1, Math.round(item.ms / 1000))}s` : "Thought"}
+            <span className="think-n">{item.text.trim().split("\n")[0].slice(0, 64)}{(item.text.trim().split("\n")[0] ?? "").length > 64 || item.text.includes("\n") ? "…" : ""}</span>
+          </summary>
           <div className="think-text">{item.text}</div>
         </details>
       );
