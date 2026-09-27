@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "tauri": "tauri",
     "dev": "vite",
     "build": "vite build",
     "tauri:dev": "cargo run --manifest-path src-tauri/Cargo.toml",
