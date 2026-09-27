@@ -13,6 +13,13 @@ const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + 
 
 interface Ev { type: string; [k: string]: unknown }
 
+const SUGGESTIONS: { label: string; desc: string; icon: string; prompt: string }[] = [
+  { label: "Explore this codebase", desc: "Map the structure and key files", icon: "≡", prompt: "Give me a tour of this codebase — the main entry points, structure, and how the pieces fit together." },
+  { label: "Build a feature", desc: "Describe it, approve the plan, ship it", icon: "←", prompt: "" },
+  { label: "Fix a bug", desc: "Paste the error or describe the symptom", icon: "✗", prompt: "" },
+  { label: "Review recent changes", desc: "Diff + agent review of your work", icon: "⑂", prompt: "/review agent" },
+];
+
 export default function App() {
   const [ready, setReady] = useState<ReadyInfo | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -393,6 +400,25 @@ export default function App() {
         </div>
       )}
       <div className="transcript" ref={scrollRef} style={settingsOpen ? { display: "none" } : undefined}>
+        {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
+          <div className="hero">
+            <Logo className="hero-mark" />
+            <div className="hero-title">What should we build in <span className="hero-proj">{ready.project.name}</span>?</div>
+            <div className="hero-cards">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s.label}
+                  className="hero-card"
+                  onClick={() => { setInput(s.prompt); taRef.current?.focus(); }}
+                >
+                  <span className="hero-icon">{s.icon}</span>
+                  <span className="hero-label">{s.label}</span>
+                  <span className="hero-desc">{s.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {items.map((it, i) => <ItemView key={i} item={it} />)}
         {approvals.map((a) => (
           <div className={`approval row${a.answered ? " answered" : ""}`} key={`ap${a.id}`}>
