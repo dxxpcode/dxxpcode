@@ -32,7 +32,7 @@ export type Item =
   | { k: "user"; text: string }
   | { k: "text"; text: string; interrupted?: boolean }
   | { k: "think"; text: string; live?: boolean; startedAt?: number; ms?: number }
-  | { k: "tool"; tool: string; arg: string; out?: string; isError?: boolean; diff?: string; pending: boolean; startedAt?: number }
+  | { k: "tool"; tool: string; arg: string; out?: string; isError?: boolean; diff?: string; pending: boolean; startedAt?: number; think?: { text: string; ms?: number } }
   | { k: "plan"; plan: Plan }
   | { k: "todos"; items: Todo[] }
   | { k: "note"; text: string; steer?: boolean }
