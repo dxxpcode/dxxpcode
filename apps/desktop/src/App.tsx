@@ -333,38 +333,36 @@ export default function App() {
 
       {settingsOpen && ready && (
         <div className="settings">
-          <div className="card">
-            <div className="card-title">Settings</div>
-            <div className="card-body">
-              <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} action="Change…" onClick={() => cmd("/providers")} />
-              <SetRow label="Connect" value="add an API key for a new provider" action="Connect…" onClick={() => cmd("/provider")} />
-              <SetRow label="Model" value={ready.model} action="Change…" onClick={() => cmd("/model")} />
-              <SetRow label="Reasoning effort" value={ready.effort ?? "default"} action="Change…" onClick={() => cmd("/effort")} />
-              <SetRow label="Approval mode" value={ready.mode} action="Change…" onClick={() => cmd("/approval")} />
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-title">Session</div>
-            <div className="card-body">
-              <div className="setrow"><span className="setlabel">id</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-              <div className="setrow"><span className="setlabel">context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-              <div className="setbtns">
-                <button className="btn" onClick={() => cmd("/resume")}>Resume…</button>
-                <button className="btn" onClick={() => cmd("/compact")}>Compact context</button>
-                <button className="btn" onClick={() => cmd("/undo")}>Undo checkpoint</button>
-                <button className="btn" onClick={() => cmd("/new")}>New session</button>
+          <div className="settings-col">
+            <div className="setgroup">
+              <div className="setgroup-title">Agent</div>
+              <div className="setlist">
+                <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
+                <SetRow label="Connect a provider" value="add an API key" onClick={() => cmd("/provider")} />
+                <SetRow label="Model" value={ready.model} onClick={() => cmd("/model")} />
+                <SetRow label="Reasoning effort" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
+                <SetRow label="Approval mode" value={ready.mode} onClick={() => cmd("/approval")} />
               </div>
             </div>
-          </div>
-          <div className="card">
-            <div className="card-title">About</div>
-            <div className="card-body">
-              <div className="setrow"><span className="setlabel">version</span><span className="setval mono">v{ready.version}</span></div>
-              <div className="setbtns">
-                <button className="btn" onClick={() => cmd("/docs")}>Docs</button>
-                <button className="btn" onClick={() => cmd("/changelog")}>Changelog</button>
-                <button className="btn" onClick={() => cmd("/setup")}>Run setup…</button>
-                <button className="btn deny" onClick={() => cmd("/exit")}>Quit</button>
+            <div className="setgroup">
+              <div className="setgroup-title">Session</div>
+              <div className="setlist">
+                <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+                <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
+                <SetAction label="Compact context" onClick={() => cmd("/compact")} />
+                <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
+                <SetAction label="Start new session" onClick={() => cmd("/new")} />
+              </div>
+            </div>
+            <div className="setgroup">
+              <div className="setgroup-title">About</div>
+              <div className="setlist">
+                <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
+                <SetAction label="Documentation" onClick={() => cmd("/docs")} />
+                <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
+                <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
+                <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
               </div>
             </div>
           </div>
@@ -664,13 +662,26 @@ function ItemView({ item }: { item: Item }) {
   }
 }
 
-function SetRow({ label, value, action, onClick }: { label: string; value: string; action: string; onClick: () => void }) {
+const Chevron = (
+  <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+);
+
+function SetRow({ label, value, onClick }: { label: string; value: string; onClick: () => void }) {
   return (
-    <div className="setrow">
+    <button className="setrow link" onClick={onClick}>
       <span className="setlabel">{label}</span>
       <span className="setval">{value}</span>
-      <button className="btn" onClick={onClick}>{action}</button>
-    </div>
+      {Chevron}
+    </button>
+  );
+}
+
+function SetAction({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button className={`setrow link${danger ? " danger" : ""}`} onClick={onClick}>
+      <span className="setlabel">{label}</span>
+      {Chevron}
+    </button>
   );
 }
 
