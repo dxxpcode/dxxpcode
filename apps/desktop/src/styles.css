@@ -110,6 +110,17 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .text pre code { background: none; border: none; padding: 0; }
 
+.caret {
+  display: inline-block;
+  width: 7px; height: 14px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  border-radius: 2px;
+  background: var(--text);
+  animation: caretblink 0.9s var(--ease) infinite;
+}
+@keyframes caretblink { 0%, 55% { opacity: 1; } 60%, 100% { opacity: 0.15; } }
+
 .note { color: var(--faint); font-size: 12px; padding-left: 4px; }
 .note.steer { color: var(--dim); }
 
