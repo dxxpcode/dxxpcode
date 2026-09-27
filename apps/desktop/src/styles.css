@@ -561,6 +561,58 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   color: var(--faint);
   margin-top: 18px;
 }
+.ob-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+.ob-prov {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface2);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.15s var(--ease), transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.ob-prov:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.ob-prov:active { transform: translateY(0); }
+.ob-prov-name { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
+.ob-prov-desc { font-size: 11.5px; color: var(--faint); }
+.ob-prov.demo { border-style: dashed; background: transparent; }
+.ob-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.ob-input:focus { border-color: var(--border-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+.ob-input::placeholder { color: var(--faint); }
+.ob-error {
+  font-size: 12px;
+  color: var(--red);
+  margin: 2px 0 10px;
+  text-align: left;
+  word-break: break-word;
+}
 
 /* ---------- dark theme ---------- */
 html[data-theme="dark"] {

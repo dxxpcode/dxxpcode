@@ -56,6 +56,13 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
   const [onboarding, setOnboarding] = useState(false);
+  // Onboarding wizard: welcome → pick a provider → enter + validate the key.
+  const [obStep, setObStep] = useState<"welcome" | "pick" | "key">("welcome");
+  const [obProvider, setObProvider] = useState<"anthropic" | "openai">("anthropic");
+  const [obKey, setObKey] = useState("");
+  const [obBase, setObBase] = useState("");
+  const [obBusy, setObBusy] = useState(false);
+  const [obError, setObError] = useState<string | null>(null);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("theme");
@@ -165,7 +172,7 @@ export default function App() {
       case "ready": {
         const r = ev as unknown as ReadyInfo;
         setReady(r);
-        if (r.needsSetup) setOnboarding(true);
+        if (r.needsSetup) { setOnboarding(true); setObStep("welcome"); }
         break;
       }
       case "user":
@@ -218,6 +225,19 @@ export default function App() {
         if (Number(ev.id) === fileReqId.current)
           setFileSugs({ id: fileReqId.current, items: ev.items as { name: string; desc: string }[] });
         break;
+      case "setup_result": {
+        setObBusy(false);
+        if (ev.ok === true) {
+          setOnboarding(false);
+          setObStep("welcome");
+          setObKey("");
+          setObBase("");
+          setObError(null);
+        } else {
+          setObError(String(ev.error ?? "could not validate key"));
+        }
+        break;
+      }
       case "status":
         setStatus(String(ev.message));
         break;
@@ -531,13 +551,83 @@ export default function App() {
         <div className="onboarding">
           <div className="card ob-card">
             <Logo className="ob-mark" />
-            <div className="ob-title">Welcome to <span className="ob-grad">dxxpcode</span></div>
-            <p className="ob-desc">Your AI coding agent — one setup step and you're ready to ship.</p>
-            <div className="setbtns">
-              <button className="btn primary" onClick={() => { setOnboarding(false); cmd("/setup"); }}>Get started</button>
-              <button className="btn" onClick={() => setOnboarding(false)}>Skip for now</button>
-            </div>
-            <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
+            {obStep === "welcome" && (
+              <>
+                <div className="ob-title">Welcome to <span className="ob-grad">dxxpcode</span></div>
+                <p className="ob-desc">Your AI coding agent — one setup step and you're ready to ship.</p>
+                <div className="setbtns">
+                  <button className="btn primary" onClick={() => setObStep("pick")}>Get started</button>
+                  <button className="btn" onClick={() => setOnboarding(false)}>Skip for now</button>
+                </div>
+                <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
+              </>
+            )}
+            {obStep === "pick" && (
+              <>
+                <div className="ob-title">Connect a provider</div>
+                <p className="ob-desc">Pick where your models come from — you can add more later.</p>
+                <div className="ob-providers">
+                  <button className="ob-prov" onClick={() => { setObProvider("anthropic"); setObStep("key"); setObError(null); }}>
+                    <span className="ob-prov-name">Anthropic</span>
+                    <span className="ob-prov-desc">Claude models</span>
+                  </button>
+                  <button className="ob-prov" onClick={() => { setObProvider("openai"); setObStep("key"); setObError(null); }}>
+                    <span className="ob-prov-name">OpenAI-compatible</span>
+                    <span className="ob-prov-desc">OpenAI, OpenRouter, Gemini, local</span>
+                  </button>
+                  <button className="ob-prov demo" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
+                    <span className="ob-prov-name">Just explore</span>
+                    <span className="ob-prov-desc">demo mode — no key needed</span>
+                  </button>
+                </div>
+                <div className="setbtns">
+                  <button className="btn" onClick={() => setObStep("welcome")}>Back</button>
+                </div>
+              </>
+            )}
+            {obStep === "key" && (
+              <>
+                <div className="ob-title">{obProvider === "anthropic" ? "Anthropic API key" : "OpenAI-compatible key"}</div>
+                <p className="ob-desc">Validated against {obProvider === "anthropic" ? "api.anthropic.com" : "the /models endpoint"} before it's saved.</p>
+                <input
+                  className="ob-input mono"
+                  type="password"
+                  autoFocus
+                  placeholder={obProvider === "anthropic" ? "sk-ant-…" : "sk-…"}
+                  value={obKey}
+                  onChange={(e) => { setObKey(e.target.value); setObError(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && obKey.trim() && !obBusy) {
+                      setObBusy(true);
+                      void send({ type: "setup", provider: obProvider, key: obKey.trim(), base_url: obBase.trim() || undefined });
+                    }
+                  }}
+                />
+                {obProvider === "openai" && (
+                  <input
+                    className="ob-input mono"
+                    type="text"
+                    placeholder="Base URL — blank for api.openai.com"
+                    value={obBase}
+                    onChange={(e) => setObBase(e.target.value)}
+                  />
+                )}
+                {obError && <p className="ob-error">{obError}</p>}
+                <div className="setbtns">
+                  <button className="btn" disabled={obBusy} onClick={() => setObStep("pick")}>Back</button>
+                  <button
+                    className="btn primary"
+                    disabled={!obKey.trim() || obBusy}
+                    onClick={() => {
+                      setObBusy(true);
+                      void send({ type: "setup", provider: obProvider, key: obKey.trim(), base_url: obBase.trim() || undefined });
+                    }}
+                  >
+                    {obBusy ? "Validating…" : "Validate & connect"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
