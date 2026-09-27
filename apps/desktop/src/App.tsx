@@ -97,6 +97,27 @@ export default function App() {
   const thinkBuf = useRef("");
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Live token rate: count streamed chars, report ~tok/s while streaming.
+  const [tokRate, setTokRate] = useState(0);
+  const rateChars = useRef(0);
+  const rateStart = useRef(0);
+  const rateTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countStream = (n: number) => {
+    if (!rateStart.current) {
+      rateStart.current = Date.now();
+      rateTimer.current = setInterval(() => {
+        const el = (Date.now() - rateStart.current) / 1000;
+        setTokRate(el > 0 ? Math.round(rateChars.current / 4 / el) : 0);
+      }, 400);
+    }
+    rateChars.current += n;
+  };
+  const stopRate = useCallback(() => {
+    if (rateTimer.current) { clearInterval(rateTimer.current); rateTimer.current = null; }
+    rateChars.current = 0;
+    rateStart.current = 0;
+    setTokRate(0);
+  }, []);
   const flushThink = useCallback(() => {
     thinkTimer.current = null;
     const t = thinkBuf.current;
@@ -110,6 +131,7 @@ export default function App() {
   }, []);
   const appendThink = (t: string) => {
     thinkBuf.current += t;
+    countStream(t.length);
     if (!thinkTimer.current) thinkTimer.current = setTimeout(flushThink, 32);
   };
   const closeThink = useCallback(() => {
@@ -134,6 +156,7 @@ export default function App() {
   }, []);
   const appendText = (t: string) => {
     textBuf.current += t;
+    countStream(t.length);
     if (!flushTimer.current) flushTimer.current = setTimeout(flushText, 32);
   };
 
@@ -309,13 +332,14 @@ export default function App() {
         if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
+        stopRate();
         setRunning(false);
         setStatus(null);
         break;
       case "usage":
         break;
     }
-  }, []);
+  }, [stopRate]);
 
   useEffect(() => {
     let buf = "";
@@ -561,7 +585,7 @@ export default function App() {
       </div>
 
       <div className="statusline">
-        {status && <><span className="pulse" /><span>{status}</span>{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
+        {(status || tokRate > 0) && <><span className="pulse" /><span>{status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
       </div>
 
       {menu && (
