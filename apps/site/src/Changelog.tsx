@@ -10,8 +10,17 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
-    version: "Unreleased",
-    date: "ships as v0.2.0",
+    version: "0.2.1",
+    date: "2026-09-27",
+    items: [
+      "In-app updates — desktop checks GitHub Releases on launch, downloads silently, restart to apply",
+      "Open a project — onboarding step + Settings row; folder picker respawns the agent at your directory",
+      "Onboarding wizard — provider picker, live API-key validation, demo mode, endpoint-aware default model",
+    ],
+  },
+  {
+    version: "0.2.0",
+    date: "2026-09-27",
     items: [
       "Manual compaction — /compact forces it; /status shows context usage vs the 60k cap",
       "Background processes — run_background, check_process, kill_process with per-name logs",
@@ -60,8 +69,8 @@ export default function Changelog() {
         <div className="pt-10">
           <h1 className="text-4xl font-semibold tracking-tight">Changelog</h1>
           <p className="mt-3 text-[17px] leading-7 text-muted-foreground">
-            What's new in DxxpCode. Versions follow semver; releases publish to npm as{" "}
-            <code className="rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[0.85em]">dxxpcode</code>.
+            What's new in DxxpCode. Releases publish as installers on{" "}
+            <code className="rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[0.85em]">GitHub Releases</code>.
           </p>
         </div>
 
