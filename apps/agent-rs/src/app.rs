@@ -404,14 +404,19 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
         "Connect a provider",
         vec![
             json!({"label": "Anthropic", "desc": "Claude models"}),
-            json!({"label": "OpenAI-compatible", "desc": "OpenAI, OpenRouter, local endpoints"}),
+            json!({"label": "OpenRouter", "desc": "one key — Claude, GPT, Gemini, Llama"}),
+            json!({"label": "OpenAI-compatible", "desc": "OpenAI, Gemini, local endpoints"}),
         ],
         None,
     ) else {
         return false;
     };
     let Some(key) = sh.prompt(
-        if which == 0 { "Anthropic API key:" } else { "OpenAI-compatible API key:" },
+        match which {
+            0 => "Anthropic API key:",
+            1 => "OpenRouter API key:",
+            _ => "OpenAI-compatible API key:",
+        },
         true,
     ) else {
         return false;
@@ -422,6 +427,8 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
     }
     let mut base_url = None;
     if which == 1 {
+        base_url = Some("https://openrouter.ai/api/v1".to_string());
+    } else if which == 2 {
         if let Some(b) = sh.prompt("Base URL (blank = api.openai.com):", false) {
             let b = b.trim();
             if !b.is_empty() {
@@ -441,7 +448,7 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
     save_config(&cfg);
     let name = if which == 0 { "anthropic" } else { "openai" };
     switch_provider(sh, name);
-    emit_note(format!("{} key saved", if which == 0 { "Anthropic" } else { "OpenAI-compatible" }));
+    emit_note(format!("{} key saved", match which { 0 => "Anthropic", 1 => "OpenRouter", _ => "OpenAI-compatible" }));
     true
 }
 
