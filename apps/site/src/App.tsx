@@ -6,9 +6,9 @@ import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
 
-const VERSION = "0.2.0";
-const RELEASE = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
-const RELEASES = `https://github.com/thenextdeveloper/DxxpCode-Terminal/releases/tag/desktop-v${VERSION}`;
+const VERSION = "0.2.1";
+const RELEASE = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
+const RELEASES = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/tag/desktop-v${VERSION}`;
 
 const DOWNLOADS: { os: Platform; url: string; build: string; alts?: { label: string; url: string }[] }[] = [
   { os: "macOS", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_aarch64.dmg`, build: "Apple Silicon · .dmg" },
