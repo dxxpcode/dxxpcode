@@ -204,12 +204,12 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .tool .elapsed { color: var(--faint); font-size: 11px; font-family: var(--font-mono); }
 .tool .tool-caret { width: 6px; height: 11px; vertical-align: -1px; }
-.tool.reads { border-color: var(--blue); } .tool.reads .icon, .tool.reads .name { color: var(--blue); }
-.tool.writes { border-color: var(--green); } .tool.writes .icon, .tool.writes .name { color: var(--green); }
-.tool.shell { border-color: var(--amber); } .tool.shell .icon, .tool.shell .name { color: var(--amber); }
-.tool.git   { border-color: var(--purple); } .tool.git .icon, .tool.git .name { color: var(--purple); }
-.tool.danger{ border-color: var(--red); } .tool.danger .icon, .tool.danger .name { color: var(--red); }
-.tool.planx { border-color: var(--text); } .tool.planx .icon, .tool.planx .name { color: var(--text); }
+.tool.reads .icon, .tool.reads .name { color: var(--blue); }
+.tool.writes .icon, .tool.writes .name { color: var(--green); }
+.tool.shell .icon, .tool.shell .name { color: var(--amber); }
+.tool.git   .icon, .tool.git .name { color: var(--purple); }
+.tool.danger .icon, .tool.danger .name { color: var(--red); }
+.tool.planx .icon, .tool.planx .name { color: var(--text); }
 
 /* ---------- cards ---------- */
 .card {
