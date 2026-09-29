@@ -92,7 +92,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .header .spacer { flex: 1; }
 /* Left zone: project context (logo + project + branch) */
 .hctx { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
-.inctx-row { display: flex; gap: 8px; align-items: center; }
+.inctx-row { display: flex; gap: 14px; align-items: center; }
 .inctx {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 6px;
