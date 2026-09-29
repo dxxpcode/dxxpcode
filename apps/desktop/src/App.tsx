@@ -567,10 +567,10 @@ export default function App() {
       {sideOpen && ready && (
         <aside className="sidebar" data-tauri-drag-region>
           <div className="sb-top">
-            <button className="sb-new" onClick={() => cmd("/new")}>
+            <Button variant="ghost" className="w-full justify-start h-8 px-2.5" onClick={() => cmd("/new")}>
               <Plus size={13} />
               <span>New session</span>
-            </button>
+            </Button>
             <div className="sb-search">
               <Search size={12} />
               <Input
@@ -588,16 +588,20 @@ export default function App() {
               {sessionGroups.map(([label, group]) => (
                 <div className="sb-group" key={label}>
                   <div className="sb-group-label">{label}</div>
-                  {group.map((s) => (
-                    <button
-                      key={s.id}
-                      className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
-                      title={s.title}
-                      onClick={() => void send({ type: "resume", id: s.id })}
-                    >
-                      <span className="sb-item-title">{s.title || "Untitled"}</span>
-                    </button>
-                  ))}
+                  {group.map((s) => {
+                    const active = s.id === sessionInfo.id;
+                    return (
+                      <Button
+                        key={s.id}
+                        variant={active ? "secondary" : "ghost"}
+                        title={s.title}
+                        onClick={() => void send({ type: "resume", id: s.id })}
+                        className={`w-full justify-start h-8 px-2.5${active ? " shadow-[var(--shadow-sm)] ring-1 ring-inset ring-[var(--border)]" : ""}`}
+                      >
+                        <span className={`truncate${active ? " font-semibold" : ""}`}>{s.title || "Untitled"}</span>
+                      </Button>
+                    );
+                  })}
                 </div>
               ))}
             </div>
