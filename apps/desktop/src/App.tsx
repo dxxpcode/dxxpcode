@@ -944,8 +944,12 @@ export default function App() {
           return (
             <div className={`approval row diffrev${d.decided ? " answered" : ""}`} key={`df${d.id}`}>
               <div className="title">
-                <span className="dot" />Review change — {d.path}
-                <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
+                <span className="dot" />Review change
+                <span className={`dc-badge ${d.diff.includes("+++ /dev/null") ? "del" : d.diff.includes("--- /dev/null") ? "add" : "mod"}`}>
+                  {d.diff.includes("+++ /dev/null") ? "deleted" : d.diff.includes("--- /dev/null") ? "created" : "modified"}
+                </span>
+                <span className="dc-path"><span className="dc-base">{d.path.split("/").pop()}</span><span className="dc-dir">{d.path.includes("/") ? d.path.slice(0, d.path.lastIndexOf("/") + 1) : ""}</span></span>
+                <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span><span className="ds-bar">{st.add + st.del > 0 && <><i className="ds-fill-add" style={{ flexGrow: st.add }} /><i className="ds-fill-del" style={{ flexGrow: st.del }} /></>}</span></span>
               </div>
               <Diff diff={d.diff} />
               {d.decided ? (
@@ -1382,10 +1386,10 @@ export function Diff({ diff }: { diff: string }) {
   const rows: DiffRow[] = [];
   let oldN = 0, newN = 0;
   for (const l of diff.split("\n")) {
-    const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(l);
+    const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@\s*(.*)$/.exec(l);
     if (h) {
       oldN = Number(h[1]); newN = Number(h[2]);
-      rows.push({ cls: "hunk", gutter: "", text: l });
+      rows.push({ cls: "hunk", gutter: "", text: h[3]?.trim() ? `in ${h[3].trim()}` : "" });
     } else if (l.startsWith("+++") || l.startsWith("---") || l.startsWith("diff ") || l.startsWith("index ")) {
       rows.push({ cls: "meta", gutter: "", text: l });
     } else if (l.startsWith("+")) {
@@ -1424,10 +1428,11 @@ export function Diff({ diff }: { diff: string }) {
     const hasSign = r.cls === "add" || r.cls === "del";
     const off = hasSign ? 1 : 0;
     const body = r.chg
-      ? <span>{r.text.slice(off, r.chg[0])}<mark className="chg">{r.text.slice(r.chg[0], r.chg[1])}</mark>{r.text.slice(r.chg[1])}</span>
-      : <span>{r.text.slice(off)}</span>;
+      ? <span>{syntaxSpans(r.text.slice(off, r.chg[0]))}<mark className="chg">{syntaxSpans(r.text.slice(r.chg[0], r.chg[1]))}</mark>{syntaxSpans(r.text.slice(r.chg[1]))}</span>
+      : <span>{syntaxSpans(r.text.slice(off))}</span>;
     return hasSign ? <><span className="sign">{r.text[0]}</span>{body}</> : body;
   };
+  let hunkN = 0;
   return (
     <div className="diff">
       {view.map((r, i) =>
@@ -1435,12 +1440,30 @@ export function Diff({ diff }: { diff: string }) {
           <button className="ln fold" key={i} onClick={() => setExpanded(true)}>
             <span className="gutter" /><span>⋮ {r.fold} unchanged lines</span>
           </button>
+        ) : r.cls === "hunk" ? (
+          <div className="ln hunk" key={i}><span className="gutter" /><span className="hunkchip">{r.text || `hunk ${++hunkN}`}</span></div>
         ) : (
           <div className={`ln ${r.cls}`} key={i}><span className="gutter">{r.gutter}</span>{renderText(r)}</div>
         ),
       )}
     </div>
   );
+}
+
+const SYN_RE = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\/\/.*|\/\*.*\*\/|#(?!include)[^\n]*)|\b(\d[\d_]*(?:\.\d+)?)\b|\b(const|let|var|function|return|if|else|elif|for|while|do|switch|case|break|continue|import|from|export|default|class|extends|new|this|self|struct|enum|fn|pub|use|impl|trait|def|print|None|True|False|null|undefined|async|await|try|catch|except|finally|match|mod|type|interface|static|void|int|float|str|bool|mut|ref|move|where|in|is|and|or|not)\b/g;
+
+function syntaxSpans(text: string) {
+  const out: React.ReactNode[] = [];
+  let last = 0, k = 0;
+  for (const m of text.matchAll(SYN_RE)) {
+    const i = m.index!;
+    if (i > last) out.push(text.slice(last, i));
+    const cls = m[1] ? "syn-str" : m[2] ? "syn-com" : m[3] ? "syn-num" : "syn-kw";
+    out.push(<span key={k++} className={cls}>{m[0]}</span>);
+    last = i + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
 }
 
 function Logo({ className }: { className?: string }) {
