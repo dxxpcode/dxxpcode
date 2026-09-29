@@ -220,6 +220,10 @@ pub struct RunOpts<'a> {
     pub max_iterations: Option<u32>,
     pub approve_plan: &'a mut dyn FnMut(&Value) -> bool,
     pub approve_tool: &'a mut dyn FnMut(&str, &Value, &str, Option<&str>) -> bool,
+    /// Pre-write diff review for write-family tools: (tool, input, unified
+    /// diff) -> apply?. Called before every write/edit/delete; return false to
+    /// discard the change.
+    pub review_change: &'a mut dyn FnMut(&str, &Value, &str) -> bool,
     pub session: Option<SessionRecord>,
     pub effort: Option<String>,
     pub aborted: Arc<AtomicBool>,
@@ -817,6 +821,14 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 }
             }
             if CHECKPOINTED_TOOLS.contains(&name.as_str()) {
+                if let Some((_path, diff)) = tools::preview_change(&name, input, &ctx) {
+                    if !(opts.review_change)(&name, input, &diff) {
+                        session.tool_calls.push(recorded(name, input, true, true));
+                        emit(json!({"type": "denied", "tool": name, "reason": "change discarded"}));
+                        results.push(tool_result_block(id, "change discarded by user", true));
+                        continue;
+                    }
+                }
                 if let Some(path) = input.get("path").and_then(|v| v.as_str()) {
                     if let Some((seq, paths)) = take_checkpoint(&opts.project_root, &[path.to_string()], &session.id) {
                         emit(json!({"type": "checkpoint", "seq": seq, "paths": paths}));

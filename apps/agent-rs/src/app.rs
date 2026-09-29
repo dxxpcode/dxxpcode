@@ -123,6 +123,8 @@ pub struct Shared {
     pub pending_approvals: Mutex<HashMap<u64, Sender<String>>>,
     pub pending_selects: Mutex<HashMap<u64, Sender<Option<usize>>>>,
     pub pending_prompts: Mutex<HashMap<u64, Sender<Option<String>>>>,
+    pub pending_diffs: Mutex<HashMap<u64, Sender<String>>>,
+    pub diff_apply_all: AtomicBool,
     pub steer_queue: Mutex<VecDeque<String>>,
     pub task_queue: Mutex<VecDeque<String>>,
     pub running: AtomicBool,
@@ -213,6 +215,23 @@ impl Shared {
         self.pending_prompts.lock().unwrap().insert(id, tx);
         emit(json!({"type": "prompt", "id": id, "title": title, "secret": secret}));
         rx.recv().unwrap_or(None)
+    }
+
+    /// Emit a diff-review card and block on the user's decision.
+    fn review_diff(&self, path: &str, diff: &str) -> String {
+        if self.diff_apply_all.load(Ordering::Relaxed) {
+            return "apply".into();
+        }
+        let (tx, rx) = channel::<String>();
+        let id = {
+            let mut n = self.next_id.lock().unwrap();
+            let id = *n;
+            *n += 1;
+            id
+        };
+        self.pending_diffs.lock().unwrap().insert(id, tx);
+        emit(json!({"type": "diff_review", "id": id, "path": path, "diff": diff}));
+        rx.recv().unwrap_or_else(|_| "discard".into())
     }
 }
 
@@ -908,6 +927,23 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         choice == "y"
     };
 
+    // Pre-write diff review: in "always approve" mode diffs apply silently
+    // (the applied diff still lands in the transcript via tool_end).
+    let mut review_change = |_tool: &str, input: &Value, diff: &str| -> bool {
+        if sh.auto_approve.load(Ordering::Relaxed) {
+            return true;
+        }
+        let path = input.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        match sh.review_diff(&path, diff).as_str() {
+            "apply" => true,
+            "apply_all" => {
+                sh.diff_apply_all.store(true, Ordering::Relaxed);
+                true
+            }
+            _ => false,
+        }
+    };
+
     let mentions = expand_mentions(task, &deps.root);
     for a in &mentions.attached {
         emit_note(format!("attached {a}"));
@@ -949,6 +985,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         max_iterations: deps.max_iterations,
         approve_plan: &mut approve_plan,
         approve_tool: &mut approve_tool,
+        review_change: &mut review_change,
         session: session_for_run,
         effort,
         aborted: Arc::clone(&sh.aborted),
@@ -1036,6 +1073,8 @@ pub fn run_app(deps: AppDeps) -> i32 {
         pending_approvals: Mutex::new(HashMap::new()),
         pending_selects: Mutex::new(HashMap::new()),
         pending_prompts: Mutex::new(HashMap::new()),
+        pending_diffs: Mutex::new(HashMap::new()),
+        diff_apply_all: AtomicBool::new(false),
         steer_queue: Mutex::new(VecDeque::new()),
         task_queue: Mutex::new(VecDeque::new()),
         running: AtomicBool::new(false),
@@ -1147,6 +1186,14 @@ pub fn run_app(deps: AppDeps) -> i32 {
                     if let Some(tx) = sh.pending_selects.lock().unwrap().remove(&id) {
                         let idx = cmd.get("index").and_then(|v| v.as_i64()).unwrap_or(-1);
                         let _ = tx.send(if idx >= 0 { Some(idx as usize) } else { None });
+                    }
+                }
+            }
+            "diff_decide" => {
+                if let Some(id) = cmd.get("id").and_then(|v| v.as_u64()) {
+                    if let Some(tx) = sh.pending_diffs.lock().unwrap().remove(&id) {
+                        let decision = cmd.get("decision").and_then(|v| v.as_str()).unwrap_or("discard");
+                        let _ = tx.send(decision.to_string());
                     }
                 }
             }
