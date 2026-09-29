@@ -492,6 +492,15 @@ export default function App() {
     void send({ type: "command", name });
   };
 
+  const openProject = () => {
+    void invoke<string | null>("pick_folder").then((dir) => {
+      if (dir) {
+        projectSwitchPending.current = true;
+        void invoke("restart_sidecar", { cwd: dir });
+      }
+    });
+  };
+
   const submitPrompt = () => {
     const p = promptReq;
     if (!p) return;
@@ -554,14 +563,7 @@ export default function App() {
                 <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
                 <SetAction
                   label="Open a project…"
-                  onClick={() => {
-                    void invoke<string | null>("pick_folder").then((dir) => {
-                      if (dir) {
-                        projectSwitchPending.current = true;
-                        void invoke("restart_sidecar", { cwd: dir });
-                      }
-                    });
-                  }}
+                  onClick={openProject}
                 />
                 <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
                 <SetAction label="Compact context" onClick={() => cmd("/compact")} />
@@ -650,17 +652,7 @@ export default function App() {
                 <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setOnboarding(false)}>Use {ready?.project.name ?? "this folder"}</button>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      void invoke<string | null>("pick_folder").then((dir) => {
-                        if (dir) {
-                          projectSwitchPending.current = true;
-                          void invoke("restart_sidecar", { cwd: dir });
-                        }
-                      });
-                    }}
-                  >
+                  <button className="btn" onClick={openProject}>
                     Choose folder…
                   </button>
                 </div>
@@ -717,7 +709,12 @@ export default function App() {
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
           <div className="hero">
             <Logo className="hero-mark" />
-            <div className="hero-title">What should we build in <span className="hero-proj">{ready.project.name}</span>?</div>
+            <div className="hero-title">What should we build in
+              <button className="hero-proj" title="Change project" onClick={openProject}>
+                {ready.project.name}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </button>?
+            </div>
             <div className="hero-cards">
               {SUGGESTIONS.map((s) => (
                 <button
