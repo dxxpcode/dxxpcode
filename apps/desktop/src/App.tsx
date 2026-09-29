@@ -503,24 +503,31 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <Logo className="logo-mark" />
+        <div className="hctx">
+          <Logo className="logo-mark" />
+          {ready && (
+            <span className="hproj">
+              <span className="hproj-name">{ready.project.name}</span>
+              {ready.project.git && (
+                <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+              )}
+            </span>
+          )}
+        </div>
+        <span className="spacer" />
         {ready && (
-          <>
-            {ready.project.git && (
-              <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-            )}
-            <span className="spacer" />
-            <button className="ctl" title={dark ? "Light mode" : "Dark mode"} onClick={() => setDark((v) => !v)}>
+          <div className="hact">
+            <button className="ctl flat" title={dark ? "Light mode" : "Dark mode"} onClick={() => setDark((v) => !v)}>
               {dark ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
               ) : (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
               )}
             </button>
-            <button className="ctl gear" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>
+            <button className="ctl flat" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
-          </>
+          </div>
         )}
       </header>
 
