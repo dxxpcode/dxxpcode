@@ -60,12 +60,12 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .sb-new {
   width: 100%; display: flex; align-items: center; gap: 7px;
   padding: 7px 9px; border-radius: var(--radius-sm);
-  font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--text);
-  background: var(--surface2); border: none; cursor: pointer; text-align: left;
-  transition: background 0.15s var(--ease);
+  font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--dim);
+  background: none; border: none; cursor: pointer; text-align: left;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
 .sb-new svg { width: 13px; height: 13px; }
-.sb-new:hover { background: var(--ring); }
+.sb-new:hover { background: var(--surface2); color: var(--text); }
 .sb-search {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 8px; border-radius: var(--radius-sm);
