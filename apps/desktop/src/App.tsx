@@ -973,21 +973,22 @@ export default function App() {
                     <div className="pop-back" onClick={() => setModelPop(false)} />
                     <div className="inctx-pop">
                       <button className="pop-row" onClick={() => { setModelPop(false); cmd("/model"); }}>
-                        <span>Change model…</span>
+                        <span className="pop-row-label">Change model…</span>
                         <span className="pop-val mono">{ready.model}</span>
                       </button>
                       <div className="pop-sep" />
                       <div className="pop-label">Reasoning effort</div>
-                      {EFFORT_LEVELS.map((lvl) => (
-                        <button
-                          key={lvl}
-                          className={`pop-row${(ready.effort ?? "default") === lvl ? " cur" : ""}`}
-                          onClick={() => { setModelPop(false); cmd(`/effort ${lvl}`); }}
-                        >
-                          <span>{lvl}</span>
-                          {(ready.effort ?? "default") === lvl && <span className="pop-val">current</span>}
-                        </button>
-                      ))}
+                      <div className="eff-grid">
+                        {EFFORT_LEVELS.map((lvl) => (
+                          <button
+                            key={lvl}
+                            className={`eff-pill${(ready.effort ?? "default") === lvl ? " cur" : ""}`}
+                            onClick={() => { setModelPop(false); cmd(`/effort ${lvl}`); }}
+                          >
+                            {lvl}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}
