@@ -46,6 +46,7 @@ export type Item =
 export interface Approval {
   id: number;
   kind: "plan" | "tool";
+  tool?: string;
   summary: string;
   reason?: string;
   allowAlways: boolean;
