@@ -86,7 +86,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 
 .usermsg {
   background: var(--text); color: var(--surface);
-  border-radius: 16px 16px 16px 4px;
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
   padding: 10px 16px;
   align-self: flex-end;
   max-width: 640px;
@@ -99,13 +99,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .text { line-height: 1.65; font-size: 14px; }
 .text p { margin: 0.4em 0; }
 .text code {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 5px; padding: 1px 5px; font-size: 0.88em;
+  background: var(--surface2);
+  border-radius: var(--radius-sm); padding: 1px 5px; font-size: 0.88em;
   font-family: var(--font-mono);
 }
 .text pre {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 14px; overflow-x: auto;
+  background: var(--surface);
+  border-radius: var(--radius-sm); padding: 12px 14px; overflow-x: auto;
   box-shadow: var(--shadow-sm);
 }
 .text pre code { background: none; border: none; padding: 0; }
@@ -180,7 +180,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .tool .out {
   color: var(--dim); font-size: 12px; font-family: var(--font-mono);
   white-space: pre-wrap; max-height: 220px; overflow-y: auto; margin-top: 6px;
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: var(--radius-sm); padding: 8px 10px;
 }
 .tool .out.err { color: var(--red); }
@@ -201,7 +201,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 /* ---------- cards ---------- */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -232,7 +231,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 
 /* ---------- approval ---------- */
 .approval {
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 18px;
   background: var(--surface);
@@ -244,7 +242,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .approval .summary {
   font-family: var(--font-mono); font-size: 12.5px; margin: 10px 0;
   white-space: pre-wrap; color: var(--text);
-  background: var(--surface2); border: 1px solid var(--border);
+  background: var(--surface2);
   border-radius: var(--radius-sm); padding: 10px 12px;
 }
 .approval .reason { color: var(--dim); font-size: 12px; }
@@ -314,14 +312,14 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--font-mono); font-size: 10.5px;
   color: var(--faint); background: none; border: none;
-  padding: 1px 2px; border-radius: 5px; cursor: pointer;
+  padding: 1px 2px; border-radius: var(--radius-sm); cursor: pointer;
   transition: color 0.15s var(--ease);
 }
 .hints .modelchip:first-of-type { margin-left: auto; }
 .modelchip:hover { color: var(--text); }
 .hints kbd {
   font-family: var(--font-mono); font-size: 10px;
-  border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px;
+  border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: 1px 6px;
   background: var(--surface); color: var(--dim);
 }
 
@@ -329,7 +327,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .palette {
   margin-bottom: 10px;
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   max-height: 260px; overflow-y: auto;
@@ -350,7 +347,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .menu-card {
   margin: 0 20px 12px;
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
   box-shadow: var(--shadow-md);
@@ -393,7 +389,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 
 /* ---------- header controls ---------- */
 .ctl {
-  border: 1px solid var(--border); border-radius: 8px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface2); color: var(--dim);
   width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
@@ -420,7 +416,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .setlist {
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -480,7 +475,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: transform 0.18s var(--ease), border-color 0.18s var(--ease), box-shadow 0.18s var(--ease), background 0.18s var(--ease);
@@ -523,7 +518,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   padding: 40px 32px 28px;
   text-align: center;
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-lg);
   animation: rise 0.35s var(--ease);
@@ -574,7 +569,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   gap: 2px;
   padding: 11px 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface2);
   cursor: pointer;
   text-align: left;
@@ -596,7 +591,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   padding: 10px 12px;
   margin-bottom: 8px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--surface2);
   color: var(--text);
   font-size: 13px;
@@ -659,14 +654,14 @@ html[data-theme="dark"] .docviewer { background: rgba(0, 0, 0, 0.7); }
 .doc-card {
   width: 560px; max-width: 100%; max-height: 100%;
   display: flex; flex-direction: column;
-  border-radius: 16px; box-shadow: var(--shadow-lg);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
 }
 .doc-card .card-title { text-transform: none; font-size: 14px; letter-spacing: 0; color: var(--text); padding: 12px 18px; }
 .doc-card .spacer { flex: 1; }
 .doc-close {
   border: none; background: none; color: var(--faint); cursor: pointer;
   width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 6px; transition: all 0.15s var(--ease);
+  border-radius: var(--radius-sm); transition: all 0.15s var(--ease);
 }
 .doc-close:hover { color: var(--text); background: var(--surface2); }
 .doc-close svg { width: 13px; height: 13px; }
