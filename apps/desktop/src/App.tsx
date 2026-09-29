@@ -5,7 +5,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, PanelLeft, Minus, Square, X, ChevronDown } from "lucide-react";
+import { Plus, Search, PanelLeft, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -64,6 +64,7 @@ export default function App() {
   const [promptVal, setPromptVal] = useState("");
   const [cmdSel, setCmdSel] = useState(0);
   const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
+  const [modelOpts, setModelOpts] = useState<string[]>([]);
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
@@ -277,6 +278,9 @@ export default function App() {
       case "files":
         if (Number(ev.id) === fileReqId.current)
           setFileSugs({ id: fileReqId.current, items: ev.items as { name: string; desc: string }[] });
+        break;
+      case "models":
+        if (Array.isArray(ev.items)) setModelOpts(ev.items as string[]);
         break;
       case "setup_result": {
         setObBusy(false);
@@ -526,6 +530,10 @@ export default function App() {
     void send({ type: "command", name });
   };
 
+  useEffect(() => {
+    if (settingsOpen && settingsTab === "providers") void send({ type: "command", name: "/models" });
+  }, [settingsOpen, settingsTab]);
+
   const openProject = () => {
     void invoke<string | null>("pick_folder").then((dir) => {
       if (dir) {
@@ -660,26 +668,31 @@ export default function App() {
           <div className="settings-dialog">
             <nav className="settings-nav">
               <div className="settings-nav-title">Settings</div>
-              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => (
-                <Button
-                  key={tab}
-                  variant={settingsTab === tab ? "secondary" : "ghost"}
-                  size="sm"
-                  className="settings-navitem"
-                  onClick={() => setSettingsTab(tab)}
-                >
-                  {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
-                </Button>
-              ))}
+              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => {
+                const Icon = { general: SlidersHorizontal, providers: Cpu, appearance: Palette, session: History, about: Info }[tab];
+                return (
+                  <Button
+                    key={tab}
+                    variant={settingsTab === tab ? "secondary" : "ghost"}
+                    size="sm"
+                    className="settings-navitem"
+                    data-active={settingsTab === tab}
+                    onClick={() => setSettingsTab(tab)}
+                  >
+                    <Icon size={14} />
+                    {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
+                  </Button>
+                );
+              })}
             </nav>
             <ScrollArea className="settings-pane">
               {settingsTab === "general" && (
                 <div className="setgroup">
                   <div className="setgroup-title">General</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" onClick={openProject} />
-                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
+                    <div className="setrow static"><span className="setlabel">Project<span className="setdesc">The folder the agent works in</span></span><span className="setval mono">{ready.project.name}</span></div>
+                    <SetAction label="Open a project…" desc="Choose a different working folder" onClick={openProject} />
+                    <SetAction label="Run setup…" desc="Provider, model, and effort walkthrough" onClick={() => cmd("/setup")} />
                   </div>
                 </div>
               )}
@@ -687,11 +700,30 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">Providers & Models</div>
                   <div className="setlist">
-                    <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
-                    <SetRow label="Connect a provider" value="add an API key" onClick={() => cmd("/provider")} />
-                    <SetRow label="Model" value={ready.model} onClick={() => cmd("/model")} />
-                    <SetRow label="Reasoning effort" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
-                    <SetRow label="Approval mode" value={ready.mode} onClick={() => cmd("/approval")} />
+                    <SetRow label="Provider" desc="Which service answers your requests" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
+                    <SetRow label="Connect a provider" desc="Add an API key for another service" value="add an API key" onClick={() => cmd("/provider")} />
+                    <SetSelect
+                      label="Model"
+                      desc="Which model answers your requests"
+                      value={ready.model}
+                      options={modelOpts.length ? modelOpts : [ready.model]}
+                      onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
+                      extra={["custom…"]}
+                    />
+                    <SetSelect
+                      label="Reasoning effort"
+                      desc="How much the model thinks before answering"
+                      value={ready.effort ?? "default"}
+                      options={[...EFFORT_LEVELS]}
+                      onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                    />
+                    <SetSelect
+                      label="Approval mode"
+                      desc="When the agent asks before acting"
+                      value={ready.mode === "smart" ? "smart (Jev)" : ready.mode}
+                      options={["ask", "always-approve", "smart (Jev)"]}
+                      onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
+                    />
                   </div>
                 </div>
               )}
@@ -700,7 +732,7 @@ export default function App() {
                   <div className="setgroup-title">Appearance</div>
                   <div className="setlist">
                     <div className="setrow static">
-                      <span className="setlabel">Theme</span>
+                      <span className="setlabel">Theme<span className="setdesc">Follow the OS, or force light or dark</span></span>
                       <span className="theme-opts">
                         {(["system", "light", "dark"] as const).map((t) => (
                           <button key={t} className={`eff-pill${theme === t ? " cur" : ""}`} onClick={() => setTheme(t)}>
@@ -716,12 +748,12 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">Session</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
-                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
+                    <div className="setrow static"><span className="setlabel">Session ID<span className="setdesc">Identifier for this conversation</span></span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+                    <div className="setrow static"><span className="setlabel">Context<span className="setdesc">Tokens used against the context limit</span></span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                    <SetAction label="Resume a session…" desc="Pick up a previous conversation" onClick={() => cmd("/resume")} />
+                    <SetAction label="Compact context" desc="Summarize old messages to free space" onClick={() => cmd("/compact")} />
+                    <SetAction label="Undo last checkpoint" desc="Revert the agent's last change" onClick={() => cmd("/undo")} />
+                    <SetAction label="Start new session" desc="Begin a fresh conversation" onClick={() => cmd("/new")} />
                   </div>
                 </div>
               )}
@@ -729,16 +761,16 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">About</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
+                    <div className="setrow static"><span className="setlabel">Version<span className="setdesc">The build you're running</span></span><span className="setval mono">v{ready.version}</span></div>
                     {update?.status === "downloading" && (
                       <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
                     )}
                     {update?.status === "ready" && (
                       <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
                     )}
-                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
+                    <SetAction label="Documentation" desc="Commands, mentions, and shortcuts" onClick={() => cmd("/docs")} />
+                    <SetAction label="Changelog" desc="What changed in each release" onClick={() => cmd("/changelog")} />
+                    <SetAction label="Quit dxxpcode" desc="Close the app" onClick={() => cmd("/exit")} danger />
                   </div>
                 </div>
               )}
@@ -1219,20 +1251,33 @@ const Chevron = (
   <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
 );
 
-function SetRow({ label, value, onClick }: { label: string; value: string; onClick: () => void }) {
+function SetSelect({ label, desc, value, options, extra, onChange }: { label: string; desc?: string; value: string; options: string[]; extra?: string[]; onChange: (v: string) => void }) {
+  const opts = [...options, ...(extra ?? [])];
+  return (
+    <div className="setrow static">
+      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
+      <select className="setsel" value={opts.includes(value) ? value : ""} onChange={(e) => onChange(e.target.value)}>
+        {!opts.includes(value) && <option value="" disabled>{value}</option>}
+        {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function SetRow({ label, desc, value, onClick }: { label: string; desc?: string; value: string; onClick: () => void }) {
   return (
     <button className="setrow link" onClick={onClick}>
-      <span className="setlabel">{label}</span>
+      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
       <span className="setval">{value}</span>
       {Chevron}
     </button>
   );
 }
 
-function SetAction({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+function SetAction({ label, desc, onClick, danger }: { label: string; desc?: string; onClick: () => void; danger?: boolean }) {
   return (
     <button className={`setrow link${danger ? " danger" : ""}`} onClick={onClick}>
-      <span className="setlabel">{label}</span>
+      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
       {Chevron}
     </button>
   );
