@@ -406,6 +406,14 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   max-height: 140px;
 }
 .inputbox textarea::placeholder { color: var(--faint); }
+.ghost-wrap { position: relative; display: flex; }
+.ghost-mirror {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
+.ghost-src { color: transparent; }
+.ghost-hint { color: var(--faint); }
 .hints { display: flex; gap: 16px; align-items: center; padding: 8px 4px 0; font-size: 11px; color: var(--faint); }
 .modelchip {
   display: inline-flex; align-items: center; gap: 5px;
