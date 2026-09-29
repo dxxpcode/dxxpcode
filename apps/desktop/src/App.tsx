@@ -861,7 +861,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { display: "none" } : undefined}>
+      <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { visibility: "hidden" } : undefined}>
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
           <div className="hero">
             <Logo className="hero-mark" />
