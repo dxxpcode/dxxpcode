@@ -929,7 +929,7 @@ export default function App() {
               <span className="dc-badge mod">{a.kind === "plan" ? "plan" : "command"}</span>
               {a.tool && <span className="dc-toolchip">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
-            <ApprovalSummary text={a.summary} />
+            <ApprovalSummary text={a.summary} kind={a.kind} />
             {a.reason && <div className="reason">Reason: {a.reason}</div>}
             {a.answered ? (
               <div className="reason">answered: {a.answered === "n" ? "denied" : a.answered === "a" ? "always allow" : a.answered === "s" ? "approved + saved" : "allowed"}</div>
@@ -1352,11 +1352,12 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
 
 const SUMMARY_CLAMP_LINES = 6;
 
-function ApprovalSummary({ text }: { text: string }) {
+function ApprovalSummary({ text, kind }: { text: string; kind: "plan" | "tool" }) {
   const [open, setOpen] = useState(false);
   const long = text.split("\n").length > SUMMARY_CLAMP_LINES + 2;
   return (
     <div className={`summary-md${long && !open ? " clamped" : ""}`}>
+      <div className="summary-cap">{kind === "plan" ? "Plan" : "Command"}</div>
       <div className="text" dangerouslySetInnerHTML={md(text)} />
       {long && (
         <button className="summary-more" onClick={() => setOpen((v) => !v)}>
