@@ -953,13 +953,19 @@ export default function App() {
         )}
         <div className="inputbox">
           {ready && (
-            <button className="inctx" title="Change project" onClick={openProject}>
-              <span className="inctx-name">{ready.project.name}</span>
-              {ready.project.git && (
-                <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-              )}
-              <ChevronDown size={11} />
-            </button>
+            <div className="inctx-row">
+              <button className="inctx" title="Change project" onClick={openProject}>
+                <span className="inctx-name">{ready.project.name}</span>
+                {ready.project.git && (
+                  <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+                )}
+                <ChevronDown size={11} />
+              </button>
+              <button className="inctx" title="Change model" onClick={() => cmd("/model")}>
+                <span className="inctx-name">{ready.model}</span>
+                <ChevronDown size={11} />
+              </button>
+            </div>
           )}
           <textarea
             ref={taRef}
@@ -1000,11 +1006,6 @@ export default function App() {
           <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
-          {ready && (
-            <Button variant="ghost" size="sm" className="modelchip" title="Provider & model — click to change" onClick={() => cmd("/providers")}>
-              {ready.model}
-            </Button>
-          )}
           {ready?.effort && (
             <Button variant="ghost" size="sm" className="modelchip" title="Reasoning effort — click to change" onClick={() => cmd("/effort")}>
               {ready.effort}
