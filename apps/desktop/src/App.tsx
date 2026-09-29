@@ -500,6 +500,10 @@ export default function App() {
       void getCurrentWindow().close();
       return;
     }
+    if (text === "/settings") {
+      setSettingsOpen(true);
+      return;
+    }
     void send({ type: "submit", text });
   };
 
@@ -513,6 +517,10 @@ export default function App() {
 
   const cmd = (name: string) => {
     setSettingsOpen(false);
+    if (name === "/settings") {
+      setSettingsOpen(true);
+      return;
+    }
     if (name === "/docs" || name === "/changelog" || name === "/help") setDocView({ title: "…", text: "" });
     void send({ type: "command", name });
   };
