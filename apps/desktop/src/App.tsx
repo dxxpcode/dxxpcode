@@ -596,10 +596,9 @@ export default function App() {
                         variant={active ? "secondary" : "ghost"}
                         title={s.title}
                         onClick={() => void send({ type: "resume", id: s.id })}
-                        className="w-full justify-start relative"
+                        className={`w-full justify-start h-8 px-2.5${active ? " shadow-[var(--shadow-sm)] ring-1 ring-inset ring-[var(--border)]" : ""}`}
                       >
-                        {active && <span className="sb-dot" aria-hidden />}
-                        <span className="truncate font-medium">{s.title || "Untitled"}</span>
+                        <span className={`truncate${active ? " font-semibold" : ""}`}>{s.title || "Untitled"}</span>
                       </Button>
                     );
                   })}
