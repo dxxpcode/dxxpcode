@@ -474,7 +474,14 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   font-size: 21px; font-weight: 600; letter-spacing: -0.02em;
   color: var(--text); margin-bottom: 18px; text-align: center;
 }
-.hero-proj { color: var(--dim); font-weight: 500; }
+.hero-proj {
+  color: var(--dim); font-weight: 500; font-size: inherit; font-family: inherit;
+  background: none; border: none; padding: 0 0 0 4px; cursor: pointer;
+  display: inline-flex; align-items: baseline; gap: 3px;
+  transition: color 0.15s var(--ease);
+}
+.hero-proj:hover { color: var(--text); }
+.hero-proj svg { width: 13px; height: 13px; align-self: center; }
 .hero-cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
