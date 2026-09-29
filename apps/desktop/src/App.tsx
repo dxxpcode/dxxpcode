@@ -666,6 +666,7 @@ export default function App() {
                   variant={settingsTab === tab ? "secondary" : "ghost"}
                   size="sm"
                   className="settings-navitem"
+                  data-active={settingsTab === tab}
                   onClick={() => setSettingsTab(tab)}
                 >
                   {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
@@ -677,9 +678,9 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">General</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" onClick={openProject} />
-                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
+                    <div className="setrow static"><span className="setlabel">Project<span className="setdesc">The folder the agent works in</span></span><span className="setval mono">{ready.project.name}</span></div>
+                    <SetAction label="Open a project…" desc="Choose a different working folder" onClick={openProject} />
+                    <SetAction label="Run setup…" desc="Provider, model, and effort walkthrough" onClick={() => cmd("/setup")} />
                   </div>
                 </div>
               )}
@@ -687,11 +688,11 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">Providers & Models</div>
                   <div className="setlist">
-                    <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
-                    <SetRow label="Connect a provider" value="add an API key" onClick={() => cmd("/provider")} />
-                    <SetRow label="Model" value={ready.model} onClick={() => cmd("/model")} />
-                    <SetRow label="Reasoning effort" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
-                    <SetRow label="Approval mode" value={ready.mode} onClick={() => cmd("/approval")} />
+                    <SetRow label="Provider" desc="Which service answers your requests" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
+                    <SetRow label="Connect a provider" desc="Add an API key for another service" value="add an API key" onClick={() => cmd("/provider")} />
+                    <SetRow label="Model" desc="Which model answers your requests" value={ready.model} onClick={() => cmd("/model")} />
+                    <SetRow label="Reasoning effort" desc="How much the model thinks before answering" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
+                    <SetRow label="Approval mode" desc="When the agent asks before acting" value={ready.mode} onClick={() => cmd("/approval")} />
                   </div>
                 </div>
               )}
@@ -700,7 +701,7 @@ export default function App() {
                   <div className="setgroup-title">Appearance</div>
                   <div className="setlist">
                     <div className="setrow static">
-                      <span className="setlabel">Theme</span>
+                      <span className="setlabel">Theme<span className="setdesc">Follow the OS, or force light or dark</span></span>
                       <span className="theme-opts">
                         {(["system", "light", "dark"] as const).map((t) => (
                           <button key={t} className={`eff-pill${theme === t ? " cur" : ""}`} onClick={() => setTheme(t)}>
@@ -716,12 +717,12 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">Session</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
-                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
+                    <div className="setrow static"><span className="setlabel">Session ID<span className="setdesc">Identifier for this conversation</span></span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+                    <div className="setrow static"><span className="setlabel">Context<span className="setdesc">Tokens used against the context limit</span></span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                    <SetAction label="Resume a session…" desc="Pick up a previous conversation" onClick={() => cmd("/resume")} />
+                    <SetAction label="Compact context" desc="Summarize old messages to free space" onClick={() => cmd("/compact")} />
+                    <SetAction label="Undo last checkpoint" desc="Revert the agent's last change" onClick={() => cmd("/undo")} />
+                    <SetAction label="Start new session" desc="Begin a fresh conversation" onClick={() => cmd("/new")} />
                   </div>
                 </div>
               )}
@@ -729,16 +730,16 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">About</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
+                    <div className="setrow static"><span className="setlabel">Version<span className="setdesc">The build you're running</span></span><span className="setval mono">v{ready.version}</span></div>
                     {update?.status === "downloading" && (
                       <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
                     )}
                     {update?.status === "ready" && (
                       <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
                     )}
-                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
+                    <SetAction label="Documentation" desc="Commands, mentions, and shortcuts" onClick={() => cmd("/docs")} />
+                    <SetAction label="Changelog" desc="What changed in each release" onClick={() => cmd("/changelog")} />
+                    <SetAction label="Quit dxxpcode" desc="Close the app" onClick={() => cmd("/exit")} danger />
                   </div>
                 </div>
               )}
@@ -1219,20 +1220,20 @@ const Chevron = (
   <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
 );
 
-function SetRow({ label, value, onClick }: { label: string; value: string; onClick: () => void }) {
+function SetRow({ label, desc, value, onClick }: { label: string; desc?: string; value: string; onClick: () => void }) {
   return (
     <button className="setrow link" onClick={onClick}>
-      <span className="setlabel">{label}</span>
+      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
       <span className="setval">{value}</span>
       {Chevron}
     </button>
   );
 }
 
-function SetAction({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+function SetAction({ label, desc, onClick, danger }: { label: string; desc?: string; onClick: () => void; danger?: boolean }) {
   return (
     <button className={`setrow link${danger ? " danger" : ""}`} onClick={onClick}>
-      <span className="setlabel">{label}</span>
+      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
       {Chevron}
     </button>
   );
