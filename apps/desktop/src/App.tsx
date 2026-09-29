@@ -567,10 +567,10 @@ export default function App() {
       {sideOpen && ready && (
         <aside className="sidebar" data-tauri-drag-region>
           <div className="sb-top">
-            <Button variant="ghost" className="w-full justify-start text-[var(--dim)] hover:text-[var(--text)]" onClick={() => cmd("/new")}>
+            <button className="sb-new" onClick={() => cmd("/new")}>
               <Plus size={13} />
-              New session
-            </Button>
+              <span>New session</span>
+            </button>
             <div className="sb-search">
               <Search size={12} />
               <Input
@@ -596,7 +596,6 @@ export default function App() {
                       onClick={() => void send({ type: "resume", id: s.id })}
                     >
                       <span className="sb-item-title">{s.title || "Untitled"}</span>
-                      <span className="sb-item-desc">{s.desc.split("·")[1]?.trim() ?? s.desc}</span>
                     </button>
                   ))}
                 </div>

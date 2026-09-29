@@ -59,6 +59,14 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .sidebar { animation: sb-slide 0.25s var(--ease); }
 @keyframes sb-slide { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
 .sb-top { padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+.sb-new {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  background: none; border: none; cursor: pointer; text-align: left;
+  font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--dim); width: 100%;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.sb-new:hover { background: var(--surface2); color: var(--text); }
 .sb-search {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 8px; border-radius: var(--radius-sm);
@@ -83,6 +91,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .sb-item:hover { background: var(--surface2); }
 .sb-item.cur { background: var(--surface2); }
+.sb-item.cur .sb-item-title { color: var(--text); font-weight: 600; }
 .sb-item.cur::before {
   content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
   width: 2px; border-radius: 1px; background: var(--text);
@@ -92,7 +101,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .sb-item:hover .sb-item-title, .sb-item.cur .sb-item-title { color: var(--text); }
-.sb-item-desc { font-size: 11px; color: var(--faint); }
 
 /* ---------- header ---------- */
 .header {
