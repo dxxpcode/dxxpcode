@@ -850,21 +850,27 @@ export default function App() {
             )}
           </div>
         ))}
-        {diffs.map((d) => (
-          <div className={`approval row diffrev${d.decided ? " answered" : ""}`} key={`df${d.id}`}>
-            <div className="title"><span className="dot" />Review change — {d.path}</div>
-            <Diff diff={d.diff} />
-            {d.decided ? (
-              <div className="reason">{d.decided === "discard" ? "discarded" : "applied"}</div>
-            ) : (
-              <div className="btns">
-                <button className="btn allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
-                <button className="btn" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
-                <button className="btn deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
+        {diffs.map((d) => {
+          const st = diffStats(d.diff);
+          return (
+            <div className={`approval row diffrev${d.decided ? " answered" : ""}`} key={`df${d.id}`}>
+              <div className="title">
+                <span className="dot" />Review change — {d.path}
+                <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
               </div>
-            )}
-          </div>
-        ))}
+              <Diff diff={d.diff} />
+              {d.decided ? (
+                <div className="reason">{d.decided === "discard" ? "discarded" : "applied"}</div>
+              ) : (
+                <div className="btns">
+                  <button className="btn allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
+                  <button className="btn" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
+                  <button className="btn deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="statusline">
@@ -1203,8 +1209,44 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
   );
 }
 
-function Diff({ diff }: { diff: string }) {
-  const rows: { cls: string; gutter: string; text: string }[] = [];
+export function diffStats(diff: string): { add: number; del: number } {
+  let add = 0, del = 0;
+  for (const l of diff.split("\n")) {
+    if (l.startsWith("+") && !l.startsWith("+++")) add++;
+    else if (l.startsWith("-") && !l.startsWith("---")) del++;
+  }
+  return { add, del };
+}
+
+type DiffRow = { cls: string; gutter: string; text: string; chg?: [number, number] };
+
+// Pair each run of deletions with the following run of additions and highlight
+// the differing infix inside each paired line (common prefix/suffix trimmed).
+function wordChanges(rows: DiffRow[]) {
+  let i = 0;
+  while (i < rows.length) {
+    if (rows[i].cls !== "del") { i++; continue; }
+    let j = i;
+    while (j < rows.length && rows[j].cls === "del") j++;
+    let k = j;
+    while (k < rows.length && rows[k].cls === "add") k++;
+    const dels = rows.slice(i, j), adds = rows.slice(j, k);
+    for (let n = 0; n < Math.min(dels.length, adds.length); n++) {
+      const a = dels[n].text.slice(1), b = adds[n].text.slice(1);
+      let pre = 0;
+      while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
+      let suf = 0;
+      while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
+      if (a.length - pre - suf > 0) dels[n].chg = [pre + 1, a.length - suf + 1];
+      if (b.length - pre - suf > 0) adds[n].chg = [pre + 1, b.length - suf + 1];
+    }
+    i = k;
+  }
+}
+
+export function Diff({ diff }: { diff: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const rows: DiffRow[] = [];
   let oldN = 0, newN = 0;
   for (const l of diff.split("\n")) {
     const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(l);
@@ -1225,11 +1267,40 @@ function Diff({ diff }: { diff: string }) {
       rows.push({ cls: "ctx", gutter: "", text: l });
     }
   }
+  wordChanges(rows);
+  // Fold long runs of context lines (keep head+tail, collapse the middle).
+  const FOLD_KEEP = 2;
+  const view: (DiffRow | { fold: number })[] = [];
+  let n = 0;
+  while (n < rows.length) {
+    if (rows[n].cls === "ctx" && rows[n].gutter !== "") {
+      let m = n;
+      while (m < rows.length && rows[m].cls === "ctx" && rows[m].gutter !== "") m++;
+      const run = m - n;
+      if (!expanded && run > FOLD_KEEP * 2 + 1) {
+        view.push(...rows.slice(n, n + FOLD_KEEP), { fold: run - FOLD_KEEP * 2 }, ...rows.slice(m - FOLD_KEEP, m));
+      } else {
+        view.push(...rows.slice(n, m));
+      }
+      n = m;
+    } else {
+      view.push(rows[n]); n++;
+    }
+  }
+  const renderText = (r: DiffRow) => r.chg
+    ? <span>{r.text.slice(0, r.chg[0])}<mark className="chg">{r.text.slice(r.chg[0], r.chg[1])}</mark>{r.text.slice(r.chg[1])}</span>
+    : <span>{r.text}</span>;
   return (
     <div className="diff">
-      {rows.map((r, i) => (
-        <div className={`ln ${r.cls}`} key={i}><span className="gutter">{r.gutter}</span><span>{r.text}</span></div>
-      ))}
+      {view.map((r, i) =>
+        "fold" in r ? (
+          <button className="ln fold" key={i} onClick={() => setExpanded(true)}>
+            <span className="gutter" /><span>⋮ {r.fold} unchanged lines</span>
+          </button>
+        ) : (
+          <div className={`ln ${r.cls}`} key={i}><span className="gutter">{r.gutter}</span>{renderText(r)}</div>
+        ),
+      )}
     </div>
   );
 }

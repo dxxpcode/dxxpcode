@@ -286,6 +286,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .diff .hunk { color: var(--dim); }
 .diff .meta { color: var(--text); font-weight: 600; }
 .diff .ctx { color: var(--dim); }
+.diff .add mark.chg { background: rgba(22,163,74,0.28); color: inherit; border-radius: 3px; }
+.diff .del mark.chg { background: rgba(220,38,38,0.24); color: inherit; border-radius: 3px; }
+.diff .fold { display: flex; width: 100%; background: none; border: none; font: inherit; color: var(--faint); cursor: pointer; padding: 1px 0; }
+.diff .fold:hover { color: var(--dim); }
+.diffstat { display: inline-flex; gap: 8px; margin-left: 10px; font-size: 11px; font-family: var(--font-mono); }
+.diffstat .ds-add { color: var(--green); }
+.diffstat .ds-del { color: var(--red); }
 
 /* ---------- approval ---------- */
 .approval {
