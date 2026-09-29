@@ -567,10 +567,10 @@ export default function App() {
       {sideOpen && ready && (
         <aside className="sidebar" data-tauri-drag-region>
           <div className="sb-top">
-            <button className="sb-new" onClick={() => cmd("/new")}>
+            <Button variant="ghost" className="w-full justify-start h-8 px-2.5" onClick={() => cmd("/new")}>
               <Plus size={13} />
               <span>New session</span>
-            </button>
+            </Button>
             <div className="sb-search">
               <Search size={12} />
               <Input
