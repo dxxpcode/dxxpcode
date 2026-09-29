@@ -588,16 +588,21 @@ export default function App() {
               {sessionGroups.map(([label, group]) => (
                 <div className="sb-group" key={label}>
                   <div className="sb-group-label">{label}</div>
-                  {group.map((s) => (
-                    <button
-                      key={s.id}
-                      className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
-                      title={s.title}
-                      onClick={() => void send({ type: "resume", id: s.id })}
-                    >
-                      <span className="sb-item-title">{s.title || "Untitled"}</span>
-                    </button>
-                  ))}
+                  {group.map((s) => {
+                    const active = s.id === sessionInfo.id;
+                    return (
+                      <Button
+                        key={s.id}
+                        variant={active ? "secondary" : "ghost"}
+                        title={s.title}
+                        onClick={() => void send({ type: "resume", id: s.id })}
+                        className="w-full justify-start relative"
+                      >
+                        {active && <span className="sb-dot" aria-hidden />}
+                        <span className="truncate font-medium">{s.title || "Untitled"}</span>
+                      </Button>
+                    );
+                  })}
                 </div>
               ))}
             </div>

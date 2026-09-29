@@ -81,26 +81,10 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em;
   color: var(--faint);
 }
-.sb-item {
-  position: relative;
-  display: flex; flex-direction: column; gap: 1px;
-  padding: 7px 10px; border-radius: var(--radius-sm);
-  background: none; border: none; cursor: pointer; text-align: left;
-  font-family: inherit; width: 100%;
-  transition: background 0.15s var(--ease);
+.sb-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--text); flex-shrink: 0;
 }
-.sb-item:hover { background: var(--surface2); }
-.sb-item.cur { background: var(--surface2); }
-.sb-item.cur .sb-item-title { color: var(--text); font-weight: 600; }
-.sb-item.cur::before {
-  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
-  width: 2px; border-radius: 1px; background: var(--text);
-}
-.sb-item-title {
-  font-size: 12.5px; font-weight: 500; color: var(--dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.sb-item:hover .sb-item-title, .sb-item.cur .sb-item-title { color: var(--text); }
 
 /* ---------- header ---------- */
 .header {
