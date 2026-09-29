@@ -5,7 +5,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, PanelLeft, Minus, Square, X } from "lucide-react";
+import { Plus, Search, PanelLeft, Minus, Square, X, ChevronDown } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -620,14 +620,6 @@ export default function App() {
             <PanelLeft size={14} />
           </Button>
           <Logo className="logo-mark" />
-          {ready && (
-            <span className="hproj">
-              <span className="hproj-name">{ready.project.name}</span>
-              {ready.project.git && (
-                <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-              )}
-            </span>
-          )}
         </div>
         <span className="spacer" />
         {ready && !IS_MAC && (
@@ -960,6 +952,15 @@ export default function App() {
           </div>
         )}
         <div className="inputbox">
+          {ready && (
+            <button className="inctx" title="Change project" onClick={openProject}>
+              <span className="inctx-name">{ready.project.name}</span>
+              {ready.project.git && (
+                <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+              )}
+              <ChevronDown size={11} />
+            </button>
+          )}
           <textarea
             ref={taRef}
             rows={1}
