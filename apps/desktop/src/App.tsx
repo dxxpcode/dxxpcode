@@ -967,7 +967,7 @@ export default function App() {
       </div>
 
       <div className="statusline">
-        {(status || tokRate > 0) && <><span className="pulse" /><span>{status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
+        {(status || tokRate > 0) && <><span className="pulse" /><span className="statustext">{status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
       </div>
 
       {menu && (
