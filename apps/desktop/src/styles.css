@@ -495,8 +495,38 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .gear.spin svg { transition: transform 0.25s var(--ease); }
 .gear:hover svg { transform: rotate(45deg); }
 .settings {
-  flex: 1; overflow-y: auto; padding: 28px 24px;
-  animation: fadein 0.2s var(--ease);
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgb(0 0 0 / 0.35);
+  animation: fadein 0.15s var(--ease);
+}
+.settings-dialog {
+  display: flex; overflow: hidden;
+  width: min(640px, calc(100vw - 48px));
+  height: min(440px, calc(100vh - 64px));
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.settings-nav {
+  width: 176px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 16px 10px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.settings-nav-title {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  padding: 4px 10px 12px;
+}
+.settings-navitem {
+  justify-content: flex-start !important;
+  font-weight: 450 !important;
+}
+.settings-pane {
+  flex: 1; min-width: 0;
+  padding: 20px 22px;
 }
 .settings-col {
   max-width: 560px; margin: 0 auto;
