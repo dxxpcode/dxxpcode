@@ -35,6 +35,7 @@ function mdStream(t: string) {
   return { __html: `${marked.parse(head, { async: false })}<span class="ease">${marked.parseInline(tail, { async: false })}</span>` };
 }
 
+const EFFORT_LEVELS = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
 const win = getCurrentWindow();
@@ -94,6 +95,7 @@ export default function App() {
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
   const [sideOpen, setSideOpen] = useState(() => localStorage.getItem("sidebar") !== "closed");
+  const [modelPop, setModelPop] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("theme");
@@ -961,10 +963,35 @@ export default function App() {
                 )}
                 <ChevronDown size={11} />
               </button>
-              <button className="inctx" title="Change model" onClick={() => cmd("/model")}>
-                <span className="inctx-name">{ready.model}</span>
-                <ChevronDown size={11} />
-              </button>
+              <div className="inctx-anchor">
+                <button className="inctx" title="Model & effort" onClick={() => setModelPop((v) => !v)}>
+                  <span className="inctx-name">{ready.model}</span>
+                  <ChevronDown size={11} />
+                </button>
+                {modelPop && (
+                  <>
+                    <div className="pop-back" onClick={() => setModelPop(false)} />
+                    <div className="inctx-pop">
+                      <button className="pop-row" onClick={() => { setModelPop(false); cmd("/model"); }}>
+                        <span>Change model…</span>
+                        <span className="pop-val mono">{ready.model}</span>
+                      </button>
+                      <div className="pop-sep" />
+                      <div className="pop-label">Reasoning effort</div>
+                      {EFFORT_LEVELS.map((lvl) => (
+                        <button
+                          key={lvl}
+                          className={`pop-row${(ready.effort ?? "default") === lvl ? " cur" : ""}`}
+                          onClick={() => { setModelPop(false); cmd(`/effort ${lvl}`); }}
+                        >
+                          <span>{lvl}</span>
+                          {(ready.effort ?? "default") === lvl && <span className="pop-val">current</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           <textarea
