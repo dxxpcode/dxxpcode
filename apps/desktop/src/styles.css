@@ -255,6 +255,15 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .note.steer { color: var(--dim); }
 
 /* ---------- tool rows ---------- */
+.tgroup { margin: 4px 0; }
+.tg-head {
+  display: flex; align-items: center; gap: 7px;
+  color: var(--faint); font-size: 11.5px;
+  padding: 2px 0 4px 2px;
+}
+.tg-head .tg-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: none; }
+.tg-body { margin-left: 7px; padding-left: 6px; border-left: 1px solid var(--border); }
+.tg-body .tool { border-left: none; padding-left: 8px; }
 .tool {
   border-left: 2px solid var(--border);
   padding: 4px 0 4px 14px;

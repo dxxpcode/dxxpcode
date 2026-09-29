@@ -919,9 +919,20 @@ export default function App() {
             </div>
           </div>
         )}
-        {items.map((it, i) => (
-          <ItemView key={i} item={it} streaming={running && i === items.length - 1} />
-        ))}
+        {groupItems(items).map((seg, si) =>
+          Array.isArray(seg) ? (
+            <div className="tgroup" key={`g${si}`}>
+              <div className="tg-head"><span className="tg-dot" />{seg.length} tool call{seg.length === 1 ? "" : "s"}{famCounts(seg)}</div>
+              <div className="tg-body">
+                {seg.map((it) => (
+                  <ItemView key={it.idx} item={it.item} streaming={running && it.idx === items.length - 1} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <ItemView key={seg.idx} item={seg.item} streaming={running && seg.idx === items.length - 1} />
+          ),
+        )}
         {approvals.map((a) => (
           <div className={`approval row${a.answered ? " answered" : ""}`} key={`ap${a.id}`}>
             <div className="title">
@@ -1347,6 +1358,36 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
       ) : null}
     </div>
   );
+}
+
+type Grouped = { idx: number; item: Item };
+
+function groupItems(items: Item[]): (Grouped | Grouped[])[] {
+  const segs: (Grouped | Grouped[])[] = [];
+  items.forEach((item, idx) => {
+    const last = segs[segs.length - 1];
+    if (item.k === "tool") {
+      if (Array.isArray(last)) last.push({ idx, item });
+      else segs.push([{ idx, item }]);
+    } else {
+      segs.push({ idx, item });
+    }
+  });
+  return segs;
+}
+
+const FAM_LABEL: Record<string, string> = {
+  shell: "command", reads: "read", writes: "write", git: "git op", danger: "danger op", planx: "plan step",
+};
+
+function famCounts(seg: Grouped[]): string {
+  const counts = new Map<string, number>();
+  for (const g of seg) {
+    const fam = TOOL_FAMILY[g.item.k === "tool" ? g.item.tool : ""] ?? "planx";
+    counts.set(fam, (counts.get(fam) ?? 0) + 1);
+  }
+  const parts = [...counts].map(([fam, n]) => `${n} ${FAM_LABEL[fam] ?? fam}${n === 1 ? "" : "s"}`);
+  return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
 
 const SUMMARY_CLAMP_LINES = 6;
