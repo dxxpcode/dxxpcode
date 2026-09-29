@@ -95,13 +95,19 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .inctx {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 8px; margin: -2px 0 0 -4px; border-radius: var(--radius-sm);
-  background: none; border: none; cursor: pointer; font-family: inherit;
-  color: var(--faint); transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  padding: 4px 9px; margin: 0 0 0 -4px;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer; font-family: inherit;
+  color: var(--faint);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
-.inctx:hover { background: var(--surface2); color: var(--text); }
+.inctx:hover { color: var(--text); box-shadow: var(--shadow-sm), 0 0 0 2px var(--ring); }
 .inctx-name { font-size: 12px; font-weight: 500; color: var(--dim); }
 .inctx:hover .inctx-name { color: var(--text); }
+.inctx .branch { font-size: 10.5px; color: var(--faint); }
 /* Frameless window: header is the drag surface (via data-tauri-drag-region) */
 .header { user-select: none; }
 .header.mac { padding-left: 84px; } /* room for traffic lights */
