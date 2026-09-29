@@ -168,7 +168,7 @@ impl Shared {
 
     /* ---------------------------- blocking asks ---------------------------- */
 
-    fn ask(&self, kind: &str, summary: &str, reason: Option<&str>) -> String {
+    fn ask(&self, kind: &str, summary: &str, reason: Option<&str>, tool: Option<&str>) -> String {
         let (tx, rx) = channel::<String>();
         let id = {
             let mut n = self.next_id.lock().unwrap();
@@ -183,6 +183,9 @@ impl Shared {
         });
         if kind == "plan" {
             ev["extraChoice"] = json!({"choice": "s", "label": "Approve + save plan"});
+        }
+        if let Some(t) = tool {
+            ev["tool"] = json!(t);
         }
         emit(ev);
         rx.recv().unwrap_or_else(|_| "n".into())
@@ -950,7 +953,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
             .filter(|s| !s.is_empty())
             .collect::<Vec<_>>()
             .join("\n");
-        let choice = sh.ask("plan", &body, None);
+        let choice = sh.ask("plan", &body, None, None);
         if choice == "s" {
             // Persist the approved plan to the repo so it survives sessions and
             // can be versioned alongside the code.
@@ -991,7 +994,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
                 }
             }
         }
-        let choice = sh.ask("tool", &summary, Some(model_reason.unwrap_or(reason)));
+        let choice = sh.ask("tool", &summary, Some(model_reason.unwrap_or(reason)), Some(tool));
         if choice == "a" {
             sh.allowlist.lock().unwrap().insert(key);
             return true;
