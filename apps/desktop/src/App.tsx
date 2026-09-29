@@ -513,10 +513,29 @@ export default function App() {
     localStorage.setItem("sidebar", sideOpen ? "open" : "closed");
   }, [sideOpen]);
 
+  const [sbQuery, setSbQuery] = useState("");
+
   // Refresh the session list on boot, project switch, and session change.
   useEffect(() => {
     if (ready && sideOpen) void send({ type: "sessions" });
   }, [ready, sideOpen, sessionInfo.id]);
+
+  // Group sessions by recency: desc is "<yyyy-mm-dd> · N msg".
+  const sessionGroups = (() => {
+    const q = sbQuery.trim().toLowerCase();
+    const filtered = q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const groups: [string, typeof filtered][] = [];
+    for (const s of filtered) {
+      const date = s.desc.split("·")[0].trim();
+      const label = date === today ? "Today" : date === yesterday ? "Yesterday" : "Earlier";
+      const last = groups[groups.length - 1];
+      if (last && last[0] === label) last[1].push(s);
+      else groups.push([label, [s]]);
+    }
+    return groups;
+  })();
 
   return (
     <div className="app">
@@ -527,19 +546,34 @@ export default function App() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
               New session
             </button>
+            <div className="sb-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input
+                type="text"
+                placeholder="Search"
+                value={sbQuery}
+                onChange={(e) => setSbQuery(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
           </div>
           <div className="sb-list">
-            {sessions.length === 0 && <p className="sb-empty">No sessions in this project yet.</p>}
-            {sessions.map((s) => (
-              <button
-                key={s.id}
-                className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
-                title={s.title}
-                onClick={() => void send({ type: "resume", id: s.id })}
-              >
-                <span className="sb-item-title">{s.title || "Untitled"}</span>
-                <span className="sb-item-desc">{s.desc}</span>
-              </button>
+            {sessionGroups.length === 0 && <p className="sb-empty">{sbQuery ? "No matches." : "No sessions in this project yet."}</p>}
+            {sessionGroups.map(([label, group]) => (
+              <div className="sb-group" key={label}>
+                <div className="sb-group-label">{label}</div>
+                {group.map((s) => (
+                  <button
+                    key={s.id}
+                    className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
+                    title={s.title}
+                    onClick={() => void send({ type: "resume", id: s.id })}
+                  >
+                    <span className="sb-item-title">{s.title || "Untitled"}</span>
+                    <span className="sb-item-desc">{s.desc.split("·")[1]?.trim() ?? s.desc}</span>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </aside>
