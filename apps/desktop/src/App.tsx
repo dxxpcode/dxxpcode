@@ -926,7 +926,6 @@ export default function App() {
           <div className={`approval row${a.answered ? " answered" : ""}`} key={`ap${a.id}`}>
             <div className="title">
               <span className="dot" />Approval required
-              <span className="dc-badge mod">{a.kind === "plan" ? "plan" : "command"}</span>
               {a.tool && <span className="dc-toolchip">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
             <ApprovalSummary text={a.summary} kind={a.kind} />
