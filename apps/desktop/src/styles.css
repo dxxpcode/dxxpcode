@@ -109,6 +109,38 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .inctx-name { font-size: 12px; font-weight: 500; color: var(--dim); }
 .inctx:hover .inctx-name { color: var(--text); }
 .inctx .branch { font-size: 10.5px; color: var(--faint); }
+.inctx-anchor { position: relative; }
+.pop-back { position: fixed; inset: 0; z-index: 40; }
+.inctx-pop {
+  position: absolute; bottom: calc(100% + 8px); left: -4px; z-index: 41;
+  min-width: 236px; padding: 5px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 1px;
+  animation: pop-in 0.15s var(--ease);
+}
+@keyframes pop-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.pop-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 9px; border-radius: 6px; background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; color: var(--text); text-align: left;
+  transition: background 0.12s var(--ease);
+}
+.pop-row:hover { background: var(--surface2); }
+.pop-row.cur { color: var(--text); font-weight: 600; }
+.pop-row-label { white-space: nowrap; flex-shrink: 0; }
+.pop-val { font-size: 10.5px; color: var(--faint); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.pop-sep { height: 1px; background: var(--border); margin: 5px 4px; }
+.pop-label { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); padding: 5px 9px 4px; }
+.eff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 2px 4px 4px; }
+.eff-pill {
+  padding: 5px 4px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); cursor: pointer; font-family: inherit;
+  font-size: 11px; color: var(--dim); text-align: center;
+  transition: border-color 0.12s var(--ease), color 0.12s var(--ease), background 0.12s var(--ease);
+}
+.eff-pill:hover { color: var(--text); border-color: var(--faint); }
+.eff-pill.cur { color: var(--text); font-weight: 600; background: var(--surface); border-color: var(--text); box-shadow: var(--shadow-sm); }
 /* Frameless window: header is the drag surface (via data-tauri-drag-region) */
 .header { user-select: none; }
 .header.mac { padding-left: 84px; } /* room for traffic lights */

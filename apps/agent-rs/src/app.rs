@@ -342,7 +342,15 @@ fn open_effort_menu(sh: &Arc<Shared>) {
     let Some(i) = sh.menu("Reasoning effort — applies to the next task", menu_opts, Some(current)) else {
         return;
     };
-    let next = opts[i];
+    set_effort(sh, opts[i]);
+}
+
+fn set_effort(sh: &Arc<Shared>, next: &str) {
+    let valid = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
+    if !valid.contains(&next) {
+        emit_note(format!("unknown effort level: {next}"));
+        return;
+    }
     if next == "auto (Jev)" {
         let mut cfg = load_config();
         cfg.effort_auto = Some(true);
@@ -742,7 +750,10 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
         "/settings" => open_settings_menu(sh),
         "/approval" => open_approval_menu(sh),
         "/model" => open_model_menu(sh),
-        "/effort" => open_effort_menu(sh),
+        "/effort" => match raw.trim().split_whitespace().nth(1) {
+            Some(level) => set_effort(sh, level),
+            None => open_effort_menu(sh),
+        },
         "/provider" | "/providers" => open_provider_menu(sh),
         "/setup" => run_onboarding(sh),
         "/undo" => {
