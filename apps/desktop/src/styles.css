@@ -295,7 +295,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .pulse {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--text);
-  animation: pulse 1.2s ease-in-out infinite;
+  animation: pulse 1.2s var(--ease) infinite;
 }
 @keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.9; } }
 .statusline .tokrate { color: var(--faint); font-variant-numeric: tabular-nums; }
@@ -412,7 +412,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .ctl:active { transform: scale(0.94); }
 .ctl svg { width: 14px; height: 14px; display: block; }
 .gear { margin-left: 2px; }
-.gear.spin svg { transition: transform 0.4s var(--ease); }
+.gear.spin svg { transition: transform 0.25s var(--ease); }
 .gear:hover svg { transform: rotate(45deg); }
 .settings {
   flex: 1; overflow-y: auto; padding: 28px 24px;
@@ -534,7 +534,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-lg);
-  animation: rise 0.35s var(--ease);
+  animation: rise 0.3s var(--ease);
 }
 .ob-mark {
   display: block;
