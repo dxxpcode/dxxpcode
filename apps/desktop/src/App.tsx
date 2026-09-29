@@ -84,6 +84,8 @@ export default function App() {
   // event then finishes onboarding instead of re-showing it.
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
+  const [sideOpen, setSideOpen] = useState(false);
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) return saved === "dark";
@@ -249,6 +251,9 @@ export default function App() {
         break;
       case "session":
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
+        break;
+      case "sessions":
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -500,9 +505,16 @@ export default function App() {
     void send({ type: "approve", id, choice });
   };
 
+  useEffect(() => {
+    if (sideOpen) void send({ type: "sessions" });
+  }, [sideOpen, sessionInfo.id]);
+
   return (
     <div className="app">
       <header className="header">
+        <button className="ctl" title="Sessions" onClick={() => setSideOpen((v) => !v)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        </button>
         <Logo className="logo-mark" />
         {ready && (
           <>
@@ -745,6 +757,36 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {sideOpen && (
+        <>
+          <div className="sb-backdrop" onClick={() => setSideOpen(false)} />
+          <aside className="sidebar">
+            <div className="sb-head">
+              <span className="sb-title">Sessions</span>
+              <span className="spacer" />
+              <button className="sb-new" onClick={() => { cmd("/new"); setSideOpen(false); }}>+ New</button>
+            </div>
+            <div className="sb-list">
+              {sessions.length === 0 && <p className="sb-empty">No sessions for this project yet.</p>}
+              {sessions.map((s) => (
+                <button
+                  key={s.id}
+                  className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
+                  title={s.title}
+                  onClick={() => {
+                    void send({ type: "resume", id: s.id });
+                    setSideOpen(false);
+                  }}
+                >
+                  <span className="sb-item-title">{s.title || "Untitled"}</span>
+                  <span className="sb-item-desc">{s.desc}</span>
+                </button>
+              ))}
+            </div>
+          </aside>
+        </>
+      )}
 
       <div className="statusline">
         {(status || tokRate > 0) && <><span className="pulse" /><span>{status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
