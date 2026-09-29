@@ -1287,9 +1287,14 @@ export function Diff({ diff }: { diff: string }) {
       view.push(rows[n]); n++;
     }
   }
-  const renderText = (r: DiffRow) => r.chg
-    ? <span>{r.text.slice(0, r.chg[0])}<mark className="chg">{r.text.slice(r.chg[0], r.chg[1])}</mark>{r.text.slice(r.chg[1])}</span>
-    : <span>{r.text}</span>;
+  const renderText = (r: DiffRow) => {
+    const hasSign = r.cls === "add" || r.cls === "del";
+    const off = hasSign ? 1 : 0;
+    const body = r.chg
+      ? <span>{r.text.slice(off, r.chg[0])}<mark className="chg">{r.text.slice(r.chg[0], r.chg[1])}</mark>{r.text.slice(r.chg[1])}</span>
+      : <span>{r.text.slice(off)}</span>;
+    return hasSign ? <><span className="sign">{r.text[0]}</span>{body}</> : body;
+  };
   return (
     <div className="diff">
       {view.map((r, i) =>

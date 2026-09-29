@@ -281,8 +281,10 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .diff { font-family: var(--font-mono); font-size: 12px; line-height: 1.55; }
 .diff .ln { display: flex; white-space: pre; }
 .diff .gutter { width: 44px; color: var(--faint); text-align: right; padding-right: 10px; flex-shrink: 0; user-select: none; }
-.diff .add { color: var(--green); background: rgba(22,163,74,0.07); }
-.diff .del { color: var(--red); background: rgba(220,38,38,0.06); }
+.diff .add, .diff .del { color: var(--dim); }
+.diff .sign { width: 14px; flex-shrink: 0; text-align: center; user-select: none; }
+.diff .add .sign { color: var(--green); }
+.diff .del .sign { color: var(--red); }
 .diff .hunk { color: var(--dim); }
 .diff .meta { color: var(--text); font-weight: 600; }
 .diff .ctx { color: var(--dim); }
@@ -704,8 +706,8 @@ html[data-theme="dark"] {
 }
 html[data-theme="dark"] ::selection { background: rgba(96, 165, 250, 0.3); }
 html[data-theme="dark"] .usermsg .chev { color: rgba(0, 0, 0, 0.45); }
-html[data-theme="dark"] .diff .add { background: rgba(74, 222, 128, 0.10); }
-html[data-theme="dark"] .diff .del { background: rgba(248, 113, 113, 0.08); }
+html[data-theme="dark"] .diff .add mark.chg { background: rgba(74, 222, 128, 0.22); }
+html[data-theme="dark"] .diff .del mark.chg { background: rgba(248, 113, 113, 0.20); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
 html[data-theme="dark"] .btn:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
 html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #d5d5d9; }
