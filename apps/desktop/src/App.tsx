@@ -88,6 +88,8 @@ export default function App() {
   // event then finishes onboarding instead of re-showing it.
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
+  const [sideOpen, setSideOpen] = useState(() => localStorage.getItem("sidebar") !== "closed");
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) return saved === "dark";
@@ -253,6 +255,9 @@ export default function App() {
         break;
       case "session":
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
+        break;
+      case "sessions":
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -504,10 +509,51 @@ export default function App() {
     void send({ type: "approve", id, choice });
   };
 
+  useEffect(() => {
+    localStorage.setItem("sidebar", sideOpen ? "open" : "closed");
+  }, [sideOpen]);
+
+  // Refresh the session list on boot, project switch, and session change.
+  useEffect(() => {
+    if (ready && sideOpen) void send({ type: "sessions" });
+  }, [ready, sideOpen, sessionInfo.id]);
+
   return (
     <div className="app">
+      {sideOpen && ready && (
+        <aside className="sidebar" data-tauri-drag-region>
+          <div className="sb-top">
+            <button className="sb-new" onClick={() => cmd("/new")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              New session
+            </button>
+          </div>
+          <div className="sb-list">
+            {sessions.length === 0 && <p className="sb-empty">No sessions in this project yet.</p>}
+            {sessions.map((s) => (
+              <button
+                key={s.id}
+                className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
+                title={s.title}
+                onClick={() => void send({ type: "resume", id: s.id })}
+              >
+                <span className="sb-item-title">{s.title || "Untitled"}</span>
+                <span className="sb-item-desc">{s.desc}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
+      <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
+          <button
+            className="ctl flat"
+            title={sideOpen ? "Hide sessions" : "Show sessions"}
+            onClick={() => setSideOpen((v) => !v)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+          </button>
           <Logo className="logo-mark" />
           {ready && (
             <span className="hproj">
@@ -896,6 +942,7 @@ export default function App() {
             settings
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

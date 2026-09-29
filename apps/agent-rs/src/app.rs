@@ -1174,6 +1174,40 @@ pub fn run_app(deps: AppDeps) -> i32 {
             "cancel" => {
                 sh.aborted.store(true, Ordering::SeqCst);
             }
+            // Sidebar: emit the project's recent sessions for the picker.
+            "sessions" => {
+                let past: Vec<SessionRecord> = list_sessions()
+                    .into_iter()
+                    .filter(|s| s.project_root == dinfo.root)
+                    .take(20)
+                    .collect();
+                let items: Vec<Value> = past
+                    .iter()
+                    .map(|s| json!({
+                        "id": &s.id,
+                        "title": s.task.chars().take(80).collect::<String>().replace('\n', " "),
+                        "desc": format!("{} · {} msg", s.updated_at.chars().take(10).collect::<String>(), s.messages.len()),
+                    }))
+                    .collect();
+                emit(json!({"type": "sessions", "items": items}));
+            }
+            "resume" => {
+                if let Some(id) = cmd.get("id").and_then(|v| v.as_str()) {
+                    match load_session(id) {
+                        Some(picked) => {
+                            *sh.session.lock().unwrap() = Some(picked.clone());
+                            sh.allowlist.lock().unwrap().clear();
+                            sh.emit_session();
+                            emit_note(format!(
+                                "resumed session {} — {} message(s) restored",
+                                picked.id.chars().take(8).collect::<String>(),
+                                picked.messages.len()
+                            ));
+                        }
+                        None => emit(json!({"type": "error", "text": format!("session {id} is unreadable")})),
+                    }
+                }
+            }
             _ => {}
         }
     }
