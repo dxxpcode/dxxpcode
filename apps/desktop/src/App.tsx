@@ -998,7 +998,14 @@ export default function App() {
               </div>
             </div>
           )}
-          <textarea
+          <div className="ghost-wrap">
+            {input && (
+              <div className="ghost-mirror" aria-hidden="true">
+                <span className="ghost-src">{input}</span>
+                <span className="ghost-hint"> · / commands · @ files</span>
+              </div>
+            )}
+            <textarea
             ref={taRef}
             rows={1}
             autoFocus
@@ -1031,10 +1038,10 @@ export default function App() {
                 } else if (running) void send({ type: "cancel" });
               }
             }}
-          />
+            />
+          </div>
         </div>
         <div className="hints">
-          <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
           <Button variant="ghost" size="sm" className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDark((v) => !v)}>
