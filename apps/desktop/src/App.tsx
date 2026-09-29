@@ -1071,16 +1071,6 @@ export default function App() {
             />
           </div>
         </div>
-        <div className="hints">
-          <span><kbd>⏎</kbd> send</span>
-          {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
-          <Button variant="ghost" size="sm" className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setTheme(dark ? "light" : "dark")}>
-            {theme === "system" ? `auto` : theme}
-          </Button>
-          <Button variant="ghost" size="sm" className="modelchip" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>
-            settings
-          </Button>
-        </div>
       </div>
       </div>
     </div>
