@@ -1356,7 +1356,7 @@ function ApprovalSummary({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const long = text.split("\n").length > SUMMARY_CLAMP_LINES + 2;
   return (
-    <div className={`summary summary-md${long && !open ? " clamped" : ""}`}>
+    <div className={`summary-md${long && !open ? " clamped" : ""}`}>
       <div className="text" dangerouslySetInnerHTML={md(text)} />
       {long && (
         <button className="summary-more" onClick={() => setOpen((v) => !v)}>
