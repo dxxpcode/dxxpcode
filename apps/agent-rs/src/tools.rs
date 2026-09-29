@@ -230,6 +230,50 @@ pub fn preview_diff(path: &str, old: Option<&str>, new: &str) -> String {
     lines.join("\n")
 }
 
+/// Proposed-change preview for write-family tools: returns (rel path, unified
+/// diff) without touching disk. None when nothing meaningful can be previewed
+/// (unreadable file, unmatchable edit, no-op write) — the tool's own error or
+/// no-op path then applies.
+pub fn preview_change(name: &str, input: &Value, ctx: &Ctx) -> Option<(String, String)> {
+    let path = input.get("path").and_then(|v| v.as_str())?;
+    let r = rel(ctx, path)?;
+    let abs = Path::new(&ctx.root).join(&r);
+    match name {
+        "write_file" => {
+            let content = input.get("content").and_then(|v| v.as_str())?;
+            let prev = fs::read_to_string(&abs).ok();
+            let d = preview_diff(&r, prev.as_deref(), content);
+            if d.is_empty() { None } else { Some((r, d)) }
+        }
+        "edit_file" => {
+            let old_str = input.get("old_string").and_then(|v| v.as_str())?;
+            let new_str = input.get("new_string").and_then(|v| v.as_str())?;
+            let raw = fs::read_to_string(&abs).ok()?;
+            if !raw.contains(old_str) {
+                return None;
+            }
+            let replace_all = input.get("replace_all").and_then(|v| v.as_bool()) == Some(true);
+            let updated = if replace_all {
+                raw.replace(&old_str, new_str)
+            } else {
+                raw.replacen(&old_str, new_str, 1)
+            };
+            let d = preview_diff(&r, Some(&raw), &updated);
+            if d.is_empty() { None } else { Some((r, d)) }
+        }
+        "delete_file" => {
+            if !abs.exists() {
+                return None;
+            }
+            let raw = fs::read_to_string(&abs).unwrap_or_default();
+            let d = preview_diff(&r, Some(&raw), "");
+            let d = if d.is_empty() { format!("- {r} (delete)") } else { d };
+            Some((r, d))
+        }
+        _ => None,
+    }
+}
+
 fn exec_list_directory(input: &Value, ctx: &Ctx) -> ToolResult {
     let path = opt_str(input, "path").unwrap_or_else(|| ".".into());
     let Some(r) = rel(ctx, &path) else { return escape_result(&path) };

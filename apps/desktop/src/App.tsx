@@ -54,6 +54,7 @@ export default function App() {
   const [ready, setReady] = useState<ReadyInfo | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [diffs, setDiffs] = useState<{ id: number; path: string; diff: string; decided?: string }[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState("");
@@ -356,6 +357,12 @@ export default function App() {
           },
         ]);
         break;
+      case "diff_review":
+        setDiffs((prev) => [
+          ...prev,
+          { id: Number(ev.id), path: String(ev.path), diff: String(ev.diff) },
+        ]);
+        break;
       case "steer":
         push({ k: "note", text: `steering: ${ev.text}`, steer: true });
         break;
@@ -520,6 +527,11 @@ export default function App() {
   const answer = (id: number, choice: string) => {
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, answered: choice } : a)));
     void send({ type: "approve", id, choice });
+  };
+
+  const decideDiff = (id: number, decision: string) => {
+    setDiffs((prev) => prev.map((d) => (d.id === id ? { ...d, decided: decision } : d)));
+    void send({ type: "diff_decide", id, decision });
   };
 
   useEffect(() => {
@@ -834,6 +846,21 @@ export default function App() {
                 {a.allowAlways && <button className="btn" onClick={() => answer(a.id, "a")}>Always allow</button>}
                 {a.extraChoice && <button className="btn" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
                 <button className="btn deny" onClick={() => answer(a.id, "n")}>Deny</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {diffs.map((d) => (
+          <div className={`approval row diffrev${d.decided ? " answered" : ""}`} key={`df${d.id}`}>
+            <div className="title"><span className="dot" />Review change — {d.path}</div>
+            <Diff diff={d.diff} />
+            {d.decided ? (
+              <div className="reason">{d.decided === "discard" ? "discarded" : "applied"}</div>
+            ) : (
+              <div className="btns">
+                <button className="btn allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
+                <button className="btn" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
+                <button className="btn deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
               </div>
             )}
           </div>

@@ -172,6 +172,7 @@ fn run_task_once(root: &str, task: String) {
     };
     let mut approve_plan = |_plan: &serde_json::Value| true;
     let mut approve_tool = |_t: &str, _i: &serde_json::Value, _r: &str, _m: Option<&str>| true;
+    let mut review_change = |_t: &str, _i: &serde_json::Value, _d: &str| true;
     let mut steer = || None;
     let procs = crate::tools::load_procs(root);
     let mut opts = agent::RunOpts {
@@ -183,6 +184,7 @@ fn run_task_once(root: &str, task: String) {
         max_iterations: cfg.max_iterations,
         approve_plan: &mut approve_plan,
         approve_tool: &mut approve_tool,
+        review_change: &mut review_change,
         session: None,
         effort: cfg.effort.clone(),
         aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
