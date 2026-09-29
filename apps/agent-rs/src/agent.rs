@@ -641,6 +641,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             finish_emit!("max_iterations", "Planning iteration limit reached");
         }
         iterations += 1;
+        if estimate_tokens(&session.messages) > 60_000 {
+            emit(json!({"type": "status", "message": "Compacting context…"}));
+        }
         if let Some((before, after, blocks)) = compact_messages(&mut session.messages, 60_000, false) {
             emit(json!({"type": "compacted", "before": before, "after": after, "blocks": blocks}));
         }
@@ -736,6 +739,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     loop {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
             finish_emit!("cancelled", "Cancelled");
+        }
+        if estimate_tokens(&session.messages) > 60_000 {
+            emit(json!({"type": "status", "message": "Compacting context…"}));
         }
         if let Some((before, after, blocks)) = compact_messages(&mut session.messages, 60_000, false) {
             emit(json!({"type": "compacted", "before": before, "after": after, "blocks": blocks}));
