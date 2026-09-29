@@ -97,15 +97,22 @@ export default function App() {
   const [sideOpen, setSideOpen] = useState(() => localStorage.getItem("sidebar") !== "closed");
   const [modelPop, setModelPop] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
-  const [dark, setDark] = useState(() => {
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
-    if (saved) return saved === "dark";
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+    return saved === "light" || saved === "dark" ? saved : "system";
   });
+  const [sysDark, setSysDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const on = (e: MediaQueryListEvent) => setSysDark(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const dark = theme === "system" ? sysDark : theme === "dark";
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
+    localStorage.setItem("theme", theme);
+  }, [dark, theme]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -653,6 +660,21 @@ export default function App() {
               </div>
             </div>
             <div className="setgroup">
+              <div className="setgroup-title">Appearance</div>
+              <div className="setlist">
+                <div className="setrow static">
+                  <span className="setlabel">Theme</span>
+                  <span className="theme-opts">
+                    {(["system", "light", "dark"] as const).map((t) => (
+                      <button key={t} className={`eff-pill${theme === t ? " cur" : ""}`} onClick={() => setTheme(t)}>
+                        {t}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="setgroup">
               <div className="setgroup-title">Session</div>
               <div className="setlist">
                 <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
@@ -1044,8 +1066,8 @@ export default function App() {
         <div className="hints">
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
-          <Button variant="ghost" size="sm" className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDark((v) => !v)}>
-            {dark ? "dark" : "light"}
+          <Button variant="ghost" size="sm" className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setTheme(dark ? "light" : "dark")}>
+            {theme === "system" ? `auto` : theme}
           </Button>
           <Button variant="ghost" size="sm" className="modelchip" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>
             settings
