@@ -415,6 +415,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   animation: pulse 1.2s var(--ease) infinite;
 }
 @keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.9; } }
+.statusline .statustext {
+  background: linear-gradient(90deg, var(--dim) 35%, var(--text) 50%, var(--dim) 65%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: thinkshine 1.6s linear infinite;
+}
 .statusline .tokrate { color: var(--faint); font-variant-numeric: tabular-nums; }
 
 .composer { padding: 10px 20px 18px; }
