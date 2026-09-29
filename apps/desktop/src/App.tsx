@@ -546,7 +546,7 @@ export default function App() {
       {sideOpen && ready && (
         <aside className="sidebar" data-tauri-drag-region>
           <div className="sb-top">
-            <Button variant="secondary" className="w-full justify-start" onClick={() => cmd("/new")}>
+            <Button variant="ghost" className="w-full justify-start text-[var(--dim)] hover:text-[var(--text)]" onClick={() => cmd("/new")}>
               <Plus size={13} />
               New session
             </Button>
