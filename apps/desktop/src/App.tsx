@@ -66,6 +66,7 @@ export default function App() {
   const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
   // In-app updates: checked once on launch, downloaded in the background,
   // then surfaced as a restart row in Settings → About.
   const [update, setUpdate] = useState<{ version: string; status: "downloading" | "ready" } | null>(null);
@@ -655,64 +656,93 @@ export default function App() {
       </header>
 
       {settingsOpen && ready && (
-        <div className="settings">
-          <div className="settings-col">
-            <div className="setgroup">
-              <div className="setgroup-title">Agent</div>
-              <div className="setlist">
-                <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
-                <SetRow label="Connect a provider" value="add an API key" onClick={() => cmd("/provider")} />
-                <SetRow label="Model" value={ready.model} onClick={() => cmd("/model")} />
-                <SetRow label="Reasoning effort" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
-                <SetRow label="Approval mode" value={ready.mode} onClick={() => cmd("/approval")} />
-              </div>
-            </div>
-            <div className="setgroup">
-              <div className="setgroup-title">Appearance</div>
-              <div className="setlist">
-                <div className="setrow static">
-                  <span className="setlabel">Theme</span>
-                  <span className="theme-opts">
-                    {(["system", "light", "dark"] as const).map((t) => (
-                      <button key={t} className={`eff-pill${theme === t ? " cur" : ""}`} onClick={() => setTheme(t)}>
-                        {t}
-                      </button>
-                    ))}
-                  </span>
+        <div className="settings" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
+          <div className="settings-dialog">
+            <nav className="settings-nav">
+              <div className="settings-nav-title">Settings</div>
+              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => (
+                <Button
+                  key={tab}
+                  variant={settingsTab === tab ? "secondary" : "ghost"}
+                  size="sm"
+                  className="settings-navitem"
+                  onClick={() => setSettingsTab(tab)}
+                >
+                  {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
+                </Button>
+              ))}
+            </nav>
+            <ScrollArea className="settings-pane">
+              {settingsTab === "general" && (
+                <div className="setgroup">
+                  <div className="setgroup-title">General</div>
+                  <div className="setlist">
+                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
+                    <SetAction label="Open a project…" onClick={openProject} />
+                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="setgroup">
-              <div className="setgroup-title">Session</div>
-              <div className="setlist">
-                <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                <SetAction
-                  label="Open a project…"
-                  onClick={openProject}
-                />
-                <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
-                <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                <SetAction label="Start new session" onClick={() => cmd("/new")} />
-              </div>
-            </div>
-            <div className="setgroup">
-              <div className="setgroup-title">About</div>
-              <div className="setlist">
-                <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
-                {update?.status === "downloading" && (
-                  <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
-                )}
-                {update?.status === "ready" && (
-                  <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
-                )}
-                <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
-                <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
-              </div>
-            </div>
+              )}
+              {settingsTab === "providers" && (
+                <div className="setgroup">
+                  <div className="setgroup-title">Providers & Models</div>
+                  <div className="setlist">
+                    <SetRow label="Provider" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
+                    <SetRow label="Connect a provider" value="add an API key" onClick={() => cmd("/provider")} />
+                    <SetRow label="Model" value={ready.model} onClick={() => cmd("/model")} />
+                    <SetRow label="Reasoning effort" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
+                    <SetRow label="Approval mode" value={ready.mode} onClick={() => cmd("/approval")} />
+                  </div>
+                </div>
+              )}
+              {settingsTab === "appearance" && (
+                <div className="setgroup">
+                  <div className="setgroup-title">Appearance</div>
+                  <div className="setlist">
+                    <div className="setrow static">
+                      <span className="setlabel">Theme</span>
+                      <span className="theme-opts">
+                        {(["system", "light", "dark"] as const).map((t) => (
+                          <button key={t} className={`eff-pill${theme === t ? " cur" : ""}`} onClick={() => setTheme(t)}>
+                            {t}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {settingsTab === "session" && (
+                <div className="setgroup">
+                  <div className="setgroup-title">Session</div>
+                  <div className="setlist">
+                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                    <SetAction label="Resume a session…" onClick={() => cmd("/resume")} />
+                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
+                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
+                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
+                  </div>
+                </div>
+              )}
+              {settingsTab === "about" && (
+                <div className="setgroup">
+                  <div className="setgroup-title">About</div>
+                  <div className="setlist">
+                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
+                    {update?.status === "downloading" && (
+                      <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
+                    )}
+                    {update?.status === "ready" && (
+                      <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
+                    )}
+                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
+                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
+                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
+                  </div>
+                </div>
+              )}
+            </ScrollArea>
           </div>
         </div>
       )}
