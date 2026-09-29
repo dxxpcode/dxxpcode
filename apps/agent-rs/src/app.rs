@@ -792,7 +792,7 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
                 .iter()
                 .map(|s| json!({
                     "label": format!("{} — {}", s.updated_at.chars().take(16).collect::<String>().replace('T', " "), s.task.chars().take(60).collect::<String>().replace(|c| c == '\n', " ")),
-                    "desc": format!("{} · {} msg", s.id.chars().take(8).collect::<String>(), s.messages.len()),
+                    "desc": s.id.chars().take(8).collect::<String>(),
                 }))
                 .collect();
             let Some(i) = sh.menu("Resume a session", opts, None) else { return };
@@ -1186,7 +1186,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
                     .map(|s| json!({
                         "id": &s.id,
                         "title": s.task.chars().take(80).collect::<String>().replace('\n', " "),
-                        "desc": format!("{} · {} msg", s.updated_at.chars().take(10).collect::<String>(), s.messages.len()),
+                        "desc": s.updated_at.chars().take(10).collect::<String>(),
                     }))
                     .collect();
                 emit(json!({"type": "sessions", "items": items}));
