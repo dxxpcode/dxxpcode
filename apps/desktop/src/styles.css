@@ -15,6 +15,9 @@
   --amber: #d97706;
   --red: #dc2626;
   --purple: #9333ea;
+  --syn-kw: #9333ea;
+  --syn-str: #b45309;
+  --syn-num: #2563eb;
   --ring: rgba(37, 99, 235, 0.22);
   --ring-soft: rgba(10, 10, 11, 0.07);
   --radius: 14px;
@@ -319,7 +322,33 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .diff .sign { width: 14px; flex-shrink: 0; text-align: center; user-select: none; }
 .diff .add .sign { color: var(--green); }
 .diff .del .sign { color: var(--red); }
-.diff .hunk { color: var(--dim); }
+.diff .hunk { color: var(--dim); padding: 3px 0; }
+.diff .hunkchip {
+  display: inline-block; padding: 1px 7px;
+  font-size: 10.5px; color: var(--faint);
+  background: var(--surface2); border-radius: var(--radius-sm);
+}
+.dc-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+  padding: 1.5px 7px; border-radius: 999px; flex-shrink: 0;
+}
+.dc-badge.mod { color: var(--dim); background: var(--surface2); }
+.dc-badge.add { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+.dc-badge.del { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.dc-path { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
+.dc-path .dc-base { color: var(--text); font-weight: 600; }
+.dc-path .dc-dir { color: var(--faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; }
+.diffstat { align-items: center; }
+.diffstat .ds-bar {
+  display: inline-flex; height: 4px; width: 36px;
+  border-radius: 2px; overflow: hidden; background: var(--surface2);
+}
+.diffstat .ds-fill-add { background: var(--green); }
+.diffstat .ds-fill-del { background: var(--red); }
+.syn-kw { color: var(--syn-kw, var(--text)); }
+.syn-str { color: var(--syn-str, var(--dim)); }
+.syn-num { color: var(--syn-num, var(--dim)); }
+.syn-com { color: var(--faint); font-style: italic; }
 .diff .meta { color: var(--text); font-weight: 600; }
 .diff .ctx { color: var(--dim); }
 .diff .add mark.chg { background: rgba(22,163,74,0.28); color: inherit; border-radius: 3px; }
@@ -764,6 +793,9 @@ html[data-theme="dark"] {
   --amber: #fbbf24;
   --red: #f87171;
   --purple: #c084fc;
+  --syn-kw: #c084fc;
+  --syn-str: #fbbf24;
+  --syn-num: #60a5fa;
   --ring: rgba(96, 165, 250, 0.3);
   --ring-soft: rgba(255, 255, 255, 0.08);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
