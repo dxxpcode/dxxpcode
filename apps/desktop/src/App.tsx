@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { ScrollArea } from "./components/ui/scroll-area";
+import { Plus, Search, PanelLeft, Minus, Square, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -551,13 +555,13 @@ export default function App() {
       {sideOpen && ready && (
         <aside className="sidebar" data-tauri-drag-region>
           <div className="sb-top">
-            <button className="sb-new" onClick={() => cmd("/new")}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <Button variant="ghost" className="w-full justify-start text-[var(--dim)] hover:text-[var(--text)]" onClick={() => cmd("/new")}>
+              <Plus size={13} />
               New session
-            </button>
+            </Button>
             <div className="sb-search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              <input
+              <Search size={12} />
+              <Input
                 type="text"
                 placeholder="Search"
                 value={sbQuery}
@@ -566,37 +570,40 @@ export default function App() {
               />
             </div>
           </div>
-          <div className="sb-list">
-            {sessionGroups.length === 0 && <p className="sb-empty">{sbQuery ? "No matches." : "No sessions in this project yet."}</p>}
-            {sessionGroups.map(([label, group]) => (
-              <div className="sb-group" key={label}>
-                <div className="sb-group-label">{label}</div>
-                {group.map((s) => (
-                  <button
-                    key={s.id}
-                    className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
-                    title={s.title}
-                    onClick={() => void send({ type: "resume", id: s.id })}
-                  >
-                    <span className="sb-item-title">{s.title || "Untitled"}</span>
-                    <span className="sb-item-desc">{s.desc.split("·")[1]?.trim() ?? s.desc}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
+          <ScrollArea className="sb-list">
+            <div className="sb-items">
+              {sessionGroups.length === 0 && <p className="sb-empty">{sbQuery ? "No matches." : "No sessions in this project yet."}</p>}
+              {sessionGroups.map(([label, group]) => (
+                <div className="sb-group" key={label}>
+                  <div className="sb-group-label">{label}</div>
+                  {group.map((s) => (
+                    <button
+                      key={s.id}
+                      className={`sb-item${s.id === sessionInfo.id ? " cur" : ""}`}
+                      title={s.title}
+                      onClick={() => void send({ type: "resume", id: s.id })}
+                    >
+                      <span className="sb-item-title">{s.title || "Untitled"}</span>
+                      <span className="sb-item-desc">{s.desc.split("·")[1]?.trim() ?? s.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </aside>
       )}
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
-          <button
-            className="ctl flat"
+          <Button
+            variant="ghost"
+            size="icon"
             title={sideOpen ? "Hide sessions" : "Show sessions"}
             onClick={() => setSideOpen((v) => !v)}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-          </button>
+            <PanelLeft size={14} />
+          </Button>
           <Logo className="logo-mark" />
           {ready && (
             <span className="hproj">
@@ -610,15 +617,15 @@ export default function App() {
         <span className="spacer" />
         {ready && !IS_MAC && (
           <div className="hact">
-            <button className="ctl flat" title="Minimize" onClick={() => void win.minimize()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14"/></svg>
-            </button>
-            <button className="ctl flat" title="Maximize" onClick={() => void win.toggleMaximize()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
-            </button>
-            <button className="ctl flat close" title="Close" onClick={() => void win.close()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
+            <Button variant="ghost" size="icon" title="Minimize" onClick={() => void win.minimize()}>
+              <Minus size={14} />
+            </Button>
+            <Button variant="ghost" size="icon" title="Maximize" onClick={() => void win.toggleMaximize()}>
+              <Square size={12} />
+            </Button>
+            <Button variant="ghost" size="icon" title="Close" className="win-close" onClick={() => void win.close()}>
+              <X size={14} />
+            </Button>
           </div>
         )}
       </header>
@@ -957,21 +964,21 @@ export default function App() {
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
           {ready && (
-            <button className="modelchip" title="Provider & model — click to change" onClick={() => cmd("/providers")}>
+            <Button variant="ghost" size="sm" className="modelchip" title="Provider & model — click to change" onClick={() => cmd("/providers")}>
               {ready.model}
-            </button>
+            </Button>
           )}
           {ready?.effort && (
-            <button className="modelchip" title="Reasoning effort — click to change" onClick={() => cmd("/effort")}>
+            <Button variant="ghost" size="sm" className="modelchip" title="Reasoning effort — click to change" onClick={() => cmd("/effort")}>
               {ready.effort}
-            </button>
+            </Button>
           )}
-          <button className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDark((v) => !v)}>
+          <Button variant="ghost" size="sm" className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDark((v) => !v)}>
             {dark ? "dark" : "light"}
-          </button>
-          <button className="modelchip" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>
+          </Button>
+          <Button variant="ghost" size="sm" className="modelchip" title="Settings" onClick={() => setSettingsOpen((v) => !v)}>
             settings
-          </button>
+          </Button>
         </div>
       </div>
       </div>
