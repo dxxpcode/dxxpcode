@@ -965,7 +965,10 @@ export default function App() {
               </button>
               <div className="inctx-anchor">
                 <button className="inctx" title="Model & effort" onClick={() => setModelPop((v) => !v)}>
-                  <span className="inctx-name">{ready.model}</span>
+                  <span className="inctx-name">
+                    {ready.model}
+                    {ready.effort && ready.effort !== "default" ? ` · ${ready.effort}` : ""}
+                  </span>
                   <ChevronDown size={11} />
                 </button>
                 {modelPop && (
@@ -1034,11 +1037,6 @@ export default function App() {
           <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
           <span><kbd>⏎</kbd> send</span>
           {running && <span><kbd>esc</kbd> interrupt · typed text steers the run</span>}
-          {ready?.effort && (
-            <Button variant="ghost" size="sm" className="modelchip" title="Reasoning effort — click to change" onClick={() => cmd("/effort")}>
-              {ready.effort}
-            </Button>
-          )}
           <Button variant="ghost" size="sm" className="modelchip" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDark((v) => !v)}>
             {dark ? "dark" : "light"}
           </Button>
