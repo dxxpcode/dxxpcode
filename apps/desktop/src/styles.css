@@ -82,7 +82,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   transition: background 0.15s var(--ease);
 }
 .sb-item:hover { background: var(--surface2); }
-.sb-item.cur { background: var(--surface2); }
+.sb-item.cur { background: var(--ring); }
 .sb-item.cur::before {
   content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
   width: 2px; border-radius: 1px; background: var(--text);
@@ -92,7 +92,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .sb-item:hover .sb-item-title, .sb-item.cur .sb-item-title { color: var(--text); }
-.sb-item-desc { font-size: 11px; color: var(--faint); }
 
 /* ---------- header ---------- */
 .header {

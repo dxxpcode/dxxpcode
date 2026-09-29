@@ -596,7 +596,6 @@ export default function App() {
                       onClick={() => void send({ type: "resume", id: s.id })}
                     >
                       <span className="sb-item-title">{s.title || "Untitled"}</span>
-                      <span className="sb-item-desc">{s.desc.split("·")[1]?.trim() ?? s.desc}</span>
                     </button>
                   ))}
                 </div>
