@@ -5,7 +5,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, PanelLeft, Minus, Square, X, ChevronDown } from "lucide-react";
+import { Plus, Search, PanelLeft, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -64,6 +64,7 @@ export default function App() {
   const [promptVal, setPromptVal] = useState("");
   const [cmdSel, setCmdSel] = useState(0);
   const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
+  const [modelOpts, setModelOpts] = useState<string[]>([]);
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
@@ -277,6 +278,9 @@ export default function App() {
       case "files":
         if (Number(ev.id) === fileReqId.current)
           setFileSugs({ id: fileReqId.current, items: ev.items as { name: string; desc: string }[] });
+        break;
+      case "models":
+        if (Array.isArray(ev.items)) setModelOpts(ev.items as string[]);
         break;
       case "setup_result": {
         setObBusy(false);
@@ -526,6 +530,10 @@ export default function App() {
     void send({ type: "command", name });
   };
 
+  useEffect(() => {
+    if (settingsOpen && settingsTab === "providers") void send({ type: "command", name: "/models" });
+  }, [settingsOpen, settingsTab]);
+
   const openProject = () => {
     void invoke<string | null>("pick_folder").then((dir) => {
       if (dir) {
@@ -660,18 +668,22 @@ export default function App() {
           <div className="settings-dialog">
             <nav className="settings-nav">
               <div className="settings-nav-title">Settings</div>
-              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => (
-                <Button
-                  key={tab}
-                  variant={settingsTab === tab ? "secondary" : "ghost"}
-                  size="sm"
-                  className="settings-navitem"
-                  data-active={settingsTab === tab}
-                  onClick={() => setSettingsTab(tab)}
-                >
-                  {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
-                </Button>
-              ))}
+              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => {
+                const Icon = { general: SlidersHorizontal, providers: Cpu, appearance: Palette, session: History, about: Info }[tab];
+                return (
+                  <Button
+                    key={tab}
+                    variant={settingsTab === tab ? "secondary" : "ghost"}
+                    size="sm"
+                    className="settings-navitem"
+                    data-active={settingsTab === tab}
+                    onClick={() => setSettingsTab(tab)}
+                  >
+                    <Icon size={14} />
+                    {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
+                  </Button>
+                );
+              })}
             </nav>
             <ScrollArea className="settings-pane">
               {settingsTab === "general" && (
@@ -690,9 +702,28 @@ export default function App() {
                   <div className="setlist">
                     <SetRow label="Provider" desc="Which service answers your requests" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
                     <SetRow label="Connect a provider" desc="Add an API key for another service" value="add an API key" onClick={() => cmd("/provider")} />
-                    <SetRow label="Model" desc="Which model answers your requests" value={ready.model} onClick={() => cmd("/model")} />
-                    <SetRow label="Reasoning effort" desc="How much the model thinks before answering" value={ready.effort ?? "default"} onClick={() => cmd("/effort")} />
-                    <SetRow label="Approval mode" desc="When the agent asks before acting" value={ready.mode} onClick={() => cmd("/approval")} />
+                    <SetSelect
+                      label="Model"
+                      desc="Which model answers your requests"
+                      value={ready.model}
+                      options={modelOpts.length ? modelOpts : [ready.model]}
+                      onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
+                      extra={["custom…"]}
+                    />
+                    <SetSelect
+                      label="Reasoning effort"
+                      desc="How much the model thinks before answering"
+                      value={ready.effort ?? "default"}
+                      options={[...EFFORT_LEVELS]}
+                      onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                    />
+                    <SetSelect
+                      label="Approval mode"
+                      desc="When the agent asks before acting"
+                      value={ready.mode === "smart" ? "smart (Jev)" : ready.mode}
+                      options={["ask", "always-approve", "smart (Jev)"]}
+                      onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
+                    />
                   </div>
                 </div>
               )}
@@ -1219,6 +1250,19 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
 const Chevron = (
   <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
 );
+
+function SetSelect({ label, desc, value, options, extra, onChange }: { label: string; desc?: string; value: string; options: string[]; extra?: string[]; onChange: (v: string) => void }) {
+  const opts = [...options, ...(extra ?? [])];
+  return (
+    <div className="setrow static">
+      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
+      <select className="setsel" value={opts.includes(value) ? value : ""} onChange={(e) => onChange(e.target.value)}>
+        {!opts.includes(value) && <option value="" disabled>{value}</option>}
+        {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
 
 function SetRow({ label, desc, value, onClick }: { label: string; desc?: string; value: string; onClick: () => void }) {
   return (

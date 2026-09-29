@@ -308,15 +308,51 @@ fn open_model_menu(sh: &Arc<Shared>) {
             return;
         }
     }
-    *sh.model.lock().unwrap() = m.clone();
+    set_model(sh, &m);
+}
+
+fn set_model(sh: &Arc<Shared>, m: &str) {
+    let m = m.trim();
+    if m.is_empty() {
+        return;
+    }
+    *sh.model.lock().unwrap() = m.to_string();
     let mut cfg = load_config();
-    cfg.model = Some(m.clone());
+    cfg.model = Some(m.to_string());
     save_config(&cfg);
     emit_note(format!(
         "model: {m} · effort {} (saved)",
         sh.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into())
     ));
     sh.emit_state();
+}
+
+fn model_options(sh: &Arc<Shared>) -> Vec<String> {
+    let name = sh.provider_name.lock().unwrap().clone();
+    let mut fallback: Vec<String> = KNOWN_MODELS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, m)| m.iter().map(|s| s.to_string()).collect())
+        .unwrap_or_default();
+    if name == "openai" && load_config().openai_base_url.is_some() {
+        fallback.push("grok-4".into());
+        fallback.push("gemini-3-pro".into());
+    }
+    let mut list = sh
+        .provider
+        .lock()
+        .unwrap()
+        .as_mut()
+        .and_then(|p| p.list_models().ok())
+        .unwrap_or_default();
+    if list.is_empty() {
+        list = fallback;
+    }
+    let cur_model = sh.model.lock().unwrap().clone();
+    if !cur_model.is_empty() && !list.contains(&cur_model) {
+        list.insert(0, cur_model);
+    }
+    list
 }
 
 fn open_effort_menu(sh: &Arc<Shared>) {
@@ -389,6 +425,11 @@ fn open_approval_menu(sh: &Arc<Shared>) {
     ) else {
         return;
     };
+    set_approval_mode(sh, i);
+}
+
+fn set_approval_mode(sh: &Arc<Shared>, i: usize) {
+    let opts = ["ask", "always-approve", "smart (Jev)"];
     sh.smart_mode.store(i == 2, Ordering::Relaxed);
     sh.auto_approve.store(i == 1, Ordering::Relaxed);
     *sh.mode.lock().unwrap() = if i == 2 { "smart" } else if i == 1 { "always-approve" } else { "ask" }.into();
@@ -401,6 +442,19 @@ fn open_approval_menu(sh: &Arc<Shared>) {
         if i == 2 && sh.jev_key().is_none() { " — no TYPESAFE_API_KEY yet; falls back to ask" } else { "" }
     ));
     sh.emit_state();
+}
+
+fn set_approval_mode_by_name(sh: &Arc<Shared>, name: &str) {
+    let i = match name.trim() {
+        "ask" => 0,
+        "always-approve" | "always" | "auto" => 1,
+        "smart (Jev)" | "smart" => 2,
+        other => {
+            emit_note(format!("unknown approval mode: {other}"));
+            return;
+        }
+    };
+    set_approval_mode(sh, i);
 }
 
 fn switch_provider(sh: &Arc<Shared>, name: &str) {
@@ -748,9 +802,16 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
         }
         "/status" => show_status(sh, &deps.root, &deps.project, &deps.version),
         "/settings" => open_settings_menu(sh),
-        "/approval" => open_approval_menu(sh),
-        "/model" => open_model_menu(sh),
-        "/effort" => match raw.trim().split_whitespace().nth(1) {
+        "/approval" => match raw.trim().get("/approval".len()..).map(str::trim).filter(|s| !s.is_empty()) {
+            Some(mode) => set_approval_mode_by_name(sh, mode),
+            None => open_approval_menu(sh),
+        },
+        "/model" => match raw.trim().get("/model".len()..).map(str::trim).filter(|s| !s.is_empty()) {
+            Some(m) => set_model(sh, m),
+            None => open_model_menu(sh),
+        },
+        "/models" => emit(json!({"type": "models", "items": model_options(sh)})),
+        "/effort" => match raw.trim().get("/effort".len()..).map(str::trim).filter(|s| !s.is_empty()) {
             Some(level) => set_effort(sh, level),
             None => open_effort_menu(sh),
         },
