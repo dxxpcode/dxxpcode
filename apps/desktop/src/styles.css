@@ -479,16 +479,15 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .composer { padding: 10px 20px 18px; }
 .inputbox {
   display: flex; flex-direction: column; gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--surface2);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 10px 16px 12px;
-  box-shadow: var(--shadow-sm);
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 .inputbox:focus-within {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md), 0 0 0 3px var(--ring-soft);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
 }
 .inputbox textarea {
   flex: 1; resize: none; border: none; outline: none; background: none;
@@ -504,6 +503,16 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .ghost-src { color: transparent; }
 .ghost-hint { color: var(--faint); }
+.inputrow { display: flex; align-items: flex-end; gap: 10px; }
+.inputrow .ghost-wrap { flex: 1; min-width: 0; }
+.sendhint {
+  border: none; background: none; padding: 2px 4px;
+  color: var(--faint); font-size: 14px; line-height: 1.5;
+  cursor: default;
+  transition: color 0.15s var(--ease);
+}
+.sendhint.ready { color: var(--dim); cursor: pointer; }
+.sendhint.ready:hover { color: var(--text); }
 /* ---------- command palette ---------- */
 .palette {
   margin-bottom: 10px;

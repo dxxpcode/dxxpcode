@@ -1157,6 +1157,7 @@ export default function App() {
               </div>
             </div>
           )}
+          <div className="inputrow">
           <div className="ghost-wrap">
             {input && (
               <div className="ghost-mirror" aria-hidden="true">
@@ -1198,6 +1199,15 @@ export default function App() {
               }
             }}
             />
+          </div>
+          <button
+            className={`sendhint${input.trim() ? " ready" : ""}`}
+            title="Send"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if (input.trim()) submit();
+            }}
+          >⏎</button>
           </div>
         </div>
       </div>
