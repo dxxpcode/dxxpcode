@@ -3,7 +3,7 @@
 use crate::config::{home_dir, new_session_id, save_session, Message, SessionRecord};
 use crate::perm::Level;
 use crate::project::gather_context;
-use crate::provider::{Provider, ProviderEvent, Usage};
+use crate::provider::{Provider, ProviderError, ProviderEvent, Usage};
 use crate::tools::{self, Ctx, ToolResult};
 use crate::util::redact_secrets;
 use serde_json::{json, Value};
@@ -742,7 +742,7 @@ fn stream_turn(
     effort: Option<&str>,
     aborted: &Arc<AtomicBool>,
     emit: &mut Emit<'_>,
-) -> Result<(Vec<(String, String, Value)>, Option<Usage>), String> {
+) -> Result<(Vec<(String, String, Value)>, Option<Usage>), ProviderError> {
     let all = tools::registry();
     let tool_defs: Vec<Value> = tools::tools_for_phase(&all, phase)
         .iter()
@@ -752,7 +752,7 @@ fn stream_turn(
     let mut text_parts: Vec<String> = vec![];
     let mut tool_calls: Vec<(String, String, Value)> = vec![];
     let mut usage: Option<Usage> = None;
-    let mut err: Option<String> = None;
+    let mut err: Option<ProviderError> = None;
 
     let res = provider.chat(
         system,
@@ -774,7 +774,7 @@ fn stream_turn(
         },
     );
     if let Err(e) = res {
-        err = Some(e.to_string());
+        err = Some(e);
     }
     if !text_parts.is_empty() || !tool_calls.is_empty() {
         let mut content = vec![];
@@ -912,9 +912,10 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         ) {
             Ok(t) => t,
             Err(e) => {
+                emit(crate::errors::event(&e.0, e.1, None));
                 let mut r = base("error", &session, &stats);
                 r["summary"] = json!("Failed");
-                r["error"] = json!(e);
+                r["error"] = json!(e.0);
                 emit(finish(r, &usage, &mut session));
                 return;
             }
@@ -1047,9 +1048,10 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         ) {
             Ok(t) => t,
             Err(e) => {
+                emit(crate::errors::event(&e.0, e.1, None));
                 let mut r = base("error", &session, &stats);
                 r["summary"] = json!("Failed");
-                r["error"] = json!(e);
+                r["error"] = json!(e.0);
                 emit(finish(r, &usage, &mut session));
                 return;
             }

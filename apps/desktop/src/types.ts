@@ -36,6 +36,7 @@ export type Item =
   | { k: "plan"; plan: Plan }
   | { k: "todos"; items: Todo[] }
   | { k: "note"; text: string; steer?: boolean }
+  | { k: "error"; text: string; hint?: string; detail?: string; code?: string }
   | { k: "denied"; tool: string; reason: string }
   | { k: "done"; status: string; summary: string; filesChanged: string[]; secs?: number; tokens?: number }
   | { k: "table"; title: string; rows: [string, string][] }

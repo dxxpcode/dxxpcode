@@ -590,7 +590,7 @@ fn switch_provider(sh: &Arc<Shared>, name: &str) {
             emit_note(format!("provider: {name} · {model} (saved)"));
             sh.emit_state();
         }
-        Err(e) => emit(json!({"type": "error", "text": e.to_string()})),
+        Err(e) => emit(crate::errors::event(&e.to_string(), e.1, None)),
     }
 }
 
@@ -1141,9 +1141,11 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
                 return;
             };
             let Some(picked) = load_session(&past[i].id) else {
-                emit(
-                    json!({"type": "error", "text": format!("session {} is unreadable", past[i].id)}),
-                );
+                emit(crate::errors::event(
+                    &format!("session {} is unreadable", past[i].id),
+                    None,
+                    None,
+                ));
                 return;
             };
             *sh.session.lock().unwrap() = Some(picked.clone());
@@ -1610,9 +1612,11 @@ pub fn run_app(deps: AppDeps) -> i32 {
                                 picked.messages.len()
                             ));
                         }
-                        None => emit(
-                            json!({"type": "error", "text": format!("session {id} is unreadable")}),
-                        ),
+                        None => emit(crate::errors::event(
+                            &format!("session {id} is unreadable"),
+                            None,
+                            None,
+                        )),
                     }
                 }
             }
