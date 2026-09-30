@@ -18,6 +18,66 @@ use std::time::Duration;
 
 const DEFAULT_MAX_ITERATIONS: u32 = 40;
 
+/* ------------------------------ auto-verify ------------------------------ */
+
+const VERIFY_MAX_ATTEMPTS: u32 = 2;
+const VERIFY_OUTPUT_CAP: usize = 8000;
+
+/// The repo's self-check command: npm test when package.json defines a real
+/// test script, else cargo test for Rust projects.
+fn detect_verify_cmd(root: &str) -> Option<String> {
+    let pkg = Path::new(root).join("package.json");
+    if let Ok(s) = fs::read_to_string(&pkg) {
+        if let Ok(v) = serde_json::from_str::<Value>(&s) {
+            let real_test = v
+                .get("scripts")
+                .and_then(|x| x.get("test"))
+                .and_then(|t| t.as_str())
+                .map(|t| !t.is_empty() && !t.contains("no test specified"))
+                .unwrap_or(false);
+            if real_test {
+                return Some("npm test".to_string());
+            }
+        }
+    }
+    if Path::new(root).join("Cargo.toml").exists() {
+        return Some("cargo test".to_string());
+    }
+    None
+}
+
+/// Run `command` in the project root; returns (passed, tail of combined output).
+fn run_verify(root: &str, command: &str) -> (bool, String) {
+    let shell_cmd = if cfg!(unix) { format!("timeout 300 {command}") } else { command.to_string() };
+    let mut cmd = if cfg!(unix) {
+        let mut c = Command::new("/bin/sh");
+        c.args(["-c", &shell_cmd]);
+        c
+    } else {
+        let mut c = Command::new("cmd");
+        c.args(["/C", &shell_cmd]);
+        c
+    };
+    cmd.current_dir(root)
+        .env("CI", "1")
+        .env("PAGER", "cat")
+        .env("GIT_PAGER", "cat")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    match cmd.output() {
+        Ok(o) => {
+            let mut text = String::from_utf8_lossy(&o.stdout).to_string();
+            if !o.stderr.is_empty() {
+                text.push_str(&String::from_utf8_lossy(&o.stderr));
+            }
+            let text = if text.len() > VERIFY_OUTPUT_CAP { text[text.len() - VERIFY_OUTPUT_CAP..].to_string() } else { text };
+            (o.status.success(), text)
+        }
+        Err(e) => (false, format!("failed to start verify command: {e}")),
+    }
+}
+
 /* ------------------------------ checkpoints ------------------------------ */
 
 const MAX_CHECKPOINTS: i64 = 30;
@@ -736,6 +796,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     }
 
     /* ----------------------------- EXECUTE PHASE ---------------------------- */
+    let mut verified_upto = 0usize;
+    let mut verify_attempts = 0u32;
     loop {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
             finish_emit!("cancelled", "Cancelled");
@@ -772,6 +834,35 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         emit(json!({"type": "usage", "usage": usage.to_json()}));
 
         if calls.is_empty() {
+            // Auto-verify: the model says it's done — check the repo still
+            // builds/tests. On failure, feed the output back and let it fix.
+            if session.files_changed.len() > verified_upto && verify_attempts < VERIFY_MAX_ATTEMPTS {
+                if let Some(vcmd) = detect_verify_cmd(&opts.project_root) {
+                    verify_attempts += 1;
+                    emit(json!({"type": "status", "message": format!("Verifying ({vcmd})…")}));
+                    let vinput = json!({"command": vcmd});
+                    emit(json!({"type": "tool_start", "tool": "run_command", "input": vinput}));
+                    stats.tool_calls += 1;
+                    let (ok, output) = run_verify(&opts.project_root, &vcmd);
+                    let vres = ToolResult { content: if output.is_empty() { "(no output)".into() } else { output.clone() }, is_error: !ok, changed_file: None, diff: None };
+                    emit(json!({"type": "tool_end", "tool": "run_command", "result": tool_result_json(&vres)}));
+                    session.tool_calls.push(recorded("run_command", &vinput, !ok, false));
+                    persist(&mut session);
+                    verified_upto = session.files_changed.len();
+                    if !ok {
+                        session.messages.push(Message {
+                            role: "user".into(),
+                            content: vec![text_block(&format!(
+                                "Verification failed (`{vcmd}`). Output:\n```\n{output}\n```\nFix the failures, then verify again."
+                            ))],
+                        });
+                        persist(&mut session);
+                        continue;
+                    }
+                } else {
+                    verified_upto = session.files_changed.len();
+                }
+            }
             let mut r = base("completed", &session, &stats);
             let summary = last_assistant_text(&session.messages);
             r["summary"] = json!(if summary.is_empty() { "Done".to_string() } else { summary });
@@ -888,5 +979,25 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         if iterations >= max_iterations {
             finish_emit!("max_iterations", "Iteration limit reached");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn detect_verify_cmd_picks_repo_tool() {
+        let dir = std::env::temp_dir().join(format!("dxxp-verify-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        assert_eq!(detect_verify_cmd(dir.to_str().unwrap()), None);
+        fs::File::create(dir.join("package.json")).unwrap()
+            .write_all(br#"{"scripts":{"test":"node --test"}}"#).unwrap();
+        assert_eq!(detect_verify_cmd(dir.to_str().unwrap()).as_deref(), Some("npm test"));
+        fs::write(dir.join("package.json"), r#"{"scripts":{"test":"echo \"Error: no test specified\" && exit 1"}}"#).unwrap();
+        fs::File::create(dir.join("Cargo.toml")).unwrap().write_all(b"[package]").unwrap();
+        assert_eq!(detect_verify_cmd(dir.to_str().unwrap()).as_deref(), Some("cargo test"));
+        fs::remove_dir_all(&dir).ok();
     }
 }
