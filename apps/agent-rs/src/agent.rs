@@ -140,9 +140,22 @@ pub fn take_checkpoint(
         let mut entry = json!({"path": p, "existed": existed});
         if existed {
             let blob = format!("blob-{n}");
-            if fs::write(cp_dir.join(&blob), fs::read(&abs).unwrap_or_default()).is_ok() {
-                entry["blob"] = json!(blob);
-            }
+            // A read/write failure must not record an empty blob — undo
+            // would then overwrite the file with nothing. Mark it so
+            // undo can report the file as unrestorable.
+            let snapshotted = fs::read(&abs)
+                .ok()
+                .and_then(|data| fs::write(cp_dir.join(&blob), data).ok())
+                .is_some();
+            entry[if snapshotted {
+                "blob"
+            } else {
+                "snapshotFailed"
+            }] = if snapshotted {
+                json!(blob)
+            } else {
+                json!(true)
+            };
         }
         files.push(entry);
         n += 1;
@@ -190,6 +203,7 @@ pub fn undo_checkpoint(root: &str, session_id: &str) -> Option<Value> {
     }
     let mut restored = vec![];
     let mut removed = vec![];
+    let mut unsnapshotted = vec![];
     for f in info["files"].as_array().unwrap() {
         let Some(p) = f.get("path").and_then(|v| v.as_str()) else {
             continue;
@@ -199,15 +213,20 @@ pub fn undo_checkpoint(root: &str, session_id: &str) -> Option<Value> {
             continue;
         }
         if f.get("existed").and_then(|v| v.as_bool()) == Some(true) {
-            if let Some(blob) = f.get("blob").and_then(|v| v.as_str()) {
-                if let Ok(data) = fs::read(cp_dir.join(blob)) {
-                    if let Some(parent) = abs.parent() {
-                        let _ = fs::create_dir_all(parent);
-                    }
-                    if fs::write(&abs, data).is_ok() {
-                        restored.push(p.to_string());
+            match f.get("blob").and_then(|v| v.as_str()) {
+                Some(blob) => {
+                    if let Ok(data) = fs::read(cp_dir.join(blob)) {
+                        if let Some(parent) = abs.parent() {
+                            let _ = fs::create_dir_all(parent);
+                        }
+                        if fs::write(&abs, data).is_ok() {
+                            restored.push(p.to_string());
+                        }
                     }
                 }
+                // Existed but never snapshotted — leave the file alone and
+                // report it instead of silently skipping the restore.
+                None => unsnapshotted.push(p.to_string()),
             }
         } else if abs.exists() && fs::remove_file(&abs).is_ok() {
             removed.push(p.to_string());
@@ -215,6 +234,9 @@ pub fn undo_checkpoint(root: &str, session_id: &str) -> Option<Value> {
     }
     let _ = fs::remove_dir_all(&cp_dir);
     let mut out = json!({"seq": seq, "restored": restored, "removed": removed});
+    if !unsnapshotted.is_empty() {
+        out["unsnapshotted"] = json!(unsnapshotted);
+    }
     if let (Some(old), Some(head)) = (
         info.get("headSha").and_then(|v| v.as_str()),
         current_head(root),

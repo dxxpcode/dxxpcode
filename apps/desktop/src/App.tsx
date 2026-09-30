@@ -306,6 +306,49 @@ export default function App() {
         appendText(String(ev.text));
         setStatus(null);
         break;
+      case "history": {
+        // Rebuild the transcript from a resumed session's stored messages.
+        const msgs =
+          (ev.messages as {
+            role: string;
+            content?: {
+              type?: string;
+              text?: string;
+              name?: string;
+              input?: Record<string, unknown>;
+              id?: string;
+              toolUseId?: string;
+              content?: unknown;
+              isError?: boolean;
+            }[];
+          }[]) ?? [];
+        const restored: Item[] = [];
+        const toolIdx = new Map<string, number>(); // tool_use id -> index in restored
+        for (const m of msgs) {
+          for (const b of m.content ?? []) {
+            if (b.type === "text" && b.text) {
+              restored.push(m.role === "user" ? { k: "user", text: b.text } : { k: "text", text: b.text });
+            } else if (b.type === "tool_use" && b.name) {
+              toolIdx.set(String(b.id), restored.length);
+              restored.push({ k: "tool", tool: b.name, arg: toolArg(b.input ?? {}), pending: false });
+            } else if (b.type === "tool_result") {
+              const i = toolIdx.get(String(b.toolUseId));
+              if (i !== undefined) {
+                const it = restored[i];
+                if (it.k === "tool") {
+                  restored[i] = {
+                    ...it,
+                    out: typeof b.content === "string" ? b.content : JSON.stringify(b.content ?? ""),
+                    isError: b.isError === true,
+                  };
+                }
+              }
+            }
+          }
+        }
+        if (restored.length) setItems(restored);
+        break;
+      }
       case "plan":
         push({ k: "plan", plan: ev.plan as Plan });
         break;

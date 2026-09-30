@@ -103,6 +103,25 @@ fn describe(tool: &str, input: &Value) -> String {
     }
 }
 
+/// What "always allow" actually grants for the rest of the session.
+/// Commands scope to the command head (binary + first arg — `npm test`,
+/// `cargo build`); file tools stay scoped to the exact path.
+fn approve_scope(tool: &str, input: &Value) -> String {
+    if tool == "run_command" || tool == "run_background" {
+        let cmd = input
+            .get("command")
+            .and_then(|v| v.as_str())
+            .unwrap_or(tool);
+        let head: Vec<&str> = cmd
+            .split_whitespace()
+            .take_while(|t| !matches!(*t, "|" | "||" | ";" | "&&" | "&" | ">" | ">>" | "<"))
+            .take(2)
+            .collect();
+        return format!("{tool}:{}", head.join(" "));
+    }
+    describe(tool, input)
+}
+
 /* --------------------------------- state --------------------------------- */
 
 pub struct AppDeps {
@@ -168,6 +187,17 @@ impl Shared {
             "type": "session",
             "id": s.as_ref().map(|s| s.id.clone()),
             "tokens": s.as_ref().map(|s| estimate_tokens(&s.messages)).unwrap_or(0),
+        }));
+    }
+
+    /// Replay a resumed session's stored messages so the app can rebuild
+    /// the transcript (user turns, text, tool calls with their results).
+    fn emit_history(rec: &SessionRecord) {
+        emit(json!({
+            "type": "history",
+            "task": rec.task,
+            "messages": rec.messages,
+            "filesChanged": rec.files_changed,
         }));
     }
 
@@ -1035,6 +1065,21 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
                     if !removed.is_empty() {
                         t.push_str(&format!(" — removed {}", removed.join(", ")));
                     }
+                    let unsnapshotted: Vec<String> = o
+                        .get("unsnapshotted")
+                        .and_then(|v| v.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    if !unsnapshotted.is_empty() {
+                        t.push_str(&format!(
+                            " — could not restore {} (no snapshot)",
+                            unsnapshotted.join(", ")
+                        ));
+                    }
                     if let Some(hm) = o.get("headMoved") {
                         let from = hm.get("from").and_then(|v| v.as_str()).unwrap_or("");
                         let to = hm.get("to").and_then(|v| v.as_str()).unwrap_or("");
@@ -1104,6 +1149,7 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             *sh.session.lock().unwrap() = Some(picked.clone());
             sh.allowlist.lock().unwrap().clear();
             sh.emit_session();
+            Shared::emit_history(&picked);
             emit_note(format!(
                 "resumed session {} — {} message(s) restored",
                 picked.id.chars().take(8).collect::<String>(),
@@ -1193,9 +1239,9 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
     let mut approve_tool =
         |tool: &str, input: &Value, reason: &str, model_reason: Option<&str>| -> bool {
             let summary = describe(tool, input);
-            let key = format!("{tool}:{summary}");
-            if sh.allowlist.lock().unwrap().contains(&key) {
-                emit_note(format!("allowed earlier this session: {summary}"));
+            let scope = approve_scope(tool, input);
+            if sh.allowlist.lock().unwrap().contains(&scope) {
+                emit_note(format!("allowed earlier this session: {scope}"));
                 return true;
             }
             if sh.auto_approve.load(Ordering::Relaxed) {
@@ -1222,7 +1268,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
                 Some(tool),
             );
             if choice == "a" {
-                sh.allowlist.lock().unwrap().insert(key);
+                sh.allowlist.lock().unwrap().insert(scope);
                 return true;
             }
             choice == "y"
@@ -1557,6 +1603,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
                             *sh.session.lock().unwrap() = Some(picked.clone());
                             sh.allowlist.lock().unwrap().clear();
                             sh.emit_session();
+                            Shared::emit_history(&picked);
                             emit_note(format!(
                                 "resumed session {} — {} message(s) restored",
                                 picked.id.chars().take(8).collect::<String>(),
@@ -1571,5 +1618,25 @@ pub fn run_app(deps: AppDeps) -> i32 {
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn approve_scope_uses_command_head() {
+        for (cmd, want) in [
+            ("npm test -- --watch", "run_command:npm test"),
+            ("cargo build | tail", "run_command:cargo build"),
+            ("cargo test", "run_command:cargo test"),
+            ("ls -la", "run_command:ls -la"),
+        ] {
+            let i = json!({"command": cmd});
+            assert_eq!(approve_scope("run_command", &i), want, "{cmd}");
+        }
+        let f = json!({"path": "src/a.rs"});
+        assert_eq!(approve_scope("write_file", &f), "write_file src/a.rs");
     }
 }
