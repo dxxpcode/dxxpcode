@@ -84,6 +84,90 @@ fn run_verify(root: &str, command: &str) -> (bool, String) {
     }
 }
 
+/* ------------------------------ blind review ------------------------------ */
+
+const REVIEW_DIFF_CAP: usize = 60_000;
+const REVIEW_MAX_ATTEMPTS: u32 = 1;
+
+/// A blind end-of-run review: the reviewer gets only the diff (plus the
+/// contents of newly created files) in a fresh context — never the chat
+/// history or the reasoning that produced the changes. Returns the
+/// review text, or Err when the review itself couldn't run.
+fn review_changes(
+    provider: &mut Provider,
+    model: &str,
+    root: &str,
+    files: &[String],
+    aborted: &Arc<AtomicBool>,
+) -> Result<String, String> {
+    let mut body = String::new();
+    for args in [
+        vec!["diff", "--"],             // unstaged
+        vec!["diff", "--cached", "--"], // staged
+    ] {
+        let mut argv: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+        argv.extend(files.iter().cloned());
+        if let Ok(o) = Command::new("git")
+            .args(&argv)
+            .current_dir(root)
+            .env("GIT_PAGER", "cat")
+            .output()
+        {
+            body.push_str(&String::from_utf8_lossy(&o.stdout));
+        }
+    }
+    // New untracked files never appear in `git diff` — inline them.
+    let untracked = Command::new("git")
+        .args(["ls-files", "--others", "--exclude-standard"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    for f in files {
+        if untracked.lines().any(|u| u == f) {
+            if let Ok(s) = fs::read_to_string(Path::new(root).join(f)) {
+                body.push_str(&format!("\n--- new file: {f} ---\n{s}"));
+            }
+        }
+    }
+    let mut body = body.trim().to_string();
+    if body.is_empty() {
+        return Ok("CLEAN".into());
+    }
+    if body.len() > REVIEW_DIFF_CAP {
+        body.truncate(REVIEW_DIFF_CAP);
+        body.push_str("\n…(diff truncated)…");
+    }
+    let msgs = vec![Message {
+        role: "user".into(),
+        content: vec![text_block(&format!(
+            "You are reviewing another agent's code changes. You see ONLY the diff — not the \
+             reasoning that produced it.\n\
+             Report only concrete defects: correctness bugs, regressions, security holes, broken \
+             error handling. No style feedback, no nits, no praise.\n\
+             If there is nothing real, reply with exactly: CLEAN\n\
+             Otherwise reply with a numbered list of findings, each `file:line — one sentence`.\n\n\
+             Diff:\n{body}"
+        ))],
+    }];
+    let mut out = String::new();
+    let res = provider.chat(
+        "You are a senior engineer doing a strict code review.",
+        &msgs,
+        &[],
+        model,
+        Some("low"),
+        aborted,
+        |ev| {
+            if let ProviderEvent::Text(t) = ev {
+                out.push_str(&t);
+            }
+        },
+    );
+    res.map(|_| out).map_err(|e| e.to_string())
+}
+
 /* ------------------------------ checkpoints ------------------------------ */
 
 const MAX_CHECKPOINTS: i64 = 30;
@@ -938,6 +1022,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     /* ----------------------------- EXECUTE PHASE ---------------------------- */
     let mut verified_upto = 0usize;
     let mut verify_attempts = 0u32;
+    let mut review_attempts = 0u32;
     loop {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
             finish_emit!("cancelled", "Cancelled");
@@ -1017,6 +1102,40 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     }
                 } else {
                     verified_upto = session.files_changed.len();
+                }
+            }
+            // Blind review: a fresh context audits only the diff, once.
+            // Concrete findings get exactly one repair round.
+            if review_attempts < REVIEW_MAX_ATTEMPTS && !session.files_changed.is_empty() {
+                review_attempts += 1;
+                emit(json!({"type": "status", "message": "Reviewing changes…"}));
+                match review_changes(
+                    opts.provider,
+                    &opts.model,
+                    &opts.project_root,
+                    &session.files_changed,
+                    &opts.aborted,
+                ) {
+                    Ok(text) => {
+                        let findings = text.trim();
+                        if findings.is_empty() || findings.starts_with("CLEAN") {
+                            emit(json!({"type": "note", "text": "review: clean"}));
+                        } else {
+                            emit(json!({"type": "note", "text": "review found issues — fixing…"}));
+                            session.messages.push(Message {
+                                role: "user".into(),
+                                content: vec![text_block(&format!(
+                                    "A blind review of your changes found these issues:\n{findings}\n\
+                                     Fix them. If a finding is wrong, briefly say why and move on."
+                                ))],
+                            });
+                            persist(&mut session);
+                            continue;
+                        }
+                    }
+                    Err(e) => {
+                        emit(json!({"type": "note", "text": format!("review skipped ({e})")}));
+                    }
                 }
             }
             let mut r = base("completed", &session, &stats);
