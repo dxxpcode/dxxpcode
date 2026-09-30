@@ -1,6 +1,8 @@
 //! Permission classification — port of packages/permissions.
 
 use regex::Regex;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,12 +108,32 @@ pub fn resolve_within_root(root: &str, target: &str) -> Option<String> {
         if joined.starts_with('/') { "/" } else { "" },
         parts.join("/")
     );
-    if resolved == norm_root {
-        return Some(String::new());
+    let rel = if resolved == norm_root {
+        String::new()
+    } else {
+        resolved.strip_prefix(&format!("{norm_root}/"))?.to_string()
+    };
+    // Symlink guard: canonicalize the deepest existing ancestor of the
+    // resolved path and require it to stay under the canonical root.
+    let root_abs = PathBuf::from(&norm_root);
+    let root_canon = fs::canonicalize(&root_abs).unwrap_or_else(|_| root_abs.clone());
+    let mut probe = root_abs.join(&rel);
+    loop {
+        match fs::canonicalize(&probe) {
+            Ok(c) => {
+                if !c.starts_with(&root_canon) {
+                    return None;
+                }
+                break;
+            }
+            Err(_) => {
+                if probe == root_abs || !probe.pop() {
+                    break;
+                }
+            }
+        }
     }
-    resolved
-        .strip_prefix(&(norm_root + "/"))
-        .map(|s| s.to_string())
+    Some(rel)
 }
 
 fn any_matches(patterns: &[&str], base: &str) -> bool {
@@ -211,6 +233,17 @@ const SAFE_PREFIXES: &[&str] = &[
     "test", "true", "false",
 ];
 
+// Checked before SAFE_PREFIXES: shapes that turn an otherwise-safe command
+// into a code-execution vector.
+const EXEC_VECTORS: &[(&str, &str)] = &[
+    (r"\benv(\s+[A-Za-z_][A-Za-z_0-9]*=[^\s]+)*\s+[^=\s]+(\s|$)", "env launches a program"),
+    (r"\bfind\b.*\s-(exec|execdir|ok|okdir|delete)\b", "find executes a command"),
+    (r"\bfd\b.*\s(-x|-X|--exec|--exec-batch)\b", "fd executes a command"),
+    (r"\bxargs\b", "Runs a command per input line"),
+    (r"\b(node|nodejs|deno|bun)\s+.*\s(-e|-p|--eval|--print)(=|\b)", "Runs inline code"),
+    (r"\b(node|nodejs|deno|bun)\s+(-e|-p|--eval|--print)(=|\b)", "Runs inline code"),
+];
+
 const APPROVAL_COMMANDS: &[(&str, &str)] = &[
     (r"\brm\b", "Deletes files"),
     (r"\bmv\b", "Moves/renames files"),
@@ -250,6 +283,11 @@ pub fn evaluate_command(command: &str) -> Decision {
             };
         }
     }
+    for (pat, reason) in EXEC_VECTORS {
+        if Regex::new(pat).unwrap().is_match(cmd) {
+            return Decision { level: Level::Approval, reason: (*reason).into() };
+        }
+    }
     let lower = cmd.to_lowercase();
     let chain = cre!(r"[;&|>`]|\$\(").clone();
     for prefix in SAFE_PREFIXES {
@@ -274,5 +312,73 @@ pub fn evaluate_command(command: &str) -> Decision {
     Decision {
         level: Level::Approval,
         reason: "Unrecognized command — confirming before execution".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn safe_prefix_stays_safe() {
+        for cmd in ["ls", "ls -la src", "cat file.txt", "git status", "cargo test", "node script.js", "env"] {
+            assert_eq!(evaluate_command(cmd).level, Level::Safe, "{cmd}");
+        }
+    }
+
+    #[test]
+    fn env_launching_a_program_needs_approval() {
+        for cmd in ["env rm -rf x", "env FOO=1 node x.js", "env -i sh"] {
+            assert_eq!(evaluate_command(cmd).level, Level::Approval, "{cmd}");
+        }
+        assert_eq!(evaluate_command("env FOO=1").level, Level::Safe);
+    }
+
+    #[test]
+    fn exec_flags_need_approval() {
+        for cmd in [
+            "find . -exec rm {} \\;",
+            "find . -delete",
+            "fd . -x rm {}",
+            "ls | xargs rm",
+            "node -e 'process.exit(1)'",
+            "node --eval 'x'",
+            "node -p '1+1'",
+        ] {
+            assert_eq!(evaluate_command(cmd).level, Level::Approval, "{cmd}");
+        }
+        // benign variants stay safe
+        for cmd in ["find . -name '*.rs'", "fd . src", "node --version"] {
+            assert_eq!(evaluate_command(cmd).level, Level::Safe, "{cmd}");
+        }
+    }
+
+    #[test]
+    fn lexical_escape_still_rejected() {
+        assert!(resolve_within_root("/proj", "../outside.txt").is_none());
+        assert!(resolve_within_root("/proj", "/etc/passwd").is_none());
+        assert_eq!(resolve_within_root("/proj", "src/a.rs").as_deref(), Some("src/a.rs"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_escape_rejected() {
+        use std::os::unix::fs::symlink;
+        let tmp = std::env::temp_dir().join(format!("dxxp-perm-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let proj = tmp.join("proj");
+        let outside = tmp.join("outside");
+        fs::create_dir_all(&proj).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, proj.join("link")).unwrap();
+        // A file targeted through the symlink escapes the root.
+        assert!(resolve_within_root(proj.to_str().unwrap(), "link/secret.txt").is_none());
+        // A normal path inside the project still resolves.
+        fs::write(proj.join("ok.txt"), "x").unwrap();
+        assert_eq!(
+            resolve_within_root(proj.to_str().unwrap(), "ok.txt").as_deref(),
+            Some("ok.txt")
+        );
+        let _ = fs::remove_dir_all(&tmp);
     }
 }
