@@ -44,10 +44,65 @@ fn agent() -> ureq::Agent {
         .into()
 }
 
+const MAX_ATTEMPTS: u32 = 3;
+
+/// Per-request overrides: connect and response-header timeouts only. The body
+/// read is deliberately uncapped — streamed responses can legitimately run
+/// for minutes and must not be cut by a global timeout.
+fn with_timeouts(req: ureq::RequestBuilder<ureq::typestate::WithBody>) -> ureq::RequestBuilder<ureq::typestate::WithBody> {
+    req.config()
+        .timeout_connect(Some(std::time::Duration::from_secs(15)))
+        .timeout_recv_response(Some(std::time::Duration::from_secs(60)))
+        .build()
+}
+
+fn retryable(e: &ureq::Error) -> bool {
+    match e {
+        ureq::Error::StatusCode(code) => *code == 429 || *code >= 500,
+        _ => true,
+    }
+}
+
+/// Send `make()` with up to 3 attempts on transient failures (429, 5xx,
+/// transport errors), backing off 1s → 2s → 4s. 4xx errors fail immediately.
+fn send_retry(
+    provider: &str,
+    aborted: &Arc<AtomicBool>,
+    mut make: impl FnMut() -> Result<ureq::http::Response<ureq::Body>, ureq::Error>,
+) -> Result<ureq::http::Response<ureq::Body>, ProviderError> {
+    let mut delay_ms = 1000u64;
+    let mut last: Option<ureq::Error> = None;
+    for attempt in 1..=MAX_ATTEMPTS {
+        if aborted.load(Ordering::Relaxed) {
+            return Err(ProviderError("aborted".into(), None));
+        }
+        match make() {
+            Ok(resp) => return Ok(resp),
+            Err(e) => {
+                if attempt >= MAX_ATTEMPTS || !retryable(&e) {
+                    return Err(post_error(e, provider));
+                }
+                last = Some(e);
+                for _ in 0..(delay_ms / 100) {
+                    if aborted.load(Ordering::Relaxed) {
+                        return Err(ProviderError("aborted".into(), None));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                delay_ms *= 2;
+            }
+        }
+    }
+    Err(post_error(last.unwrap(), provider))
+}
+
 fn post_error(e: ureq::Error, provider: &str) -> ProviderError {
     match e {
         ureq::Error::StatusCode(code) => ProviderError(format!("{provider} API error {code}"), Some(code as u32)),
-        other => ProviderError(format!("{provider} request failed: {other}"), None),
+        other => ProviderError(
+            format!("{provider} unreachable — check your connection or /providers to switch: {other}"),
+            None,
+        ),
     }
 }
 
@@ -109,6 +164,9 @@ impl Provider {
             Self::Anthropic { key } => {
                 let mut resp = agent()
                     .get("https://api.anthropic.com/v1/models?limit=100")
+                    .config()
+                    .timeout_global(Some(std::time::Duration::from_secs(20)))
+                    .build()
                     .header("x-api-key", key)
                     .header("anthropic-version", "2023-06-01")
                     .call()
@@ -123,6 +181,9 @@ impl Provider {
             Self::OpenAi { key, base_url } => {
                 let mut resp = agent()
                     .get(&format!("{base_url}/models"))
+                    .config()
+                    .timeout_global(Some(std::time::Duration::from_secs(20)))
+                    .build()
                     .header("authorization", &format!("Bearer {key}"))
                     .call()
                     .map_err(|e| post_error(e, "OpenAI"))?;
@@ -204,13 +265,13 @@ fn anthropic_chat(
         body["thinking"] = json!({"type": "enabled", "budget_tokens": b});
     }
 
-    let mut resp = agent()
-        .post("https://api.anthropic.com/v1/messages")
-        .header("content-type", "application/json")
-        .header("x-api-key", key)
-        .header("anthropic-version", "2023-06-01")
-        .send(body.to_string())
-        .map_err(|e| post_error(e, "Anthropic"))?;
+    let mut resp = send_retry("Anthropic", aborted, || {
+        with_timeouts(agent().post("https://api.anthropic.com/v1/messages"))
+            .header("content-type", "application/json")
+            .header("x-api-key", key)
+            .header("anthropic-version", "2023-06-01")
+            .send(body.to_string())
+    })?;
 
     let mut usage = Usage::default();
     let mut tool_blocks: BTreeMap<u64, (String, String, String)> = BTreeMap::new();
@@ -334,12 +395,12 @@ fn openai_chat(
         body["reasoning_effort"] = json!(e);
     }
 
-    let mut resp = agent()
-        .post(&format!("{base_url}/chat/completions"))
-        .header("content-type", "application/json")
-        .header("authorization", &format!("Bearer {key}"))
-        .send(body.to_string())
-        .map_err(|e| post_error(e, "OpenAI"))?;
+    let mut resp = send_retry("OpenAI", aborted, || {
+        with_timeouts(agent().post(&format!("{base_url}/chat/completions")))
+            .header("content-type", "application/json")
+            .header("authorization", &format!("Bearer {key}"))
+            .send(body.to_string())
+    })?;
 
     let mut usage: Option<Usage> = None;
     let mut stop_reason = String::from("stop");
@@ -611,4 +672,41 @@ pub fn resolve_provider(
         "No model provider configured. Run `dxxpcode` in a terminal to connect one, or set ANTHROPIC_API_KEY / OPENAI_API_KEY.".into(),
         None,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flag() -> Arc<AtomicBool> { Arc::new(AtomicBool::new(false)) }
+
+    #[test]
+    fn retryable_only_transient() {
+        assert!(retryable(&ureq::Error::StatusCode(429)));
+        assert!(retryable(&ureq::Error::StatusCode(503)));
+        assert!(!retryable(&ureq::Error::StatusCode(401)));
+        assert!(!retryable(&ureq::Error::StatusCode(400)));
+    }
+
+    #[test]
+    fn send_retry_gives_up_after_max() {
+        let mut n = 0;
+        let err = send_retry("OpenAI", &flag(), || {
+            n += 1;
+            Err(ureq::Error::StatusCode(503))
+        })
+        .unwrap_err();
+        assert_eq!(n, MAX_ATTEMPTS as usize);
+        assert!(err.to_string().contains("503"));
+    }
+
+    #[test]
+    fn send_retry_no_retry_on_4xx() {
+        let mut n = 0;
+        let _ = send_retry("OpenAI", &flag(), || {
+            n += 1;
+            Err(ureq::Error::StatusCode(401))
+        });
+        assert_eq!(n, 1);
+    }
 }
