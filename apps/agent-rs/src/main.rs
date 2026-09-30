@@ -13,7 +13,9 @@ mod util;
 use config::load_config;
 
 fn latest_session_for_local(root: &str) -> Option<config::SessionRecord> {
-    config::list_sessions().into_iter().find(|s| s.project_root == root)
+    config::list_sessions()
+        .into_iter()
+        .find(|s| s.project_root == root)
 }
 
 fn main() {
@@ -59,7 +61,10 @@ fn main() {
             }
             "--max-iterations" => {
                 i += 1;
-                max_iterations = argv.get(i).and_then(|v| v.parse::<u32>().ok()).filter(|n| *n > 0);
+                max_iterations = argv
+                    .get(i)
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .filter(|n| *n > 0);
             }
             _ => {
                 if let Some(v) = a.strip_prefix("--provider=") {
@@ -104,22 +109,32 @@ fn main() {
 
     let provider_name = provider_flag.or_else(|| cfg.provider.clone());
     let model = model_flag.or_else(|| cfg.model.clone());
-    let (provider, model) = match provider::resolve_provider(provider_name.as_deref(), model.as_deref(), &cfg) {
-        Ok(t) => t,
-        Err(e) => {
-            // The app still needs a process it can talk to for onboarding —
-            // fall back to a stub provider and let needsSetup drive the flow.
-            let _ = e;
-            (
-                provider::Provider::Mock { script: vec![serde_json::json!({"text": "(no provider configured — run setup)"})], turn: 0 },
-                cfg.model.clone().unwrap_or_else(|| "mock".into()),
-            )
-        }
-    };
+    let (provider, model) =
+        match provider::resolve_provider(provider_name.as_deref(), model.as_deref(), &cfg) {
+            Ok(t) => t,
+            Err(e) => {
+                // The app still needs a process it can talk to for onboarding —
+                // fall back to a stub provider and let needsSetup drive the flow.
+                let _ = e;
+                (
+                    provider::Provider::Mock {
+                        script: vec![
+                            serde_json::json!({"text": "(no provider configured — run setup)"}),
+                        ],
+                        turn: 0,
+                    },
+                    cfg.model.clone().unwrap_or_else(|| "mock".into()),
+                )
+            }
+        };
 
     let env_effort = std::env::var("DXXPCODE_EFFORT").ok();
     let effort = effort_flag
-        .or_else(|| env_effort.filter(|e| ["minimal", "low", "medium", "high", "xhigh", "max"].contains(&e.as_str())))
+        .or_else(|| {
+            env_effort.filter(|e| {
+                ["minimal", "low", "medium", "high", "xhigh", "max"].contains(&e.as_str())
+            })
+        })
         .or_else(|| cfg.effort.clone());
     let auto_approve = yes || cfg.approval_mode.as_deref() == Some("auto");
     let smart_mode = !yes && cfg.approval_mode.as_deref() == Some("smart");
@@ -133,7 +148,11 @@ fn main() {
         "ask"
     };
 
-    let session = if resume { latest_session_for_local(&root) } else { None };
+    let session = if resume {
+        latest_session_for_local(&root)
+    } else {
+        None
+    };
     let project = project::detect_project(&root);
 
     std::process::exit(app::run_app(app::AppDeps {
@@ -163,13 +182,14 @@ fn run_task_once(root: &str, task: String) {
             std::env::set_var("OPENAI_BASE_URL", b);
         }
     }
-    let (mut provider, model) = match provider::resolve_provider(cfg.provider.as_deref(), cfg.model.as_deref(), &cfg) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("{e}");
-            std::process::exit(1);
-        }
-    };
+    let (mut provider, model) =
+        match provider::resolve_provider(cfg.provider.as_deref(), cfg.model.as_deref(), &cfg) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        };
     let mut approve_plan = |_plan: &serde_json::Value| true;
     let mut approve_tool = |_t: &str, _i: &serde_json::Value, _r: &str, _m: Option<&str>| true;
     let mut review_change = |_t: &str, _i: &serde_json::Value, _d: &str| true;
@@ -192,8 +212,9 @@ fn run_task_once(root: &str, task: String) {
         procs,
     };
     let mut ok = true;
-    agent::run_task(&mut opts, &mut |ev| {
-        match ev.get("type").and_then(|t| t.as_str()) {
+    agent::run_task(
+        &mut opts,
+        &mut |ev| match ev.get("type").and_then(|t| t.as_str()) {
             Some("text") => {
                 if let Some(t) = ev.get("text").and_then(|t| t.as_str()) {
                     print!("{t}");
@@ -201,12 +222,15 @@ fn run_task_once(root: &str, task: String) {
                 }
             }
             Some("done") => {
-                let status = ev.pointer("/result/status").and_then(|s| s.as_str()).unwrap_or("");
+                let status = ev
+                    .pointer("/result/status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("");
                 ok = status == "completed";
                 println!();
             }
             _ => {}
-        }
-    });
+        },
+    );
     std::process::exit(if ok { 0 } else { 1 });
 }

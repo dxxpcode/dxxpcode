@@ -60,8 +60,18 @@ const MAX_BYTES: usize = 200 * 1024;
 const MAX_DIR_ENTRIES: usize = 400;
 const MAX_INDEX_ENTRIES: usize = 8000;
 const SKIP_DIRS: &[&str] = &[
-    ".git", ".dxxpcode", "node_modules", "dist", "build", ".next", "out", "coverage", ".venv",
-    "venv", "__pycache__", "target",
+    ".git",
+    ".dxxpcode",
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "out",
+    "coverage",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "target",
 ];
 
 pub struct MentionsResult {
@@ -74,14 +84,22 @@ fn walk_files_limited(root: &Path, rel: &str, out: &mut Vec<String>, cap: usize)
     if out.len() >= cap {
         return;
     }
-    let dir = if rel.is_empty() { root.to_path_buf() } else { root.join(rel) };
+    let dir = if rel.is_empty() {
+        root.to_path_buf()
+    } else {
+        root.join(rel)
+    };
     let Ok(rd) = fs::read_dir(&dir) else { return };
     for e in rd.flatten() {
         if out.len() >= cap {
             return;
         }
         let name = e.file_name().to_string_lossy().to_string();
-        let p = if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") };
+        let p = if rel.is_empty() {
+            name.clone()
+        } else {
+            format!("{rel}/{name}")
+        };
         let Ok(ft) = e.file_type() else { continue };
         if ft.is_dir() {
             if !SKIP_DIRS.contains(&name.as_str()) && !is_restricted_path(&p) {
@@ -107,7 +125,9 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
 
     for m in mention_re().captures_iter(task) {
         let raw = m.get(1).map(|g| g.as_str()).unwrap_or("");
-        let p = raw.trim_end_matches(|c: char| matches!(c, '.' | ',' | ';' | ':' | '!' | '?' | ')' | ']' | '}' | '>'));
+        let p = raw.trim_end_matches(|c: char| {
+            matches!(c, '.' | ',' | ';' | ':' | '!' | '?' | ')' | ']' | '}' | '>')
+        });
         if p.is_empty() {
             continue;
         }
@@ -139,7 +159,10 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
                 continue;
             }
             attached.push(format!("{rel}/ ({} files)", files.len()));
-            blocks.push(format!("\n\n<directory path=\"{rel}/\">\n{}\n</directory>", files.join("\n")));
+            blocks.push(format!(
+                "\n\n<directory path=\"{rel}/\">\n{}\n</directory>",
+                files.join("\n")
+            ));
             continue;
         }
         if !abs.is_file() {
@@ -158,7 +181,10 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
             let lines: Vec<&str> = raw.split('\n').collect();
             let end = to.unwrap_or(f).min(lines.len());
             if f < 1 || f > lines.len() {
-                skipped.push((p.to_string(), format!("line range out of bounds ({} lines)", lines.len())));
+                skipped.push((
+                    p.to_string(),
+                    format!("line range out of bounds ({} lines)", lines.len()),
+                ));
                 continue;
             }
             let slice = &lines[f - 1..end];
@@ -170,7 +196,10 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
             continue;
         }
         attached.push(format!("{rel} ({} lines)", raw.split('\n').count()));
-        blocks.push(format!("\n\n<file path=\"{rel}\">\n{}\n</file>", raw.trim_end_matches('\n')));
+        blocks.push(format!(
+            "\n\n<file path=\"{rel}\">\n{}\n</file>",
+            raw.trim_end_matches('\n')
+        ));
     }
     MentionsResult {
         text: task.to_string() + &blocks.join(""),
@@ -199,7 +228,12 @@ fn git_files(root: &str) -> Option<Vec<String>> {
     if text.is_empty() {
         return None;
     }
-    Some(text.lines().take(MAX_INDEX_ENTRIES).map(String::from).collect())
+    Some(
+        text.lines()
+            .take(MAX_INDEX_ENTRIES)
+            .map(String::from)
+            .collect(),
+    )
 }
 
 pub fn list_project_files(root: &str) -> FileIndex {
@@ -238,7 +272,11 @@ pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static st
         if lp == f {
             0
         } else if lp.starts_with(&f) {
-            if path_basename(&lp).starts_with(&base) { 1 } else { 2 }
+            if path_basename(&lp).starts_with(&base) {
+                1
+            } else {
+                2
+            }
         } else if path_basename(&lp).starts_with(&base) {
             3
         } else if lp.contains(&f) {

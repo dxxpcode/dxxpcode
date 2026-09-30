@@ -3,7 +3,7 @@
 
 use crate::agent::{self, compact_messages, estimate_tokens, undo_checkpoint};
 use crate::config::{
-    load_config, load_session, list_sessions, save_config, save_session, Config, SessionRecord,
+    list_sessions, load_config, load_session, save_config, save_session, Config, SessionRecord,
 };
 use crate::project::{detect_git, ProjectInfo};
 use crate::provider::{jev_route_effort, resolve_provider, smart_approve, Provider};
@@ -18,16 +18,25 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 
 const COMMAND_LIST: &[(&str, &str)] = &[
-    ("/review", "working-tree diff — `/review agent` runs an AI review"),
+    (
+        "/review",
+        "working-tree diff — `/review agent` runs an AI review",
+    ),
     ("/model", "pick the model for the next task"),
     ("/status", "session, config, and usage info"),
     ("/settings", "approval mode, provider, model, effort"),
     ("/approval", "approval mode — ask, always, or smart (Jev)"),
     ("/effort", "reasoning effort for the next task"),
-    ("/setup", "guided setup — provider, effort, optional Jev key"),
+    (
+        "/setup",
+        "guided setup — provider, effort, optional Jev key",
+    ),
     ("/providers", "switch between configured providers"),
     ("/undo", "restore files from the last checkpoint"),
-    ("/compact", "compress old tool output in the session context"),
+    (
+        "/compact",
+        "compress old tool output in the session context",
+    ),
     ("/docs", "reference — install, commands, flags, config"),
     ("/changelog", "release history"),
     ("/clear", "clear the transcript"),
@@ -41,7 +50,10 @@ pub static DOCS_MD: &str = include_str!(concat!(env!("OUT_DIR"), "/docs.md"));
 pub static CHANGELOG_MD: &str = include_str!(concat!(env!("OUT_DIR"), "/changelog.md"));
 
 const KNOWN_MODELS: &[(&str, &[&str])] = &[
-    ("anthropic", &["claude-opus-5-5", "claude-sonnet-4-5", "claude-haiku-4-5"]),
+    (
+        "anthropic",
+        &["claude-opus-5-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+    ),
     ("openai", &["gpt-6", "gpt-5", "gpt-4o"]),
 ];
 
@@ -296,7 +308,9 @@ fn open_model_menu(sh: &Arc<Shared>) {
     let mut m = match opts.get(i) {
         Some(s) => s.clone(),
         None => {
-            let Some(custom) = sh.prompt("model name:", false) else { return };
+            let Some(custom) = sh.prompt("model name:", false) else {
+                return;
+            };
             let t = custom.trim();
             if t.is_empty() {
                 return;
@@ -305,7 +319,9 @@ fn open_model_menu(sh: &Arc<Shared>) {
         }
     };
     if m == "custom…" {
-        let Some(custom) = sh.prompt("model name:", false) else { return };
+        let Some(custom) = sh.prompt("model name:", false) else {
+            return;
+        };
         m = custom.trim().to_string();
         if m.is_empty() {
             return;
@@ -325,7 +341,11 @@ fn set_model(sh: &Arc<Shared>, m: &str) {
     save_config(&cfg);
     emit_note(format!(
         "model: {m} · effort {} (saved)",
-        sh.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into())
+        sh.effort
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_else(|| "default".into())
     ));
     sh.emit_state();
 }
@@ -359,7 +379,16 @@ fn model_options(sh: &Arc<Shared>) -> Vec<String> {
 }
 
 fn open_effort_menu(sh: &Arc<Shared>) {
-    let opts = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
+    let opts = [
+        "default",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "auto (Jev)",
+    ];
     let descs = [
         "provider default",
         "fastest — quick lookups, simple formatting",
@@ -374,18 +403,35 @@ fn open_effort_menu(sh: &Arc<Shared>) {
     let cur = if cfg.effort_auto == Some(true) {
         "auto (Jev)".to_string()
     } else {
-        sh.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into())
+        sh.effort
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_else(|| "default".into())
     };
     let current = opts.iter().position(|o| *o == cur).unwrap_or(0);
     let menu_opts = labeled_options(&opts, Some(&descs));
-    let Some(i) = sh.menu("Reasoning effort — applies to the next task", menu_opts, Some(current)) else {
+    let Some(i) = sh.menu(
+        "Reasoning effort — applies to the next task",
+        menu_opts,
+        Some(current),
+    ) else {
         return;
     };
     set_effort(sh, opts[i]);
 }
 
 fn set_effort(sh: &Arc<Shared>, next: &str) {
-    let valid = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
+    let valid = [
+        "default",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "auto (Jev)",
+    ];
     if !valid.contains(&next) {
         emit_note(format!("unknown effort level: {next}"));
         return;
@@ -396,10 +442,18 @@ fn set_effort(sh: &Arc<Shared>, next: &str) {
         save_config(&cfg);
         emit_note(format!(
             "reasoning effort: auto (Jev) (saved){}",
-            if sh.jev_key().is_some() { "" } else { " — set TYPESAFE_API_KEY to enable" }
+            if sh.jev_key().is_some() {
+                ""
+            } else {
+                " — set TYPESAFE_API_KEY to enable"
+            }
         ));
     } else {
-        *sh.effort.lock().unwrap() = if next == "default" { None } else { Some(next.to_string()) };
+        *sh.effort.lock().unwrap() = if next == "default" {
+            None
+        } else {
+            Some(next.to_string())
+        };
         let mut cfg = load_config();
         cfg.effort = sh.effort.lock().unwrap().clone();
         cfg.effort_auto = Some(false);
@@ -421,7 +475,11 @@ fn open_approval_menu(sh: &Arc<Shared>) {
     let Some(i) = sh.menu(
         &format!(
             "Approval mode — applied to the next task and saved{}",
-            if sh.jev_key().is_some() { "" } else { " · smart needs TYPESAFE_API_KEY" }
+            if sh.jev_key().is_some() {
+                ""
+            } else {
+                " · smart needs TYPESAFE_API_KEY"
+            }
         ),
         labeled_options(&opts, None),
         Some(cur),
@@ -435,14 +493,34 @@ fn set_approval_mode(sh: &Arc<Shared>, i: usize) {
     let opts = ["ask", "always-approve", "smart (Jev)"];
     sh.smart_mode.store(i == 2, Ordering::Relaxed);
     sh.auto_approve.store(i == 1, Ordering::Relaxed);
-    *sh.mode.lock().unwrap() = if i == 2 { "smart" } else if i == 1 { "always-approve" } else { "ask" }.into();
+    *sh.mode.lock().unwrap() = if i == 2 {
+        "smart"
+    } else if i == 1 {
+        "always-approve"
+    } else {
+        "ask"
+    }
+    .into();
     let mut cfg = load_config();
-    cfg.approval_mode = Some(if i == 2 { "smart" } else if i == 1 { "auto" } else { "ask" }.into());
+    cfg.approval_mode = Some(
+        if i == 2 {
+            "smart"
+        } else if i == 1 {
+            "auto"
+        } else {
+            "ask"
+        }
+        .into(),
+    );
     save_config(&cfg);
     emit_note(format!(
         "approval mode: {} (saved){}",
         opts[i],
-        if i == 2 && sh.jev_key().is_none() { " — no TYPESAFE_API_KEY yet; falls back to ask" } else { "" }
+        if i == 2 && sh.jev_key().is_none() {
+            " — no TYPESAFE_API_KEY yet; falls back to ask"
+        } else {
+            ""
+        }
     ));
     sh.emit_state();
 }
@@ -463,7 +541,10 @@ fn set_approval_mode_by_name(sh: &Arc<Shared>, name: &str) {
 fn switch_provider(sh: &Arc<Shared>, name: &str) {
     let fresh = load_config();
     let mut models = fresh.models.clone().unwrap_or_default();
-    models.insert(sh.provider_name.lock().unwrap().clone(), sh.model.lock().unwrap().clone());
+    models.insert(
+        sh.provider_name.lock().unwrap().clone(),
+        sh.model.lock().unwrap().clone(),
+    );
     let model_for = models.get(name).cloned();
     match resolve_provider(Some(name), model_for.as_deref(), &fresh) {
         Ok((provider, model)) => {
@@ -532,7 +613,14 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
     save_config(&cfg);
     let name = if which == 0 { "anthropic" } else { "openai" };
     switch_provider(sh, name);
-    emit_note(format!("{} key saved", match which { 0 => "Anthropic", 1 => "OpenRouter", _ => "OpenAI-compatible" }));
+    emit_note(format!(
+        "{} key saved",
+        match which {
+            0 => "Anthropic",
+            1 => "OpenRouter",
+            _ => "OpenAI-compatible",
+        }
+    ));
     true
 }
 
@@ -541,7 +629,9 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
 fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
     let which = cmd.get("provider").and_then(|v| v.as_str()).unwrap_or("");
     let done = |ok: bool, provider: &str, model: Option<String>, error: Option<String>| {
-        emit(json!({"type": "setup_result", "ok": ok, "provider": provider, "model": model, "error": error}));
+        emit(
+            json!({"type": "setup_result", "ok": ok, "provider": provider, "model": model, "error": error}),
+        );
     };
 
     if which == "mock" {
@@ -561,7 +651,12 @@ fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
         return;
     }
 
-    let key = cmd.get("key").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let key = cmd
+        .get("key")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if key.is_empty() {
         done(false, which, None, Some("API key is empty".into()));
         return;
@@ -577,10 +672,17 @@ fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
         "anthropic" => crate::provider::Provider::Anthropic { key: key.clone() },
         "openai" => crate::provider::Provider::OpenAi {
             key: key.clone(),
-            base_url: base_url.clone().unwrap_or_else(|| "https://api.openai.com/v1".into()),
+            base_url: base_url
+                .clone()
+                .unwrap_or_else(|| "https://api.openai.com/v1".into()),
         },
         _ => {
-            done(false, which, None, Some(format!("unknown provider \"{which}\"")));
+            done(
+                false,
+                which,
+                None,
+                Some(format!("unknown provider \"{which}\"")),
+            );
             return;
         }
     };
@@ -589,7 +691,12 @@ fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
     let models = match candidate.list_models() {
         Ok(m) if !m.is_empty() => m,
         Ok(_) => {
-            done(false, which, None, Some("key accepted but no models returned — check the base URL".into()));
+            done(
+                false,
+                which,
+                None,
+                Some("key accepted but no models returned — check the base URL".into()),
+            );
             return;
         }
         Err(e) => {
@@ -612,23 +719,28 @@ fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
     // to the first model the endpoint returned.
     let mut models_map = cfg.models.clone().unwrap_or_default();
     let existing = models_map.get(which).cloned();
-    let builtin_default = if which == "anthropic" { "claude-opus-5-5" } else { "gpt-6" };
-    let chosen = existing
-        .filter(|m| models.contains(m))
-        .unwrap_or_else(|| {
-            if models.iter().any(|m| m == builtin_default) {
-                builtin_default.to_string()
-            } else {
-                models[0].clone()
-            }
-        });
+    let builtin_default = if which == "anthropic" {
+        "claude-opus-5-5"
+    } else {
+        "gpt-6"
+    };
+    let chosen = existing.filter(|m| models.contains(m)).unwrap_or_else(|| {
+        if models.iter().any(|m| m == builtin_default) {
+            builtin_default.to_string()
+        } else {
+            models[0].clone()
+        }
+    });
     models_map.insert(which.to_string(), chosen);
     cfg.models = Some(models_map);
     cfg.model = None; // let switch_provider re-resolve from cfg.models
     save_config(&cfg);
     switch_provider(sh, which);
     let model = sh.model.lock().unwrap().clone();
-    emit_note(format!("connected — {} model(s) available, default {model}", models.len()));
+    emit_note(format!(
+        "connected — {} model(s) available, default {model}",
+        models.len()
+    ));
     done(true, which, Some(model), None);
 }
 
@@ -663,7 +775,9 @@ fn open_provider_menu(sh: &Arc<Shared>) {
     if std::env::var("OPENAI_API_KEY").is_ok() || cfg.openai_api_key.is_some() {
         avail.push("openai".into());
     }
-    if std::env::var("DXXPCODE_PROVIDER").map(|v| v == "mock").unwrap_or(false)
+    if std::env::var("DXXPCODE_PROVIDER")
+        .map(|v| v == "mock")
+        .unwrap_or(false)
         || std::env::var("DXXPCODE_MOCK_SCRIPT").is_ok()
         || cur == "mock"
     {
@@ -681,7 +795,11 @@ fn open_provider_menu(sh: &Arc<Shared>) {
         .chain(std::iter::once(json!({"label": "connect a provider…"})))
         .collect();
     let current = opts.iter().position(|p| *p == cur).unwrap_or(0);
-    let Some(i) = sh.menu("Provider — switches for the next task and is saved", menu_opts, Some(current)) else {
+    let Some(i) = sh.menu(
+        "Provider — switches for the next task and is saved",
+        menu_opts,
+        Some(current),
+    ) else {
         return;
     };
     if i >= opts.len() {
@@ -713,15 +831,62 @@ fn show_status(sh: &Arc<Shared>, deps_root: &str, project: &ProjectInfo, version
     let git = detect_git(deps_root).or_else(|| project.git.clone());
     let session = sh.session.lock().unwrap();
     let rows: Vec<Value> = vec![
-        json!(["provider", format!("{} · {}", *sh.provider_name.lock().unwrap(), *sh.model.lock().unwrap())]),
+        json!([
+            "provider",
+            format!(
+                "{} · {}",
+                *sh.provider_name.lock().unwrap(),
+                *sh.model.lock().unwrap()
+            )
+        ]),
         json!(["mode", *sh.mode.lock().unwrap()]),
-        json!(["effort", if sh.effort_auto() { "auto (Jev)".to_string() } else { sh.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into()) }]),
+        json!([
+            "effort",
+            if sh.effort_auto() {
+                "auto (Jev)".to_string()
+            } else {
+                sh.effort
+                    .lock()
+                    .unwrap()
+                    .clone()
+                    .unwrap_or_else(|| "default".into())
+            }
+        ]),
         json!(["version", format!("v{version}")]),
         json!(["project", format!("{} — {}", project.name, deps_root)]),
-        json!(["git", git.map(|g| format!("{}{}", g.branch, if g.dirty { " (dirty)" } else { " (clean)" })).unwrap_or_else(|| "not a repository".into())]),
-        json!(["session", session.as_ref().map(|s| s.id.clone()).unwrap_or_else(|| "—".into())]),
-        json!(["context", session.as_ref().map(|s| format!("~{} tok / 60k cap", fmt_tokens(estimate_tokens(&s.messages)))).unwrap_or_else(|| "—".into())]),
-        json!(["usage", format!("{} tok this turn", fmt_tokens(*sh.turn_tokens.lock().unwrap()))]),
+        json!([
+            "git",
+            git.map(|g| format!(
+                "{}{}",
+                g.branch,
+                if g.dirty { " (dirty)" } else { " (clean)" }
+            ))
+            .unwrap_or_else(|| "not a repository".into())
+        ]),
+        json!([
+            "session",
+            session
+                .as_ref()
+                .map(|s| s.id.clone())
+                .unwrap_or_else(|| "—".into())
+        ]),
+        json!([
+            "context",
+            session
+                .as_ref()
+                .map(|s| format!(
+                    "~{} tok / 60k cap",
+                    fmt_tokens(estimate_tokens(&s.messages))
+                ))
+                .unwrap_or_else(|| "—".into())
+        ]),
+        json!([
+            "usage",
+            format!(
+                "{} tok this turn",
+                fmt_tokens(*sh.turn_tokens.lock().unwrap())
+            )
+        ]),
         json!(["config", crate::config::config_path().display().to_string()]),
     ];
     drop(session);
@@ -779,42 +944,59 @@ fn run_agent_review(deps: &DepsInfo) {
 }
 
 fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
-    let name = raw.trim().split_whitespace().next().unwrap_or("");
+    let name = raw.split_whitespace().next().unwrap_or("");
     match name {
         "/review" => {
-            let arg = raw.trim().split_whitespace().nth(1);
+            let arg = raw.split_whitespace().nth(1);
             if arg == Some("agent") {
                 run_agent_review(deps);
             } else {
-            let diff = git_out(&deps.root, &["diff"]) + &git_out(&deps.root, &["diff", "--cached"]);
-            let untracked = git_out(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
-            let untracked = untracked.trim();
-            if !diff.trim().is_empty() {
-                emit(json!({"type": "diff_card", "title": "working tree", "diff": diff}));
-                if !untracked.is_empty() {
-                    emit_note(format!("untracked: {} file(s)", untracked.lines().count()));
-                }
-            } else {
-                emit_note(if untracked.is_empty() {
-                    "No changes.".to_string()
+                let diff =
+                    git_out(&deps.root, &["diff"]) + &git_out(&deps.root, &["diff", "--cached"]);
+                let untracked =
+                    git_out(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
+                let untracked = untracked.trim();
+                if !diff.trim().is_empty() {
+                    emit(json!({"type": "diff_card", "title": "working tree", "diff": diff}));
+                    if !untracked.is_empty() {
+                        emit_note(format!("untracked: {} file(s)", untracked.lines().count()));
+                    }
                 } else {
-                    format!("untracked: {} file(s)", untracked.lines().count())
-                });
-            }
+                    emit_note(if untracked.is_empty() {
+                        "No changes.".to_string()
+                    } else {
+                        format!("untracked: {} file(s)", untracked.lines().count())
+                    });
+                }
             }
         }
         "/status" => show_status(sh, &deps.root, &deps.project, &deps.version),
         "/settings" => open_settings_menu(sh),
-        "/approval" => match raw.trim().get("/approval".len()..).map(str::trim).filter(|s| !s.is_empty()) {
+        "/approval" => match raw
+            .trim()
+            .get("/approval".len()..)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
             Some(mode) => set_approval_mode_by_name(sh, mode),
             None => open_approval_menu(sh),
         },
-        "/model" => match raw.trim().get("/model".len()..).map(str::trim).filter(|s| !s.is_empty()) {
+        "/model" => match raw
+            .trim()
+            .get("/model".len()..)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
             Some(m) => set_model(sh, m),
             None => open_model_menu(sh),
         },
         "/models" => emit(json!({"type": "models", "items": model_options(sh)})),
-        "/effort" => match raw.trim().get("/effort".len()..).map(str::trim).filter(|s| !s.is_empty()) {
+        "/effort" => match raw
+            .trim()
+            .get("/effort".len()..)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
             Some(level) => set_effort(sh, level),
             None => open_effort_menu(sh),
         },
@@ -828,8 +1010,24 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             emit_note(match out {
                 Some(o) => {
                     let seq = o.get("seq").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let restored: Vec<String> = o.get("restored").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default();
-                    let removed: Vec<String> = o.get("removed").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default();
+                    let restored: Vec<String> = o
+                        .get("restored")
+                        .and_then(|v| v.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let removed: Vec<String> = o
+                        .get("removed")
+                        .and_then(|v| v.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
                     let mut t = format!("restored checkpoint {seq}");
                     if !restored.is_empty() {
                         t.push_str(&format!(" — restored {}", restored.join(", ")));
@@ -864,14 +1062,19 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
                                 fmt_tokens(after)
                             ));
                         }
-                        None => emit_note(format!("context already compact (~{} tok)", fmt_tokens(estimate_tokens(&sess.messages)))),
+                        None => emit_note(format!(
+                            "context already compact (~{} tok)",
+                            fmt_tokens(estimate_tokens(&sess.messages))
+                        )),
                     }
                 }
                 _ => emit_note("no session context to compact yet"),
             }
         }
         "/docs" => emit(json!({"type": "markdown", "title": "Docs", "text": DOCS_MD})),
-        "/changelog" => emit(json!({"type": "markdown", "title": "Changelog", "text": CHANGELOG_MD})),
+        "/changelog" => {
+            emit(json!({"type": "markdown", "title": "Changelog", "text": CHANGELOG_MD}))
+        }
         "/resume" => {
             let past: Vec<SessionRecord> = list_sessions()
                 .into_iter()
@@ -885,13 +1088,17 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             let opts: Vec<Value> = past
                 .iter()
                 .map(|s| json!({
-                    "label": format!("{} — {}", s.updated_at.chars().take(16).collect::<String>().replace('T', " "), s.task.chars().take(60).collect::<String>().replace(|c| c == '\n', " ")),
+                    "label": format!("{} — {}", s.updated_at.chars().take(16).collect::<String>().replace('T', " "), s.task.chars().take(60).collect::<String>().replace('\n', " ")),
                     "desc": s.id.chars().take(8).collect::<String>(),
                 }))
                 .collect();
-            let Some(i) = sh.menu("Resume a session", opts, None) else { return };
+            let Some(i) = sh.menu("Resume a session", opts, None) else {
+                return;
+            };
             let Some(picked) = load_session(&past[i].id) else {
-                emit(json!({"type": "error", "text": format!("session {} is unreadable", past[i].id)}));
+                emit(
+                    json!({"type": "error", "text": format!("session {} is unreadable", past[i].id)}),
+                );
                 return;
             };
             *sh.session.lock().unwrap() = Some(picked.clone());
@@ -946,7 +1153,12 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         let steps: Vec<String> = plan
             .get("steps")
             .and_then(|v| v.as_array())
-            .map(|a| a.iter().enumerate().filter_map(|(i, s)| s.as_str().map(|s| format!("{}. {}", i + 1, s))).collect())
+            .map(|a| {
+                a.iter()
+                    .enumerate()
+                    .filter_map(|(i, s)| s.as_str().map(|s| format!("{}. {}", i + 1, s)))
+                    .collect()
+            })
             .unwrap_or_default();
         let body = std::iter::once(summary.to_string())
             .chain(steps)
@@ -961,10 +1173,16 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
             let steps_md: Vec<String> = plan
                 .get("steps")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|s| s.as_str().map(|s| format!("- [ ] {s}"))).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|s| s.as_str().map(|s| format!("- [ ] {s}")))
+                        .collect()
+                })
                 .unwrap_or_default();
             let md = format!("# Plan\n\n{summary}\n\n{}\n", steps_md.join("\n"));
-            match std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(dir.join("plan.md"), &md)) {
+            match std::fs::create_dir_all(&dir)
+                .and_then(|_| std::fs::write(dir.join("plan.md"), &md))
+            {
                 Ok(()) => emit_note("plan saved to .dxxpcode/plan.md"),
                 Err(e) => emit_note(format!("couldn't save plan: {e}")),
             }
@@ -972,35 +1190,43 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         choice == "y" || choice == "a" || choice == "s"
     };
 
-    let mut approve_tool = |tool: &str, input: &Value, reason: &str, model_reason: Option<&str>| -> bool {
-        let summary = describe(tool, input);
-        let key = format!("{tool}:{summary}");
-        if sh.allowlist.lock().unwrap().contains(&key) {
-            emit_note(format!("allowed earlier this session: {summary}"));
-            return true;
-        }
-        if sh.auto_approve.load(Ordering::Relaxed) {
-            emit_note(format!("auto-approved: {summary}"));
-            return true;
-        }
-        if sh.smart_mode.load(Ordering::Relaxed) {
-            if let Some(k) = sh.jev_key() {
-                if let Some((approve, conf)) = smart_approve(tool, input, model_reason, reason, &k) {
-                    if approve {
-                        emit_note(format!("smart-approved (jev {conf:.2}): {summary}"));
-                        return true;
+    let mut approve_tool =
+        |tool: &str, input: &Value, reason: &str, model_reason: Option<&str>| -> bool {
+            let summary = describe(tool, input);
+            let key = format!("{tool}:{summary}");
+            if sh.allowlist.lock().unwrap().contains(&key) {
+                emit_note(format!("allowed earlier this session: {summary}"));
+                return true;
+            }
+            if sh.auto_approve.load(Ordering::Relaxed) {
+                emit_note(format!("auto-approved: {summary}"));
+                return true;
+            }
+            if sh.smart_mode.load(Ordering::Relaxed) {
+                if let Some(k) = sh.jev_key() {
+                    if let Some((approve, conf)) =
+                        smart_approve(tool, input, model_reason, reason, &k)
+                    {
+                        if approve {
+                            emit_note(format!("smart-approved (jev {conf:.2}): {summary}"));
+                            return true;
+                        }
+                        emit_note(format!("jev escalated ({conf:.2})"));
                     }
-                    emit_note(format!("jev escalated ({conf:.2})"));
                 }
             }
-        }
-        let choice = sh.ask("tool", &summary, Some(model_reason.unwrap_or(reason)), Some(tool));
-        if choice == "a" {
-            sh.allowlist.lock().unwrap().insert(key);
-            return true;
-        }
-        choice == "y"
-    };
+            let choice = sh.ask(
+                "tool",
+                &summary,
+                Some(model_reason.unwrap_or(reason)),
+                Some(tool),
+            );
+            if choice == "a" {
+                sh.allowlist.lock().unwrap().insert(key);
+                return true;
+            }
+            choice == "y"
+        };
 
     // Pre-write diff review: in "always approve" mode diffs apply silently
     // (the applied diff still lands in the transcript via tool_end).
@@ -1008,7 +1234,11 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         if sh.auto_approve.load(Ordering::Relaxed) {
             return true;
         }
-        let path = input.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let path = input
+            .get("path")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
         match sh.review_diff(&path, diff).as_str() {
             "apply" => true,
             "apply_all" => {
@@ -1071,8 +1301,10 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
     agent::run_task(&mut opts, &mut |ev| {
         if ev.get("type").and_then(|t| t.as_str()) == Some("usage") {
             let u = ev.get("usage").cloned().unwrap_or(json!({}));
-            *sh.turn_tokens.lock().unwrap() = (u.get("inputTokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                + u.get("outputTokens").and_then(|v| v.as_u64()).unwrap_or(0)) as usize;
+            *sh.turn_tokens.lock().unwrap() =
+                (u.get("inputTokens").and_then(|v| v.as_u64()).unwrap_or(0)
+                    + u.get("outputTokens").and_then(|v| v.as_u64()).unwrap_or(0))
+                    as usize;
         }
         if ev.get("type").and_then(|t| t.as_str()) == Some("done") {
             if let Some(sid) = ev.pointer("/result/sessionId").and_then(|v| v.as_str()) {
@@ -1267,7 +1499,10 @@ pub fn run_app(deps: AppDeps) -> i32 {
             "diff_decide" => {
                 if let Some(id) = cmd.get("id").and_then(|v| v.as_u64()) {
                     if let Some(tx) = sh.pending_diffs.lock().unwrap().remove(&id) {
-                        let decision = cmd.get("decision").and_then(|v| v.as_str()).unwrap_or("discard");
+                        let decision = cmd
+                            .get("decision")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("discard");
                         let _ = tx.send(decision.to_string());
                     }
                 }
@@ -1305,11 +1540,13 @@ pub fn run_app(deps: AppDeps) -> i32 {
                     .collect();
                 let items: Vec<Value> = past
                     .iter()
-                    .map(|s| json!({
-                        "id": &s.id,
-                        "title": s.task.chars().take(80).collect::<String>().replace('\n', " "),
-                        "desc": s.updated_at.chars().take(10).collect::<String>(),
-                    }))
+                    .map(|s| {
+                        json!({
+                            "id": &s.id,
+                            "title": s.task.chars().take(80).collect::<String>().replace('\n', " "),
+                            "desc": s.updated_at.chars().take(10).collect::<String>(),
+                        })
+                    })
                     .collect();
                 emit(json!({"type": "sessions", "items": items}));
             }
@@ -1326,7 +1563,9 @@ pub fn run_app(deps: AppDeps) -> i32 {
                                 picked.messages.len()
                             ));
                         }
-                        None => emit(json!({"type": "error", "text": format!("session {id} is unreadable")})),
+                        None => emit(
+                            json!({"type": "error", "text": format!("session {id} is unreadable")}),
+                        ),
                     }
                 }
             }

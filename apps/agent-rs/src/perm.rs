@@ -137,7 +137,9 @@ pub fn resolve_within_root(root: &str, target: &str) -> Option<String> {
 }
 
 fn any_matches(patterns: &[&str], base: &str) -> bool {
-    patterns.iter().any(|p| Regex::new(p).unwrap().is_match(base))
+    patterns
+        .iter()
+        .any(|p| Regex::new(p).unwrap().is_match(base))
 }
 
 pub fn is_restricted_path(relative: &str) -> bool {
@@ -198,69 +200,186 @@ pub fn evaluate_file_action(root: &str, target: &str, action: FileAction) -> Dec
     }
     Decision {
         level: Level::Safe,
-        reason: format!("{} {}", action.label(), if rel.is_empty() { "project root" } else { &rel }),
+        reason: format!(
+            "{} {}",
+            action.label(),
+            if rel.is_empty() { "project root" } else { &rel }
+        ),
     }
 }
 
 /* ------------------------------ commands ------------------------------ */
 
 const RESTRICTED_COMMANDS: &[(&str, &str)] = &[
-    (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)?/($|\s)", "Recursive delete of a filesystem root"),
+    (
+        r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)?/($|\s)",
+        "Recursive delete of a filesystem root",
+    ),
     (r"\bmkfs\b|\bformat\b.*/dev/", "Filesystem formatting"),
     (r"\bdd\b.*\bof=/dev/", "Raw disk write"),
     (r":\(\)\s*\{\s*:\|:\s*&\s*\}\s*;:", "Fork bomb"),
-    (r">\s*~?/?\.ssh/|cat\s+[^|]*\.ssh/|cat\s+[^|]*\.env\b", "Accesses a protected credential path"),
+    (
+        r">\s*~?/?\.ssh/|cat\s+[^|]*\.ssh/|cat\s+[^|]*\.env\b",
+        "Accesses a protected credential path",
+    ),
 ];
 
 const SAFE_PREFIXES: &[&str] = &[
-    "ls", "pwd", "cat", "head", "tail", "wc", "file", "stat", "find",
-    "grep", "rg", "fd", "tree", "which", "echo", "env", "printenv",
-    "git status", "git diff", "git log", "git show", "git branch",
-    "git remote", "git blame", "git rev-parse", "git ls-files", "git describe",
-    "git stash list", "git tag", "git config --get", "git config --list",
-    "node", "npm test", "npm run", "npm exec", "npm ls", "npm view", "npm outdated",
-    "npx tsc", "npx vitest run", "npx jest",
-    "pnpm test", "pnpm run", "pnpm exec", "pnpm ls", "pnpm view",
-    "yarn test", "yarn run",
-    "bun test", "bun run", "bunx",
-    "tsc", "vitest", "jest", "mocha", "eslint", "biome", "prettier",
-    "cargo test", "cargo build", "cargo check", "cargo clippy", "cargo fmt",
-    "go test", "go build", "go vet", "go fmt", "go mod verify",
-    "pytest", "python -m pytest", "python -m compileall", "ruff", "mypy",
-    "mvn test", "mvn compile", "gradle test", "./gradlew test", "./gradlew build",
-    "dotnet test", "dotnet build",
-    "make test", "make check", "make build",
-    "test", "true", "false",
+    "ls",
+    "pwd",
+    "cat",
+    "head",
+    "tail",
+    "wc",
+    "file",
+    "stat",
+    "find",
+    "grep",
+    "rg",
+    "fd",
+    "tree",
+    "which",
+    "echo",
+    "env",
+    "printenv",
+    "git status",
+    "git diff",
+    "git log",
+    "git show",
+    "git branch",
+    "git remote",
+    "git blame",
+    "git rev-parse",
+    "git ls-files",
+    "git describe",
+    "git stash list",
+    "git tag",
+    "git config --get",
+    "git config --list",
+    "node",
+    "npm test",
+    "npm run",
+    "npm exec",
+    "npm ls",
+    "npm view",
+    "npm outdated",
+    "npx tsc",
+    "npx vitest run",
+    "npx jest",
+    "pnpm test",
+    "pnpm run",
+    "pnpm exec",
+    "pnpm ls",
+    "pnpm view",
+    "yarn test",
+    "yarn run",
+    "bun test",
+    "bun run",
+    "bunx",
+    "tsc",
+    "vitest",
+    "jest",
+    "mocha",
+    "eslint",
+    "biome",
+    "prettier",
+    "cargo test",
+    "cargo build",
+    "cargo check",
+    "cargo clippy",
+    "cargo fmt",
+    "go test",
+    "go build",
+    "go vet",
+    "go fmt",
+    "go mod verify",
+    "pytest",
+    "python -m pytest",
+    "python -m compileall",
+    "ruff",
+    "mypy",
+    "mvn test",
+    "mvn compile",
+    "gradle test",
+    "./gradlew test",
+    "./gradlew build",
+    "dotnet test",
+    "dotnet build",
+    "make test",
+    "make check",
+    "make build",
+    "test",
+    "true",
+    "false",
 ];
 
 // Checked before SAFE_PREFIXES: shapes that turn an otherwise-safe command
 // into a code-execution vector.
 const EXEC_VECTORS: &[(&str, &str)] = &[
-    (r"\benv(\s+[A-Za-z_][A-Za-z_0-9]*=[^\s]+)*\s+[^=\s]+(\s|$)", "env launches a program"),
-    (r"\bfind\b.*\s-(exec|execdir|ok|okdir|delete)\b", "find executes a command"),
-    (r"\bfd\b.*\s(-x|-X|--exec|--exec-batch)\b", "fd executes a command"),
+    (
+        r"\benv(\s+[A-Za-z_][A-Za-z_0-9]*=[^\s]+)*\s+[^=\s]+(\s|$)",
+        "env launches a program",
+    ),
+    (
+        r"\bfind\b.*\s-(exec|execdir|ok|okdir|delete)\b",
+        "find executes a command",
+    ),
+    (
+        r"\bfd\b.*\s(-x|-X|--exec|--exec-batch)\b",
+        "fd executes a command",
+    ),
     (r"\bxargs\b", "Runs a command per input line"),
-    (r"\b(node|nodejs|deno|bun)\s+.*\s(-e|-p|--eval|--print)(=|\b)", "Runs inline code"),
-    (r"\b(node|nodejs|deno|bun)\s+(-e|-p|--eval|--print)(=|\b)", "Runs inline code"),
+    (
+        r"\b(node|nodejs|deno|bun)\s+.*\s(-e|-p|--eval|--print)(=|\b)",
+        "Runs inline code",
+    ),
+    (
+        r"\b(node|nodejs|deno|bun)\s+(-e|-p|--eval|--print)(=|\b)",
+        "Runs inline code",
+    ),
 ];
 
 const APPROVAL_COMMANDS: &[(&str, &str)] = &[
     (r"\brm\b", "Deletes files"),
     (r"\bmv\b", "Moves/renames files"),
     (r"\bcp\s+-[a-zA-Z]*r", "Recursive copy"),
-    (r"\b(git\s+)?(commit|push|reset|clean|rebase|merge|checkout\s+-[bB]|branch\s+-[dD]|stash\s+(pop|drop)|cherry-pick|revert|tag\s+-[dD])\b", "Mutates git state"),
-    (r"\bgit\s+(add|commit|push|pull|fetch|reset|clean|rebase|merge|checkout|switch|restore|stash|cherry-pick|revert|rm|mv)\b", "Mutates git state"),
-    (r"\b(npm|pnpm|yarn|bun)\s+(i|install|add|remove|uninstall|update|upgrade|publish|link)\b", "Changes dependencies"),
-    (r"\b(pip|pip3|uv|poetry)\s+(install|uninstall|add|remove)\b", "Changes dependencies"),
-    (r"\bcargo\s+(add|remove|install|publish)\b", "Changes dependencies"),
+    (
+        r"\b(git\s+)?(commit|push|reset|clean|rebase|merge|checkout\s+-[bB]|branch\s+-[dD]|stash\s+(pop|drop)|cherry-pick|revert|tag\s+-[dD])\b",
+        "Mutates git state",
+    ),
+    (
+        r"\bgit\s+(add|commit|push|pull|fetch|reset|clean|rebase|merge|checkout|switch|restore|stash|cherry-pick|revert|rm|mv)\b",
+        "Mutates git state",
+    ),
+    (
+        r"\b(npm|pnpm|yarn|bun)\s+(i|install|add|remove|uninstall|update|upgrade|publish|link)\b",
+        "Changes dependencies",
+    ),
+    (
+        r"\b(pip|pip3|uv|poetry)\s+(install|uninstall|add|remove)\b",
+        "Changes dependencies",
+    ),
+    (
+        r"\bcargo\s+(add|remove|install|publish)\b",
+        "Changes dependencies",
+    ),
     (r"\bgo\s+(get|install)\b", "Changes dependencies"),
     (r"\b(sudo|doas)\b", "Elevated privileges"),
     (r"\b(curl|wget)\b", "Network access"),
-    (r"\|\s*(sh|bash|zsh|fish|python|node)\b", "Pipes to an interpreter"),
+    (
+        r"\|\s*(sh|bash|zsh|fish|python|node)\b",
+        "Pipes to an interpreter",
+    ),
     (r"\b(chmod|chown|chgrp)\b", "Changes file permissions"),
-    (r"\b(docker|podman|kubectl|helm|terraform|ansible)\b", "Infrastructure access"),
+    (
+        r"\b(docker|podman|kubectl|helm|terraform|ansible)\b",
+        "Infrastructure access",
+    ),
     (r"\b(kill|pkill|killall)\b", "Terminates processes"),
-    (r"\b(apt|apt-get|brew|dnf|yum|pacman|snap)\s+(install|remove|uninstall)\b", "System package change"),
+    (
+        r"\b(apt|apt-get|brew|dnf|yum|pacman|snap)\s+(install|remove|uninstall)\b",
+        "System package change",
+    ),
     (r"\b(launchctl|systemctl|service)\b", "Service management"),
     (r"\b(sh|bash|zsh|fish)\s+-c\b", "Shell wrapper"),
     (r">\s*[^|]", "Writes to a file via redirection"),
@@ -271,7 +390,10 @@ pub fn evaluate_command(command: &str) -> Decision {
     let cmd = command.trim();
     for (pat, reason) in RESTRICTED_COMMANDS {
         if Regex::new(pat).unwrap().is_match(cmd) {
-            return Decision { level: Level::Restricted, reason: (*reason).into() };
+            return Decision {
+                level: Level::Restricted,
+                reason: (*reason).into(),
+            };
         }
     }
     for token in cmd.split_whitespace() {
@@ -285,7 +407,10 @@ pub fn evaluate_command(command: &str) -> Decision {
     }
     for (pat, reason) in EXEC_VECTORS {
         if Regex::new(pat).unwrap().is_match(cmd) {
-            return Decision { level: Level::Approval, reason: (*reason).into() };
+            return Decision {
+                level: Level::Approval,
+                reason: (*reason).into(),
+            };
         }
     }
     let lower = cmd.to_lowercase();
@@ -306,7 +431,10 @@ pub fn evaluate_command(command: &str) -> Decision {
     }
     for (pat, reason) in APPROVAL_COMMANDS {
         if Regex::new(pat).unwrap().is_match(cmd) {
-            return Decision { level: Level::Approval, reason: (*reason).into() };
+            return Decision {
+                level: Level::Approval,
+                reason: (*reason).into(),
+            };
         }
     }
     Decision {
@@ -321,7 +449,15 @@ mod tests {
 
     #[test]
     fn safe_prefix_stays_safe() {
-        for cmd in ["ls", "ls -la src", "cat file.txt", "git status", "cargo test", "node script.js", "env"] {
+        for cmd in [
+            "ls",
+            "ls -la src",
+            "cat file.txt",
+            "git status",
+            "cargo test",
+            "node script.js",
+            "env",
+        ] {
             assert_eq!(evaluate_command(cmd).level, Level::Safe, "{cmd}");
         }
     }
@@ -357,7 +493,10 @@ mod tests {
     fn lexical_escape_still_rejected() {
         assert!(resolve_within_root("/proj", "../outside.txt").is_none());
         assert!(resolve_within_root("/proj", "/etc/passwd").is_none());
-        assert_eq!(resolve_within_root("/proj", "src/a.rs").as_deref(), Some("src/a.rs"));
+        assert_eq!(
+            resolve_within_root("/proj", "src/a.rs").as_deref(),
+            Some("src/a.rs")
+        );
     }
 
     #[cfg(unix)]

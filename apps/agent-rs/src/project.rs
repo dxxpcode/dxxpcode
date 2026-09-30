@@ -52,7 +52,10 @@ pub fn detect_git(root: &str) -> Option<GitInfo> {
         return None;
     }
     let status = git_out(root, &["status", "--porcelain"]).unwrap_or_default();
-    let ahead_behind = git_out(root, &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]);
+    let ahead_behind = git_out(
+        root,
+        &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+    );
     Some(GitInfo {
         branch,
         dirty: !status.trim().is_empty(),
@@ -94,10 +97,21 @@ fn js_commands(root: &Path, pm: &str) -> (Option<String>, Option<String>) {
     let run = match pm {
         "npm" => "npm run",
         "yarn" => "yarn",
-        p => return (has("test").then(|| format!("{p} test")), has("build").then(|| format!("{p} run build"))),
+        p => {
+            return (
+                has("test").then(|| format!("{p} test")),
+                has("build").then(|| format!("{p} run build")),
+            )
+        }
     };
     (
-        has("test").then(|| if pm == "npm" { "npm test".into() } else { format!("{pm} test") }),
+        has("test").then(|| {
+            if pm == "npm" {
+                "npm test".into()
+            } else {
+                format!("{pm} test")
+            }
+        }),
         has("build").then(|| format!("{run} build")),
     )
 }
@@ -106,10 +120,25 @@ const MARKERS: &[(&str, &str, Option<&str>, Option<&str>)] = &[
     ("package.json", "JavaScript/TypeScript", None, None),
     ("pyproject.toml", "Python", Some("pytest"), None),
     ("requirements.txt", "Python", None, None),
-    ("Cargo.toml", "Rust", Some("cargo test"), Some("cargo build")),
-    ("go.mod", "Go", Some("go test ./..."), Some("go build ./...")),
+    (
+        "Cargo.toml",
+        "Rust",
+        Some("cargo test"),
+        Some("cargo build"),
+    ),
+    (
+        "go.mod",
+        "Go",
+        Some("go test ./..."),
+        Some("go build ./..."),
+    ),
     ("pom.xml", "Java", Some("mvn test"), Some("mvn compile")),
-    ("build.gradle", "Java/Kotlin", Some("./gradlew test"), Some("./gradlew build")),
+    (
+        "build.gradle",
+        "Java/Kotlin",
+        Some("./gradlew test"),
+        Some("./gradlew build"),
+    ),
 ];
 
 pub fn detect_project(root: &str) -> ProjectInfo {
@@ -120,7 +149,10 @@ pub fn detect_project(root: &str) -> ProjectInfo {
     let mut build_command = None;
 
     let has_csproj = fs::read_dir(&rootp)
-        .map(|rd| rd.flatten().any(|e| e.file_name().to_string_lossy().ends_with(".csproj")))
+        .map(|rd| {
+            rd.flatten()
+                .any(|e| e.file_name().to_string_lossy().ends_with(".csproj"))
+        })
         .unwrap_or(false);
 
     for (file, lang, test, build) in MARKERS {
@@ -179,7 +211,15 @@ pub fn load_instructions(root: &str) -> Option<(String, String)> {
 
 pub fn top_level_listing(root: &str) -> Vec<String> {
     const SKIP: &[&str] = &[
-        "node_modules", ".git", "dist", "build", "target", "__pycache__", ".next", ".venv", "venv",
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        "target",
+        "__pycache__",
+        ".next",
+        ".venv",
+        "venv",
     ];
     fs::read_dir(root)
         .map(|rd| {
@@ -261,7 +301,10 @@ pub fn gather_context(root: &str) -> (ProjectInfo, String) {
             let mut names = names;
             names.sort();
             lines.push(String::new());
-            lines.push(format!("Project tools (.dxxpcode/tools/): {}", names.join(", ")));
+            lines.push(format!(
+                "Project tools (.dxxpcode/tools/): {}",
+                names.join(", ")
+            ));
         }
     }
     (project, lines.join("\n"))

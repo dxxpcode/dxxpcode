@@ -53,7 +53,9 @@ pub struct Config {
 
 pub fn load_config() -> Config {
     let path = config_path();
-    let Ok(raw) = fs::read_to_string(&path) else { return Config::default() };
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return Config::default();
+    };
     serde_json::from_str(&raw).unwrap_or_default()
 }
 
@@ -119,12 +121,18 @@ fn slugify(root: &str) -> String {
         .replace('\\', "/")
         .split('/')
         .filter(|s| !s.is_empty())
-        .last()
+        .next_back()
         .unwrap_or("project")
         .to_lowercase();
     let s: String = base
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
     let s = s.trim_matches('-');
     let s = if s.is_empty() { "project" } else { s };
@@ -139,7 +147,9 @@ pub fn new_session_id(root: &str) -> String {
         .to_string()
         .replace([':', '.'], "-");
     let ts = ts.trim_end_matches('Z').to_string();
-    let rand_hex: String = (0..3).map(|_| format!("{:02x}", rand::random::<u8>())).collect();
+    let rand_hex: String = (0..3)
+        .map(|_| format!("{:02x}", rand::random::<u8>()))
+        .collect();
     format!("{}-{}-{}", slugify(root), ts, rand_hex)
 }
 
@@ -180,5 +190,3 @@ pub fn list_sessions() -> Vec<SessionRecord> {
     out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
     out
 }
-
-
