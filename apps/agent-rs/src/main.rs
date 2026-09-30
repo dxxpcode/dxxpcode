@@ -4,6 +4,7 @@
 mod agent;
 mod app;
 mod config;
+mod errors;
 mod perm;
 mod project;
 mod provider;

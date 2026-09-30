@@ -264,7 +264,13 @@ export default function App() {
         push({ k: "diffcard", title: String(ev.title), diff: String(ev.diff) });
         break;
       case "error":
-        push({ k: "note", text: `error: ${ev.text}` });
+        push({
+          k: "error",
+          text: String(ev.message ?? ev.text),
+          hint: ev.hint != null ? String(ev.hint) : undefined,
+          detail: ev.detail != null ? String(ev.detail) : undefined,
+          code: ev.code != null ? String(ev.code) : undefined,
+        });
         break;
       case "exit":
         void getCurrentWindow().close();
@@ -1289,6 +1295,19 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
       );
     case "note":
       return <div className={`note row${item.steer ? " steer" : ""}`}>{item.steer ? "⎿ " : ""}{item.text}</div>;
+    case "error":
+      return (
+        <div className="errrow row">
+          <span className="erricon">✗</span>
+          <div className="errbody">
+            <div>{item.text}</div>
+            {item.hint && <div className="errhint">{item.hint}</div>}
+            {item.detail && (
+              <details className="errdetail"><summary>details</summary><pre>{item.detail}</pre></details>
+            )}
+          </div>
+        </div>
+      );
     case "denied":
       return <div className="note row" style={{ color: "var(--red)" }}>⎿ Denied: {item.reason} ({item.tool})</div>;
     case "done":

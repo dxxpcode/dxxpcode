@@ -254,6 +254,12 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .note { color: var(--faint); font-size: 12px; padding-left: 4px; }
 .note.steer { color: var(--dim); }
 
+.errrow { display: flex; gap: 8px; font-size: 12px; padding-left: 4px; color: var(--text); }
+.errrow .erricon { color: var(--red); flex-shrink: 0; }
+.errrow .errhint { color: var(--faint); margin-top: 2px; }
+.errrow .errdetail summary { color: var(--faint); font-size: 11px; cursor: pointer; margin-top: 4px; }
+.errrow .errdetail pre { margin: 4px 0 0; color: var(--faint); font-size: 11px; white-space: pre-wrap; }
+
 /* ---------- tool rows ---------- */
 .tgroup { margin: 4px 0; }
 .tg-head {
