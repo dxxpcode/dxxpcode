@@ -18,3 +18,18 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+        working-directory: apps/agent-rs
+      - run: cargo clippy
+        working-directory: apps/agent-rs
+      - run: cargo test
+        working-directory: apps/agent-rs

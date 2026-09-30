@@ -23,8 +23,15 @@ pub enum ProviderEvent {
     Text(String),
     /// Reasoning/thinking tokens (Claude extended thinking, o-series).
     Thinking(String),
-    ToolUse { id: String, name: String, input: Value },
-    Done { stop_reason: String, usage: Option<Usage> },
+    ToolUse {
+        id: String,
+        name: String,
+        input: Value,
+    },
+    Done {
+        stop_reason: String,
+        usage: Option<Usage>,
+    },
 }
 
 #[derive(Debug)]
@@ -49,7 +56,9 @@ const MAX_ATTEMPTS: u32 = 3;
 /// Per-request overrides: connect and response-header timeouts only. The body
 /// read is deliberately uncapped — streamed responses can legitimately run
 /// for minutes and must not be cut by a global timeout.
-fn with_timeouts(req: ureq::RequestBuilder<ureq::typestate::WithBody>) -> ureq::RequestBuilder<ureq::typestate::WithBody> {
+fn with_timeouts(
+    req: ureq::RequestBuilder<ureq::typestate::WithBody>,
+) -> ureq::RequestBuilder<ureq::typestate::WithBody> {
     req.config()
         .timeout_connect(Some(std::time::Duration::from_secs(15)))
         .timeout_recv_response(Some(std::time::Duration::from_secs(60)))
@@ -98,20 +107,20 @@ fn send_retry(
 
 fn post_error(e: ureq::Error, provider: &str) -> ProviderError {
     match e {
-        ureq::Error::StatusCode(code) => ProviderError(format!("{provider} API error {code}"), Some(code as u32)),
+        ureq::Error::StatusCode(code) => {
+            ProviderError(format!("{provider} API error {code}"), Some(code as u32))
+        }
         other => ProviderError(
-            format!("{provider} unreachable — check your connection or /providers to switch: {other}"),
+            format!(
+                "{provider} unreachable — check your connection or /providers to switch: {other}"
+            ),
             None,
         ),
     }
 }
 
 /// Read a streaming ureq response as SSE `data:` payloads (event field included).
-fn read_sse<R: Read>(
-    reader: R,
-    aborted: &Arc<AtomicBool>,
-    mut on_event: impl FnMut(&str, &str),
-) {
+fn read_sse<R: Read>(reader: R, aborted: &Arc<AtomicBool>, mut on_event: impl FnMut(&str, &str)) {
     let mut reader = std::io::BufReader::with_capacity(16 * 1024, reader);
     let mut buf = String::new();
     let mut chunk = [0u8; 16384];
@@ -171,11 +180,18 @@ impl Provider {
                     .header("anthropic-version", "2023-06-01")
                     .call()
                     .map_err(|e| post_error(e, "Anthropic"))?;
-                let body: Value = resp.body_mut().read_json::<Value>().map_err(|e| ProviderError(e.to_string(), None))?;
+                let body: Value = resp
+                    .body_mut()
+                    .read_json::<Value>()
+                    .map_err(|e| ProviderError(e.to_string(), None))?;
                 Ok(body
                     .get("data")
                     .and_then(|d| d.as_array())
-                    .map(|a| a.iter().filter_map(|m| m.get("id").and_then(|i| i.as_str()).map(String::from)).collect())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|m| m.get("id").and_then(|i| i.as_str()).map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default())
             }
             Self::OpenAi { key, base_url } => {
@@ -187,7 +203,10 @@ impl Provider {
                     .header("authorization", &format!("Bearer {key}"))
                     .call()
                     .map_err(|e| post_error(e, "OpenAI"))?;
-                let body: Value = resp.body_mut().read_json::<Value>().map_err(|e| ProviderError(e.to_string(), None))?;
+                let body: Value = resp
+                    .body_mut()
+                    .read_json::<Value>()
+                    .map_err(|e| ProviderError(e.to_string(), None))?;
                 let re = regex::Regex::new(r"(?i)embed|whisper|dall-e|tts|moderation|babbage|davinci|audio|image|transcribe").unwrap();
                 let mut ids: Vec<String> = body
                     .get("data")
@@ -219,8 +238,12 @@ impl Provider {
         mut emit: impl FnMut(ProviderEvent),
     ) -> Result<(), ProviderError> {
         match self {
-            Self::Anthropic { key } => anthropic_chat(key, system, messages, tools, model, effort, aborted, &mut emit),
-            Self::OpenAi { key, base_url } => openai_chat(key, base_url, system, messages, tools, model, effort, aborted, &mut emit),
+            Self::Anthropic { key } => anthropic_chat(
+                key, system, messages, tools, model, effort, aborted, &mut emit,
+            ),
+            Self::OpenAi { key, base_url } => openai_chat(
+                key, base_url, system, messages, tools, model, effort, aborted, &mut emit,
+            ),
             Self::Mock { script, turn } => {
                 let t = script.get(*turn).cloned();
                 *turn += 1;
@@ -250,7 +273,9 @@ fn anthropic_chat(
     aborted: &Arc<AtomicBool>,
     emit: &mut dyn FnMut(ProviderEvent),
 ) -> Result<(), ProviderError> {
-    let budget = effort.and_then(|e| EFFORT_BUDGET.iter().find(|(n, _)| *n == e)).map(|(_, b)| *b);
+    let budget = effort
+        .and_then(|e| EFFORT_BUDGET.iter().find(|(n, _)| *n == e))
+        .map(|(_, b)| *b);
     let mut body = json!({
         "model": model,
         "max_tokens": std::cmp::max(8192u64, budget.map(|b| b + 2048).unwrap_or(0)),
@@ -282,22 +307,38 @@ fn anthropic_chat(
         if aborted.load(Ordering::Relaxed) {
             return;
         }
-        let Ok(parsed) = serde_json::from_str::<Value>(data) else { return };
+        let Ok(parsed) = serde_json::from_str::<Value>(data) else {
+            return;
+        };
         match event {
             "message_start" => {
                 if let Some(u) = parsed.pointer("/message/usage") {
-                    usage.input_tokens = u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    usage.output_tokens = u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    usage.input_tokens =
+                        u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    usage.output_tokens =
+                        u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
                 }
             }
             "content_block_start" => {
-                if parsed.pointer("/content_block/type").and_then(|v| v.as_str()) == Some("tool_use") {
+                if parsed
+                    .pointer("/content_block/type")
+                    .and_then(|v| v.as_str())
+                    == Some("tool_use")
+                {
                     let idx = parsed.get("index").and_then(|v| v.as_u64()).unwrap_or(0);
                     tool_blocks.insert(
                         idx,
                         (
-                            parsed.pointer("/content_block/id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                            parsed.pointer("/content_block/name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                            parsed
+                                .pointer("/content_block/id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                            parsed
+                                .pointer("/content_block/name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
                             String::new(),
                         ),
                     );
@@ -316,7 +357,12 @@ fn anthropic_chat(
                 } else if dt == Some("input_json_delta") {
                     let idx = parsed.get("index").and_then(|v| v.as_u64()).unwrap_or(0);
                     if let Some(b) = tool_blocks.get_mut(&idx) {
-                        b.2.push_str(parsed.pointer("/delta/partial_json").and_then(|v| v.as_str()).unwrap_or(""));
+                        b.2.push_str(
+                            parsed
+                                .pointer("/delta/partial_json")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or(""),
+                        );
                     }
                 }
             }
@@ -324,21 +370,34 @@ fn anthropic_chat(
                 let idx = parsed.get("index").and_then(|v| v.as_u64()).unwrap_or(0);
                 if let Some((id, name, json_text)) = tool_blocks.remove(&idx) {
                     let input = serde_json::from_str::<Value>(&json_text).unwrap_or_else(|_| {
-                        if json_text.is_empty() { json!({}) } else { json!({"__raw": json_text}) }
+                        if json_text.is_empty() {
+                            json!({})
+                        } else {
+                            json!({"__raw": json_text})
+                        }
                     });
                     emit(ProviderEvent::ToolUse { id, name, input });
                 }
             }
             "message_delta" => {
-                if let Some(r) = parsed.pointer("/delta/stop_reason").and_then(|v| v.as_str()) {
+                if let Some(r) = parsed
+                    .pointer("/delta/stop_reason")
+                    .and_then(|v| v.as_str())
+                {
                     stop_reason = r.to_string();
                 }
-                if let Some(o) = parsed.pointer("/usage/output_tokens").and_then(|v| v.as_u64()) {
+                if let Some(o) = parsed
+                    .pointer("/usage/output_tokens")
+                    .and_then(|v| v.as_u64())
+                {
                     usage.output_tokens = o;
                 }
             }
             "message_stop" => {
-                emit(ProviderEvent::Done { stop_reason: stop_reason.clone(), usage: Some(usage.clone()) });
+                emit(ProviderEvent::Done {
+                    stop_reason: stop_reason.clone(),
+                    usage: Some(usage.clone()),
+                });
             }
             _ => {}
         }
@@ -412,18 +471,26 @@ fn openai_chat(
         if aborted.load(Ordering::Relaxed) || data == "[DONE]" {
             return;
         }
-        let Ok(parsed) = serde_json::from_str::<Value>(data) else { return };
+        let Ok(parsed) = serde_json::from_str::<Value>(data) else {
+            return;
+        };
         if let Some(u) = parsed.get("usage") {
             usage = Some(Usage {
                 input_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
-                output_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
+                output_tokens: u
+                    .get("completion_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0),
             });
         }
         let choice = parsed.pointer("/choices/0").cloned();
         let Some(choice) = choice else { return };
         // Reasoning deltas — o-series `reasoning_content`, others `reasoning`.
         for key in ["reasoning_content", "reasoning"] {
-            if let Some(t) = choice.pointer(&format!("/delta/{key}")).and_then(|v| v.as_str()) {
+            if let Some(t) = choice
+                .pointer(&format!("/delta/{key}"))
+                .and_then(|v| v.as_str())
+            {
                 if !t.is_empty() {
                     emit(ProviderEvent::Thinking(t.to_string()));
                 }
@@ -434,18 +501,23 @@ fn openai_chat(
                 emit(ProviderEvent::Text(text.to_string()));
             }
         }
-        if let Some(calls) = choice.pointer("/delta/tool_calls").and_then(|v| v.as_array()) {
+        if let Some(calls) = choice
+            .pointer("/delta/tool_calls")
+            .and_then(|v| v.as_array())
+        {
             for tc in calls {
                 let idx = tc.get("index").and_then(|v| v.as_u64()).unwrap_or(0);
-                let entry = tool_calls
-                    .entry(idx)
-                    .or_insert_with(|| {
-                        let id = tc.get("id").and_then(|v| v.as_str()).map(String::from).unwrap_or_else(|| {
+                let entry = tool_calls.entry(idx).or_insert_with(|| {
+                    let id = tc
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .unwrap_or_else(|| {
                             counter += 1;
                             format!("call_{counter}")
                         });
-                        (id, String::new(), String::new())
-                    });
+                    (id, String::new(), String::new())
+                });
                 if let Some(id) = tc.get("id").and_then(|v| v.as_str()) {
                     entry.0 = id.to_string();
                 }
@@ -462,7 +534,11 @@ fn openai_chat(
             let calls: Vec<_> = std::mem::take(&mut tool_calls).into_values().collect();
             for (id, name, args) in calls {
                 let input = serde_json::from_str::<Value>(&args).unwrap_or_else(|_| {
-                    if args.is_empty() { json!({}) } else { json!({"__raw": args}) }
+                    if args.is_empty() {
+                        json!({})
+                    } else {
+                        json!({"__raw": args})
+                    }
                 });
                 emit(ProviderEvent::ToolUse { id, name, input });
             }
@@ -511,7 +587,10 @@ fn to_openai_messages(m: &crate::config::Message) -> Vec<Value> {
 fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
     let Some(t) = turn else {
         emit(ProviderEvent::Text("(mock: no scripted turn)".into()));
-        emit(ProviderEvent::Done { stop_reason: "end_turn".into(), usage: None });
+        emit(ProviderEvent::Done {
+            stop_reason: "end_turn".into(),
+            usage: None,
+        });
         return;
     };
     if let Some(ms) = t.get("delayMs").and_then(|v| v.as_u64()) {
@@ -519,7 +598,9 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
     }
     if let Some(text) = t.get("think").and_then(|v| v.as_str()) {
         for chunk in text.as_bytes().chunks(24) {
-            emit(ProviderEvent::Thinking(String::from_utf8_lossy(chunk).to_string()));
+            emit(ProviderEvent::Thinking(
+                String::from_utf8_lossy(chunk).to_string(),
+            ));
         }
         if let Some(ms) = t.get("thinkDelayMs").and_then(|v| v.as_u64()) {
             std::thread::sleep(std::time::Duration::from_millis(ms));
@@ -527,7 +608,9 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
     }
     if let Some(text) = t.get("text").and_then(|v| v.as_str()) {
         for chunk in text.as_bytes().chunks(24) {
-            emit(ProviderEvent::Text(String::from_utf8_lossy(chunk).to_string()));
+            emit(ProviderEvent::Text(
+                String::from_utf8_lossy(chunk).to_string(),
+            ));
             if let Some(ms) = t.get("chunkDelayMs").and_then(|v| v.as_u64()) {
                 std::thread::sleep(std::time::Duration::from_millis(ms));
             }
@@ -538,13 +621,21 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
         for call in calls {
             emit(ProviderEvent::ToolUse {
                 id: format!("mock_{n}"),
-                name: call.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                name: call
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 input: call.get("input").cloned().unwrap_or(json!({})),
             });
             n += 1;
         }
     }
-    let has_calls = t.get("toolCalls").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false);
+    let has_calls = t
+        .get("toolCalls")
+        .and_then(|v| v.as_array())
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
     let stop_reason = t
         .get("stopReason")
         .and_then(|v| v.as_str())
@@ -560,19 +651,30 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
 /* ---------------------------------- jev ---------------------------------- */
 
 fn jev_decide(api_key: &str, state: &Value, questions: &Value) -> Result<Value, String> {
-    let base = std::env::var("TYPESAFE_BASE_URL").unwrap_or_else(|_| "https://api.typesafe.ai".into());
+    let base =
+        std::env::var("TYPESAFE_BASE_URL").unwrap_or_else(|_| "https://api.typesafe.ai".into());
     let mut resp = agent()
         .post(&format!("{base}/v1/systemone"))
         .header("authorization", &format!("Bearer {api_key}"))
         .header("content-type", "application/json")
-        .config().timeout_global(Some(std::time::Duration::from_secs(5))).build()
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(5)))
+        .build()
         .send(json!({"model": "jev-latest", "state": state, "questions": questions}).to_string())
         .map_err(|e| format!("jev: {e}"))?;
-    resp.body_mut().read_json::<Value>().map_err(|e| e.to_string())
+    resp.body_mut()
+        .read_json::<Value>()
+        .map_err(|e| e.to_string())
 }
 
 /// Smart-approval verdict via Jev; None → caller falls back to the prompt.
-pub fn smart_approve(tool: &str, input: &Value, reason: Option<&str>, risk: &str, api_key: &str) -> Option<(bool, f64)> {
+pub fn smart_approve(
+    tool: &str,
+    input: &Value,
+    reason: Option<&str>,
+    risk: &str,
+    api_key: &str,
+) -> Option<(bool, f64)> {
     let res = jev_decide(
         api_key,
         &json!({"tool": tool, "input": input, "reason": reason, "risk": risk}),
@@ -591,7 +693,10 @@ pub fn smart_approve(tool: &str, input: &Value, reason: Option<&str>, risk: &str
     let a = res.pointer("/answers/verdict")?;
     let approve = a.get("choice").and_then(|v| v.as_str()) == Some("approve")
         && a.get("confidence").and_then(|v| v.as_f64()).unwrap_or(0.0) >= 0.8;
-    Some((approve, a.get("confidence").and_then(|v| v.as_f64()).unwrap_or(0.0)))
+    Some((
+        approve,
+        a.get("confidence").and_then(|v| v.as_f64()).unwrap_or(0.0),
+    ))
 }
 
 const EFFORT_TIERS: &[&str] = &["minimal", "low", "medium", "high", "xhigh", "max"];
@@ -639,14 +744,23 @@ pub fn resolve_provider(
             .and_then(|p| std::fs::read_to_string(&p).ok())
             .and_then(|raw| serde_json::from_str::<Vec<Value>>(&raw).ok())
             .unwrap_or_else(|| vec![json!({"text": "mock"})]);
-        return Ok((Provider::Mock { script, turn: 0 }, model_override.unwrap_or("mock").to_string()));
+        return Ok((
+            Provider::Mock { script, turn: 0 },
+            model_override.unwrap_or("mock").to_string(),
+        ));
     }
 
     let env = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
-    if name == "anthropic" || (name.is_empty() && (env("ANTHROPIC_API_KEY").is_some() || config.anthropic_api_key.is_some())) {
+    if name == "anthropic"
+        || (name.is_empty()
+            && (env("ANTHROPIC_API_KEY").is_some() || config.anthropic_api_key.is_some()))
+    {
         let key = env("ANTHROPIC_API_KEY").or_else(|| config.anthropic_api_key.clone());
         let Some(key) = key else {
-            return Err(ProviderError("DXXPCODE_PROVIDER=anthropic requires ANTHROPIC_API_KEY".into(), None));
+            return Err(ProviderError(
+                "DXXPCODE_PROVIDER=anthropic requires ANTHROPIC_API_KEY".into(),
+                None,
+            ));
         };
         let model = model_override
             .map(String::from)
@@ -654,19 +768,37 @@ pub fn resolve_provider(
             .unwrap_or_else(|| "claude-opus-5-5".into());
         return Ok((Provider::Anthropic { key }, model));
     }
-    if name == "openai" || (name.is_empty() && (env("OPENAI_API_KEY").is_some() || config.openai_api_key.is_some())) {
+    if name == "openai"
+        || (name.is_empty() && (env("OPENAI_API_KEY").is_some() || config.openai_api_key.is_some()))
+    {
         let key = env("OPENAI_API_KEY").or_else(|| config.openai_api_key.clone());
         let Some(key) = key else {
-            return Err(ProviderError("DXXPCODE_PROVIDER=openai requires OPENAI_API_KEY".into(), None));
+            return Err(ProviderError(
+                "DXXPCODE_PROVIDER=openai requires OPENAI_API_KEY".into(),
+                None,
+            ));
         };
         let model = model_override
             .map(String::from)
             .or_else(|| env("DXXPCODE_MODEL"))
             .unwrap_or_else(|| "gpt-6".into());
-        return Ok((Provider::OpenAi { key, base_url: std::env::var("OPENAI_BASE_URL").ok().unwrap_or_else(|| "https://api.openai.com/v1".into()).trim_end_matches('/').to_string() }, model));
+        return Ok((
+            Provider::OpenAi {
+                key,
+                base_url: std::env::var("OPENAI_BASE_URL")
+                    .ok()
+                    .unwrap_or_else(|| "https://api.openai.com/v1".into())
+                    .trim_end_matches('/')
+                    .to_string(),
+            },
+            model,
+        ));
     }
     if !name.is_empty() {
-        return Err(ProviderError(format!("Unknown provider \"{name}\". Supported: anthropic, openai"), None));
+        return Err(ProviderError(
+            format!("Unknown provider \"{name}\". Supported: anthropic, openai"),
+            None,
+        ));
     }
     Err(ProviderError(
         "No model provider configured. Run `dxxpcode` in a terminal to connect one, or set ANTHROPIC_API_KEY / OPENAI_API_KEY.".into(),
@@ -678,7 +810,9 @@ pub fn resolve_provider(
 mod tests {
     use super::*;
 
-    fn flag() -> Arc<AtomicBool> { Arc::new(AtomicBool::new(false)) }
+    fn flag() -> Arc<AtomicBool> {
+        Arc::new(AtomicBool::new(false))
+    }
 
     #[test]
     fn retryable_only_transient() {

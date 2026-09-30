@@ -1,8 +1,6 @@
 //! Agent runtime — port of packages/agent (runtime + checkpoint + compact).
 
-use crate::config::{
-    new_session_id, save_session, home_dir, Message, SessionRecord,
-};
+use crate::config::{home_dir, new_session_id, save_session, Message, SessionRecord};
 use crate::perm::Level;
 use crate::project::gather_context;
 use crate::provider::{Provider, ProviderEvent, Usage};
@@ -48,7 +46,11 @@ fn detect_verify_cmd(root: &str) -> Option<String> {
 
 /// Run `command` in the project root; returns (passed, tail of combined output).
 fn run_verify(root: &str, command: &str) -> (bool, String) {
-    let shell_cmd = if cfg!(unix) { format!("timeout 300 {command}") } else { command.to_string() };
+    let shell_cmd = if cfg!(unix) {
+        format!("timeout 300 {command}")
+    } else {
+        command.to_string()
+    };
     let mut cmd = if cfg!(unix) {
         let mut c = Command::new("/bin/sh");
         c.args(["-c", &shell_cmd]);
@@ -71,7 +73,11 @@ fn run_verify(root: &str, command: &str) -> (bool, String) {
             if !o.stderr.is_empty() {
                 text.push_str(&String::from_utf8_lossy(&o.stderr));
             }
-            let text = if text.len() > VERIFY_OUTPUT_CAP { text[text.len() - VERIFY_OUTPUT_CAP..].to_string() } else { text };
+            let text = if text.len() > VERIFY_OUTPUT_CAP {
+                text[text.len() - VERIFY_OUTPUT_CAP..].to_string()
+            } else {
+                text
+            };
             (o.status.success(), text)
         }
         Err(e) => (false, format!("failed to start verify command: {e}")),
@@ -105,13 +111,18 @@ fn current_head(root: &str) -> Option<String> {
         .current_dir(root)
         .output()
         .ok()?;
-    out.status.success()
+    out.status
+        .success()
         .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
         .filter(|s| !s.is_empty())
 }
 
 /// Snapshot project-relative paths before mutation; returns (seq, paths).
-pub fn take_checkpoint(root: &str, paths: &[String], session_id: &str) -> Option<(i64, Vec<String>)> {
+pub fn take_checkpoint(
+    root: &str,
+    paths: &[String],
+    session_id: &str,
+) -> Option<(i64, Vec<String>)> {
     let dir = checkpoints_dir(session_id);
     let seq = list_seqs(&dir).last().copied().unwrap_or(0) + 1;
     let cp_dir = dir.join(seq.to_string());
@@ -144,14 +155,21 @@ pub fn take_checkpoint(root: &str, paths: &[String], session_id: &str) -> Option
     if let Some(head) = current_head(root) {
         info["headSha"] = json!(head);
     }
-    let _ = fs::write(cp_dir.join("manifest.json"), serde_json::to_string_pretty(&info).unwrap() + "\n");
+    let _ = fs::write(
+        cp_dir.join("manifest.json"),
+        serde_json::to_string_pretty(&info).unwrap() + "\n",
+    );
     let seqs = list_seqs(&dir);
     for old in &seqs[..seqs.len().saturating_sub(MAX_CHECKPOINTS as usize)] {
         let _ = fs::remove_dir_all(dir.join(old.to_string()));
     }
     let paths_out: Vec<String> = info["files"]
         .as_array()
-        .map(|a| a.iter().filter_map(|f| f.get("path").and_then(|p| p.as_str()).map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|f| f.get("path").and_then(|p| p.as_str()).map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     Some((seq, paths_out))
 }
@@ -173,7 +191,9 @@ pub fn undo_checkpoint(root: &str, session_id: &str) -> Option<Value> {
     let mut restored = vec![];
     let mut removed = vec![];
     for f in info["files"].as_array().unwrap() {
-        let Some(p) = f.get("path").and_then(|v| v.as_str()) else { continue };
+        let Some(p) = f.get("path").and_then(|v| v.as_str()) else {
+            continue;
+        };
         let abs = PathBuf::from(root).join(p);
         if !abs.starts_with(root) {
             continue;
@@ -195,7 +215,10 @@ pub fn undo_checkpoint(root: &str, session_id: &str) -> Option<Value> {
     }
     let _ = fs::remove_dir_all(&cp_dir);
     let mut out = json!({"seq": seq, "restored": restored, "removed": removed});
-    if let (Some(old), Some(head)) = (info.get("headSha").and_then(|v| v.as_str()), current_head(root)) {
+    if let (Some(old), Some(head)) = (
+        info.get("headSha").and_then(|v| v.as_str()),
+        current_head(root),
+    ) {
         if head != old {
             out["headMoved"] = json!({"from": old, "to": head});
         }
@@ -204,7 +227,9 @@ pub fn undo_checkpoint(root: &str, session_id: &str) -> Option<Value> {
 }
 
 fn iso_now() -> String {
-    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
+    chrono::Utc::now()
+        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        .to_string()
 }
 
 /* ------------------------------ compaction ------------------------------- */
@@ -216,7 +241,13 @@ pub fn estimate_tokens(messages: &[Message]) -> usize {
     for m in messages {
         for b in &m.content {
             match b.get("type").and_then(|t| t.as_str()) {
-                Some("tool_result") => chars += b.get("content").and_then(|c| c.as_str()).unwrap_or("").len(),
+                Some("tool_result") => {
+                    chars += b
+                        .get("content")
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("")
+                        .len()
+                }
                 Some("tool_use") => {
                     chars += b.get("input").map(|i| i.to_string().len()).unwrap_or(0);
                     chars += b.get("name").and_then(|n| n.as_str()).unwrap_or("").len();
@@ -244,7 +275,11 @@ fn preview_lines(content: &str, lines: usize) -> Option<String> {
 }
 
 /// Returns Some((before, after, blocks)) when compaction happened.
-pub fn compact_messages(messages: &mut [Message], max_tokens: usize, force: bool) -> Option<(usize, usize, usize)> {
+pub fn compact_messages(
+    messages: &mut [Message],
+    max_tokens: usize,
+    force: bool,
+) -> Option<(usize, usize, usize)> {
     let before = estimate_tokens(messages);
     if !force && before <= max_tokens {
         return None;
@@ -256,7 +291,11 @@ pub fn compact_messages(messages: &mut [Message], max_tokens: usize, force: bool
             if b.get("type").and_then(|t| t.as_str()) != Some("tool_result") {
                 continue;
             }
-            let content = b.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
+            let content = b
+                .get("content")
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string();
             if let Some(next) = preview_lines(&content, 20) {
                 b["content"] = json!(next);
                 blocks += 1;
@@ -354,7 +393,12 @@ fn parse_plan(input: &Value) -> Value {
     let steps: Vec<String> = input
         .get("steps")
         .and_then(|s| s.as_array())
-        .map(|a| a.iter().filter_map(|s| s.as_str().map(String::from)).filter(|s| !s.is_empty()).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|s| s.as_str().map(String::from))
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
     json!({
         "summary": input.get("summary").and_then(|v| v.as_str()).unwrap_or(""),
@@ -370,7 +414,9 @@ fn parse_todos(input: &Value) -> Result<Vec<Value>, String> {
     let mut items = vec![];
     for raw in arr {
         let Some(it) = raw.as_object() else { continue };
-        let Some(content) = it.get("content").and_then(|v| v.as_str()) else { continue };
+        let Some(content) = it.get("content").and_then(|v| v.as_str()) else {
+            continue;
+        };
         if content.is_empty() {
             continue;
         }
@@ -385,7 +431,11 @@ fn parse_todos(input: &Value) -> Result<Vec<Value>, String> {
             "content": content,
             "status": status,
         });
-        if let Some(af) = it.get("activeForm").and_then(|v| v.as_str()).filter(|s| !s.is_empty()) {
+        if let Some(af) = it
+            .get("activeForm")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+        {
             item["activeForm"] = json!(af);
         }
         items.push(item);
@@ -406,7 +456,11 @@ fn persist_todos_file(root: &str, items: &[Value]) {
                 } else {
                     "[ ]"
                 };
-                format!("- {} {}", boxx, it.get("content").and_then(|c| c.as_str()).unwrap_or(""))
+                format!(
+                    "- {} {}",
+                    boxx,
+                    it.get("content").and_then(|c| c.as_str()).unwrap_or("")
+                )
             })
             .collect::<Vec<_>>()
             .join("\n")
@@ -426,7 +480,11 @@ fn render_todos(items: &[Value]) -> String {
                 Some("in_progress") => "[>]",
                 _ => "[ ]",
             };
-            format!("{} {}", boxx, it.get("content").and_then(|c| c.as_str()).unwrap_or(""))
+            format!(
+                "{} {}",
+                boxx,
+                it.get("content").and_then(|c| c.as_str()).unwrap_or("")
+            )
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -484,11 +542,19 @@ fn run_plan_tool(
     let (id, name, input) = call;
     let Some(tool) = tools::find_tool(tools, name) else {
         emit(json!({"type": "denied", "tool": name, "reason": "not available while planning"}));
-        return tool_result_block(id, &format!("tool not available while planning: {name}"), true);
+        return tool_result_block(
+            id,
+            &format!("tool not available while planning: {name}"),
+            true,
+        );
     };
     if !tool.plan_phase {
         emit(json!({"type": "denied", "tool": name, "reason": "not available while planning"}));
-        return tool_result_block(id, &format!("tool not available while planning: {name}"), true);
+        return tool_result_block(
+            id,
+            &format!("tool not available while planning: {name}"),
+            true,
+        );
     }
     stats.tool_calls += 1;
     let decision = (tool.permission)(input, &ctx.root);
@@ -499,7 +565,9 @@ fn run_plan_tool(
     }
     emit(json!({"type": "tool_start", "tool": name, "input": input}));
     let result = exec_streaming(tool, name, input, ctx, emit);
-    session.tool_calls.push(json!({"name": name, "input": input, "isError": result.is_error}));
+    session
+        .tool_calls
+        .push(json!({"name": name, "input": input, "isError": result.is_error}));
     emit(json!({"type": "tool_end", "tool": name, "result": tool_result_json(&result)}));
     tool_result_block(id, &result.content, result.is_error)
 }
@@ -580,17 +648,25 @@ fn stream_turn(
     let mut usage: Option<Usage> = None;
     let mut err: Option<String> = None;
 
-    let res = provider.chat(system, messages, &tool_defs, model, effort, aborted, |ev| match ev {
-        ProviderEvent::Text(t) => {
-            text_parts.push(t.clone());
-            emit(json!({"type": "text", "text": t}));
-        }
-        ProviderEvent::Thinking(t) => {
-            emit(json!({"type": "think", "text": t}));
-        }
-        ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
-        ProviderEvent::Done { usage: u, .. } => usage = u,
-    });
+    let res = provider.chat(
+        system,
+        messages,
+        &tool_defs,
+        model,
+        effort,
+        aborted,
+        |ev| match ev {
+            ProviderEvent::Text(t) => {
+                text_parts.push(t.clone());
+                emit(json!({"type": "text", "text": t}));
+            }
+            ProviderEvent::Thinking(t) => {
+                emit(json!({"type": "think", "text": t}));
+            }
+            ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
+            ProviderEvent::Done { usage: u, .. } => usage = u,
+        },
+    );
     if let Err(e) = res {
         err = Some(e.to_string());
     }
@@ -602,7 +678,10 @@ fn stream_turn(
         for (id, name, input) in &tool_calls {
             content.push(tool_use_block(id, name, input));
         }
-        messages.push(Message { role: "assistant".into(), content });
+        messages.push(Message {
+            role: "assistant".into(),
+            content,
+        });
     }
     match err {
         Some(e) => Err(e),
@@ -650,10 +729,16 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             if last.role == "user" {
                 last.content.push(text_block(&format!("\n\n{}", opts.task)));
             } else {
-                session.messages.push(Message { role: "user".into(), content: vec![text_block(&opts.task)] });
+                session.messages.push(Message {
+                    role: "user".into(),
+                    content: vec![text_block(&opts.task)],
+                });
             }
         } else {
-            session.messages.push(Message { role: "user".into(), content: vec![text_block(&opts.task)] });
+            session.messages.push(Message {
+                role: "user".into(),
+                content: vec![text_block(&opts.task)],
+            });
         }
     }
 
@@ -704,7 +789,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         if estimate_tokens(&session.messages) > 60_000 {
             emit(json!({"type": "status", "message": "Compacting context…"}));
         }
-        if let Some((before, after, blocks)) = compact_messages(&mut session.messages, 60_000, false) {
+        if let Some((before, after, blocks)) =
+            compact_messages(&mut session.messages, 60_000, false)
+        {
             emit(json!({"type": "compacted", "before": before, "after": after, "blocks": blocks}));
         }
         let (calls, turn_usage) = match stream_turn(
@@ -739,11 +826,21 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 if call == pc {
                     results.push(tool_result_block(&call.0, "plan presented to user", false));
                 } else {
-                    results.push(run_plan_tool(call, &tools, &ctx, &mut session, &mut stats, emit));
+                    results.push(run_plan_tool(
+                        call,
+                        &tools,
+                        &ctx,
+                        &mut session,
+                        &mut stats,
+                        emit,
+                    ));
                 }
             }
             if !results.is_empty() {
-                session.messages.push(Message { role: "user".into(), content: results });
+                session.messages.push(Message {
+                    role: "user".into(),
+                    content: results,
+                });
             }
             let p = parse_plan(&pc.2);
             plan = Some(p.clone());
@@ -768,21 +865,41 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         } else if !calls.is_empty() {
             let mut results = vec![];
             for call in &calls {
-                results.push(run_plan_tool(call, &tools, &ctx, &mut session, &mut stats, emit));
+                results.push(run_plan_tool(
+                    call,
+                    &tools,
+                    &ctx,
+                    &mut session,
+                    &mut stats,
+                    emit,
+                ));
             }
             if !results.is_empty() {
-                session.messages.push(Message { role: "user".into(), content: results });
+                session.messages.push(Message {
+                    role: "user".into(),
+                    content: results,
+                });
             }
         } else {
             let summary = last_assistant_text(&session.messages);
-            finish_emit!("completed", if summary.is_empty() { "Done".to_string() } else { summary });
+            finish_emit!(
+                "completed",
+                if summary.is_empty() {
+                    "Done".to_string()
+                } else {
+                    summary
+                }
+            );
         }
     }
 
     iterations = 0;
     if opts.plan_only {
         let mut r = base("plan_only", &session, &stats);
-        r["summary"] = plan.as_ref().and_then(|p| p.get("summary").cloned()).unwrap_or(json!("Done"));
+        r["summary"] = plan
+            .as_ref()
+            .and_then(|p| p.get("summary").cloned())
+            .unwrap_or(json!("Done"));
         if let Some(p) = &plan {
             r["plan"] = p.clone();
         }
@@ -790,9 +907,10 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         return;
     }
     if plan.is_some() {
-        session
-            .messages
-            .push(Message { role: "user".into(), content: vec![text_block("Plan approved. Execute it now.")] });
+        session.messages.push(Message {
+            role: "user".into(),
+            content: vec![text_block("Plan approved. Execute it now.")],
+        });
     }
 
     /* ----------------------------- EXECUTE PHASE ---------------------------- */
@@ -805,7 +923,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         if estimate_tokens(&session.messages) > 60_000 {
             emit(json!({"type": "status", "message": "Compacting context…"}));
         }
-        if let Some((before, after, blocks)) = compact_messages(&mut session.messages, 60_000, false) {
+        if let Some((before, after, blocks)) =
+            compact_messages(&mut session.messages, 60_000, false)
+        {
             emit(json!({"type": "compacted", "before": before, "after": after, "blocks": blocks}));
         }
         let (calls, turn_usage) = match stream_turn(
@@ -836,7 +956,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         if calls.is_empty() {
             // Auto-verify: the model says it's done — check the repo still
             // builds/tests. On failure, feed the output back and let it fix.
-            if session.files_changed.len() > verified_upto && verify_attempts < VERIFY_MAX_ATTEMPTS {
+            if session.files_changed.len() > verified_upto && verify_attempts < VERIFY_MAX_ATTEMPTS
+            {
                 if let Some(vcmd) = detect_verify_cmd(&opts.project_root) {
                     verify_attempts += 1;
                     emit(json!({"type": "status", "message": format!("Verifying ({vcmd})…")}));
@@ -844,9 +965,22 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     emit(json!({"type": "tool_start", "tool": "run_command", "input": vinput}));
                     stats.tool_calls += 1;
                     let (ok, output) = run_verify(&opts.project_root, &vcmd);
-                    let vres = ToolResult { content: if output.is_empty() { "(no output)".into() } else { output.clone() }, is_error: !ok, changed_file: None, diff: None };
-                    emit(json!({"type": "tool_end", "tool": "run_command", "result": tool_result_json(&vres)}));
-                    session.tool_calls.push(recorded("run_command", &vinput, !ok, false));
+                    let vres = ToolResult {
+                        content: if output.is_empty() {
+                            "(no output)".into()
+                        } else {
+                            output.clone()
+                        },
+                        is_error: !ok,
+                        changed_file: None,
+                        diff: None,
+                    };
+                    emit(
+                        json!({"type": "tool_end", "tool": "run_command", "result": tool_result_json(&vres)}),
+                    );
+                    session
+                        .tool_calls
+                        .push(recorded("run_command", &vinput, !ok, false));
                     persist(&mut session);
                     verified_upto = session.files_changed.len();
                     if !ok {
@@ -865,7 +999,11 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             }
             let mut r = base("completed", &session, &stats);
             let summary = last_assistant_text(&session.messages);
-            r["summary"] = json!(if summary.is_empty() { "Done".to_string() } else { summary });
+            r["summary"] = json!(if summary.is_empty() {
+                "Done".to_string()
+            } else {
+                summary
+            });
             if let Some(ds) = git_diff_stat(&opts.project_root) {
                 r["diffStat"] = json!(ds);
             }
@@ -880,7 +1018,11 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             if tool.is_none() || name == "propose_plan" {
                 emit(json!({"type": "denied", "tool": name, "reason": "unknown tool"}));
                 session.tool_calls.push(recorded(name, input, true, false));
-                results.push(tool_result_block(id, &format!("unknown tool: {name}"), true));
+                results.push(tool_result_block(
+                    id,
+                    &format!("unknown tool: {name}"),
+                    true,
+                ));
                 continue;
             }
             let tool = tool.unwrap();
@@ -905,11 +1047,18 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             if decision.level == Level::Restricted {
                 session.tool_calls.push(recorded(name, input, true, true));
                 emit(json!({"type": "denied", "tool": name, "reason": decision.reason}));
-                results.push(tool_result_block(id, &format!("denied: {}", decision.reason), true));
+                results.push(tool_result_block(
+                    id,
+                    &format!("denied: {}", decision.reason),
+                    true,
+                ));
                 continue;
             }
             if decision.level == Level::Approval {
-                let reason = input.get("reason").and_then(|v| v.as_str()).map(String::from);
+                let reason = input
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
                 if !(opts.approve_tool)(name, input, &decision.reason, reason.as_deref()) {
                     session.tool_calls.push(recorded(name, input, true, true));
                     emit(json!({"type": "denied", "tool": name, "reason": "not approved"}));
@@ -918,8 +1067,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 }
             }
             if CHECKPOINTED_TOOLS.contains(&name.as_str()) {
-                if let Some((_path, diff)) = tools::preview_change(&name, input, &ctx) {
-                    if !(opts.review_change)(&name, input, &diff) {
+                if let Some((_path, diff)) = tools::preview_change(name, input, &ctx) {
+                    if !(opts.review_change)(name, input, &diff) {
                         session.tool_calls.push(recorded(name, input, true, true));
                         emit(json!({"type": "denied", "tool": name, "reason": "change discarded"}));
                         results.push(tool_result_block(id, "change discarded by user", true));
@@ -927,7 +1076,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     }
                 }
                 if let Some(path) = input.get("path").and_then(|v| v.as_str()) {
-                    if let Some((seq, paths)) = take_checkpoint(&opts.project_root, &[path.to_string()], &session.id) {
+                    if let Some((seq, paths)) =
+                        take_checkpoint(&opts.project_root, &[path.to_string()], &session.id)
+                    {
                         emit(json!({"type": "checkpoint", "seq": seq, "paths": paths}));
                     }
                 }
@@ -957,7 +1108,10 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             results.push(tool_result_block(id, &result.content, result.is_error));
         }
         if !results.is_empty() {
-            session.messages.push(Message { role: "user".into(), content: results });
+            session.messages.push(Message {
+                role: "user".into(),
+                content: results,
+            });
         }
 
         let mut steered = vec![];
@@ -992,12 +1146,27 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dxxp-verify-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         assert_eq!(detect_verify_cmd(dir.to_str().unwrap()), None);
-        fs::File::create(dir.join("package.json")).unwrap()
-            .write_all(br#"{"scripts":{"test":"node --test"}}"#).unwrap();
-        assert_eq!(detect_verify_cmd(dir.to_str().unwrap()).as_deref(), Some("npm test"));
-        fs::write(dir.join("package.json"), r#"{"scripts":{"test":"echo \"Error: no test specified\" && exit 1"}}"#).unwrap();
-        fs::File::create(dir.join("Cargo.toml")).unwrap().write_all(b"[package]").unwrap();
-        assert_eq!(detect_verify_cmd(dir.to_str().unwrap()).as_deref(), Some("cargo test"));
+        fs::File::create(dir.join("package.json"))
+            .unwrap()
+            .write_all(br#"{"scripts":{"test":"node --test"}}"#)
+            .unwrap();
+        assert_eq!(
+            detect_verify_cmd(dir.to_str().unwrap()).as_deref(),
+            Some("npm test")
+        );
+        fs::write(
+            dir.join("package.json"),
+            r#"{"scripts":{"test":"echo \"Error: no test specified\" && exit 1"}}"#,
+        )
+        .unwrap();
+        fs::File::create(dir.join("Cargo.toml"))
+            .unwrap()
+            .write_all(b"[package]")
+            .unwrap();
+        assert_eq!(
+            detect_verify_cmd(dir.to_str().unwrap()).as_deref(),
+            Some("cargo test")
+        );
         fs::remove_dir_all(&dir).ok();
     }
 }
