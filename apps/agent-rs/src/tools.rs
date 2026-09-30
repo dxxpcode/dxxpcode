@@ -246,18 +246,10 @@ pub fn preview_change(name: &str, input: &Value, ctx: &Ctx) -> Option<(String, S
             if d.is_empty() { None } else { Some((r, d)) }
         }
         "edit_file" => {
-            let old_str = input.get("old_string").and_then(|v| v.as_str())?;
-            let new_str = input.get("new_string").and_then(|v| v.as_str())?;
+            let edits = edits_from(input)?;
             let raw = fs::read_to_string(&abs).ok()?;
-            if !raw.contains(old_str) {
-                return None;
-            }
             let replace_all = input.get("replace_all").and_then(|v| v.as_bool()) == Some(true);
-            let updated = if replace_all {
-                raw.replace(&old_str, new_str)
-            } else {
-                raw.replacen(&old_str, new_str, 1)
-            };
+            let (updated, _) = apply_edits(&raw, &edits, replace_all, &r).ok()?;
             let d = preview_diff(&r, Some(&raw), &updated);
             if d.is_empty() { None } else { Some((r, d)) }
         }
@@ -374,42 +366,135 @@ fn exec_write_file(input: &Value, ctx: &Ctx) -> ToolResult {
     res
 }
 
+struct Edit { old: String, new: String }
+
+fn edits_from(input: &Value) -> Option<Vec<Edit>> {
+    if let Some(arr) = input.get("edits").and_then(|v| v.as_array()) {
+        let mut out = Vec::with_capacity(arr.len());
+        for e in arr {
+            let old = e.get("old_string").and_then(|v| v.as_str())?;
+            let new = e.get("new_string").and_then(|v| v.as_str())?;
+            out.push(Edit { old: old.to_string(), new: new.to_string() });
+        }
+        return if out.is_empty() { None } else { Some(out) };
+    }
+    let old = input.get("old_string").and_then(|v| v.as_str())?;
+    let new = input.get("new_string").and_then(|v| v.as_str())?;
+    Some(vec![Edit { old: old.to_string(), new: new.to_string() }])
+}
+
+/// Locate `old` inside `raw` exactly or with per-line whitespace tolerance.
+/// Returns (matches, mode) — each match a (start_byte, end_byte) region.
+fn find_matches(raw: &str, old: &str) -> (Vec<(usize, usize)>, &'static str) {
+    if old.is_empty() {
+        return (vec![], "exact");
+    }
+    let mut hits: Vec<(usize, usize)> = raw.match_indices(old).map(|(i, _)| (i, i + old.len())).collect();
+    if !hits.is_empty() {
+        return (hits, "exact");
+    }
+    // Whitespace-tolerant: compare lines after trimming each side's edges.
+    let old_lines: Vec<&str> = old.lines().map(|l| l.trim()).collect();
+    if old_lines.is_empty() || old_lines.iter().all(|l| l.is_empty()) {
+        return (vec![], "exact");
+    }
+    let raw_lines: Vec<&str> = raw.lines().collect();
+    let n = old_lines.len();
+    for (i, w) in raw_lines.windows(n).enumerate() {
+        if w.iter().zip(&old_lines).all(|(a, b)| a.trim() == *b) {
+            let start: usize = raw_lines[..i].iter().map(|l| l.len() + 1).sum();
+            let end: usize = raw_lines[..i + n].iter().map(|l| l.len() + 1).sum::<usize>().saturating_sub(1).min(raw.len());
+            hits.push((start, end));
+        }
+    }
+    if !hits.is_empty() {
+        return (hits, "whitespace-tolerant");
+    }
+    (vec![], "exact")
+}
+
+/// Best-effort closest region for a failed match: the contiguous line window
+/// sharing the most trimmed lines with `old`, shown to the model so it can
+/// self-correct in one retry.
+fn closest_region(raw: &str, old: &str) -> Option<String> {
+    let old_set: std::collections::HashSet<&str> = old.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+    if old_set.is_empty() {
+        return None;
+    }
+    let n = old.lines().count().max(2);
+    let raw_lines: Vec<&str> = raw.lines().collect();
+    let mut best = (0usize, 0usize); // (score, start_line)
+    for i in 0..raw_lines.len().saturating_sub(n - 1).max(1) {
+        let score = raw_lines[i..(i + n).min(raw_lines.len())].iter().filter(|l| old_set.contains(l.trim())).count();
+        if score > best.0 {
+            best = (score, i);
+        }
+    }
+    if best.0 == 0 {
+        return None;
+    }
+    let end = (best.1 + n).min(raw_lines.len());
+    let body = raw_lines[best.1..end].iter().enumerate().map(|(k, l)| format!("{:>4}| {l}", best.1 + k + 1)).collect::<Vec<_>>().join("\n");
+    Some(format!("closest match at line {}:\n{body}", best.1 + 1))
+}
+
+/// Apply edits sequentially, enforcing the unique-match guard unless
+/// replace_all. Returns (updated content, matched-with-whitespace-tolerance)
+/// or an error message for the model.
+fn apply_edits(raw: &str, edits: &[Edit], replace_all: bool, path: &str) -> Result<(String, bool), String> {
+    let mut content = raw.to_string();
+    let mut used_fallback = false;
+    for (i, e) in edits.iter().enumerate() {
+        let (hits, mode) = find_matches(&content, &e.old);
+        let tag = if edits.len() > 1 { format!("edit {}: ", i + 1) } else { String::new() };
+        if hits.is_empty() {
+            let hint = closest_region(&content, &e.old).map(|h| format!("; {h}")).unwrap_or_default();
+            return Err(format!("{tag}old_string not found in {path}{hint}"));
+        }
+        if hits.len() > 1 && !replace_all {
+            return Err(format!(
+                "{tag}old_string matches {} times in {path}; provide more context or set replace_all",
+                hits.len()
+            ));
+        }
+        used_fallback |= mode != "exact";
+        if replace_all {
+            for (s, e_) in hits.iter().rev() {
+                content.replace_range(*s..*e_, &e.new);
+            }
+        } else {
+            let (s, e_) = hits[0];
+            content.replace_range(s..e_, &e.new);
+        }
+    }
+    Ok((content, used_fallback))
+}
+
 fn exec_edit_file(input: &Value, ctx: &Ctx) -> ToolResult {
-    let (Ok(path), Ok(old_str)) = (str_arg(input, "path"), str_arg(input, "old_string")) else {
+    let Ok(path) = str_arg(input, "path") else {
         return ToolResult::err("missing or invalid input");
     };
-    let Some(new_str) = input.get("new_string").and_then(|v| v.as_str()) else {
-        return ToolResult::err("missing \"new_string\"");
+    let Some(edits) = edits_from(input) else {
+        return ToolResult::err("missing \"old_string\"/\"new_string\" or \"edits\"");
     };
     let Some(r) = rel(ctx, &path) else { return escape_result(&path) };
     let abs = Path::new(&ctx.root).join(&r);
-    if !abs.exists() {
-        return ToolResult::err(format!("file not found: {r}"));
-    }
     let Ok(raw) = fs::read_to_string(&abs) else {
         return ToolResult::err(format!("file not found: {r}"));
     };
-    let occurrences = raw.matches(&old_str).count();
-    if occurrences == 0 {
-        return ToolResult::err(format!("old_string not found in {r}"));
-    }
     let replace_all = input.get("replace_all").and_then(|v| v.as_bool()) == Some(true);
-    if occurrences > 1 && !replace_all {
-        return ToolResult::err(format!(
-            "old_string matches {occurrences} times in {r}; provide more context or set replace_all"
-        ));
-    }
-    let updated = if replace_all {
-        raw.replace(&old_str, new_str)
-    } else {
-        raw.replacen(&old_str, new_str, 1)
+    let (updated, tolerant) = match apply_edits(&raw, &edits, replace_all, &r) {
+        Ok(u) => u,
+        Err(m) => return ToolResult::err(m),
     };
     if fs::write(&abs, &updated).is_err() {
         return ToolResult::err(format!("failed to write: {r}"));
     }
     let mut res = ToolResult::ok(format!(
-        "edited {r} ({occurrences} replacement{})",
-        if occurrences > 1 { "s" } else { "" }
+        "edited {r} ({} edit{}{})",
+        edits.len(),
+        if edits.len() > 1 { "s" } else { "" },
+        if tolerant { ", whitespace-tolerant match" } else { "" }
     ));
     res.changed_file = Some(r.clone());
     res.diff = Some(preview_diff(&r, Some(&raw), &updated)).filter(|d| !d.is_empty());
@@ -1007,16 +1092,29 @@ pub fn registry() -> Vec<Tool> {
         },
         Tool {
             name: "edit_file",
-            description: "Replace an exact string in a file. The old_string must match exactly once unless replace_all is true.",
-            schema: schema(
-                &[
-                    ("path", p_str("Project-relative file path")),
-                    ("old_string", p_str("Exact text to replace")),
-                    ("new_string", p_str("Replacement text")),
-                    ("replace_all", p_bool("Replace all occurrences (default false)")),
-                ],
-                &["path", "old_string", "new_string"],
-            ),
+            description: "Replace exact text in a file. old_string must match exactly once unless replace_all is true; matching tolerates leading/trailing whitespace per line. Pass edits[] for multiple replacements in one call.",
+            schema: json!({
+                "type": "object",
+                "properties": {
+                    "path": p_str("Project-relative file path"),
+                    "old_string": p_str("Exact text to replace"),
+                    "new_string": p_str("Replacement text"),
+                    "edits": json!({
+                        "type": "array",
+                        "description": "Multiple replacements applied in order; alternative to old_string/new_string",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "old_string": p_str("Exact text to replace"),
+                                "new_string": p_str("Replacement text"),
+                            },
+                            "required": ["old_string", "new_string"],
+                        },
+                    }),
+                    "replace_all": p_bool("Replace all occurrences (default false)"),
+                },
+                "required": ["path"],
+            }),
             plan_phase: false,
             permission: perm_file(FileAction::Write, None),
             execute: exec_edit_file,
@@ -1133,5 +1231,47 @@ pub fn tools_for_phase<'a>(tools: &'a [Tool], phase: &str) -> Vec<&'a Tool> {
         tools.iter().filter(|t| t.plan_phase).collect()
     } else {
         tools.iter().collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn e(old: &str, new: &str) -> Edit { Edit { old: old.into(), new: new.into() } }
+
+    #[test]
+    fn exact_and_unique() {
+        let raw = "a\nb\nc\n";
+        assert_eq!(apply_edits(raw, &[e("b", "B")], false, "f").unwrap().0, "a\nB\nc\n");
+        let err = apply_edits("x x", &[e("x", "y")], false, "f").unwrap_err();
+        assert!(err.contains("2 times"));
+        assert_eq!(apply_edits("x x", &[e("x", "y")], true, "f").unwrap().0, "y y");
+    }
+
+    #[test]
+    fn whitespace_tolerant() {
+        // old carries the wrong indent (tab vs spaces) — no exact hit, tolerant
+        // match replaces the whole line region with new_string verbatim.
+        let raw = "fn f() {\n    let x = 1;\n}\n";
+        let (out, tol) = apply_edits(raw, &[e("\tlet x = 1;", "\tlet x = 2;")], false, "f").unwrap();
+        assert!(tol);
+        assert!(out.contains("let x = 2;"));
+    }
+
+    #[test]
+    fn miss_shows_closest() {
+        let raw = "alpha\nbeta\ngamma\n";
+        let err = apply_edits(raw, &[e("beta\nomitted", "z")], false, "f").unwrap_err();
+        assert!(err.contains("closest match at line"), "{err}");
+    }
+
+    #[test]
+    fn batch_applies_in_order() {
+        let raw = "one\ntwo\nthree\n";
+        let (out, _) = apply_edits(raw, &[e("one", "1"), e("three", "3")], false, "f").unwrap();
+        assert_eq!(out, "1\ntwo\n3\n");
+        let err = apply_edits(raw, &[e("one", "1"), e("missing", "x")], false, "f").unwrap_err();
+        assert!(err.starts_with("edit 2:"), "{err}");
     }
 }
