@@ -5,6 +5,7 @@ import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
+import Devs from "./Devs";
 import Docs from "./Docs";
 
 const VERSION = "0.2.1";
@@ -113,6 +114,7 @@ export default function App() {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
+  if (window.location.pathname.startsWith("/devs")) return <Devs />;
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
 
@@ -124,6 +126,9 @@ export default function App() {
           <Logo className="h-[18px] w-auto" />
         </a>
         <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
+          <a href="/devs" className="transition-colors hover:text-foreground">
+            Devs
+          </a>
           <button
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
@@ -170,6 +175,25 @@ export default function App() {
         </section>
 
         <Reliability />
+
+        <section className="mt-16 w-full max-w-2xl">
+          <h2 className="text-[15px] font-medium tracking-[-0.01em]">Build with the DxxpCode API</h2>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            <code className="font-mono text-foreground">dxxpcode serve</code> exposes the agent loop over localhost
+            HTTP — drive runs, stream events, and answer approvals from anything that speaks HTTP.
+          </p>
+          <div className="mt-5 overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 text-left font-mono text-[12px] leading-relaxed text-foreground/90">
+            <p className="text-muted-foreground">$ curl -X POST http://127.0.0.1:8787/tasks \</p>
+            <p className="text-muted-foreground">{"    "}-H "Authorization: Bearer $(cat ~/.dxxpcode/api-token)" \</p>
+            <p className="text-muted-foreground">{'    -d \'{"prompt": "fix the failing test"}\''}</p>
+            <p className="mt-2">{'{"task_id": "21f7720c-9e62"}'}</p>
+          </div>
+          <p className="mt-4 text-[13px]">
+            <a href="/devs" className="text-muted-foreground transition-colors hover:text-foreground">
+              DxxpDevs — quickstart and reference →
+            </a>
+          </p>
+        </section>
       </main>
     </div>
   );
