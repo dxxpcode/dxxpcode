@@ -7,6 +7,7 @@ import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
 import Devs from "./Devs";
 import Docs from "./Docs";
+import Notes from "./Notes";
 
 const VERSION = "0.2.1";
 const RELEASE = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
@@ -114,6 +115,7 @@ export default function App() {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
+  if (window.location.pathname.startsWith("/devs/notes")) return <Notes />;
   if (window.location.pathname.startsWith("/devs")) return <Devs />;
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;

@@ -48,3 +48,21 @@
   }
   ::selection { background: hsl(var(--foreground) / 0.14); }
 }
+
+@layer components {
+  .prose-site {
+    @apply text-[14px] leading-relaxed text-foreground/90;
+  }
+  .prose-site p {
+    @apply mb-5;
+  }
+  .prose-site h2 {
+    @apply mb-4 mt-10 text-[16px] font-medium tracking-[-0.01em] text-foreground;
+  }
+  .prose-site h3 {
+    @apply mb-3 mt-8 font-mono text-[13px] font-medium text-muted-foreground;
+  }
+  .prose-site code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] text-foreground;
+  }
+}
