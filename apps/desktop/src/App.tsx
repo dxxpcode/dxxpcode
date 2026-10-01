@@ -1183,6 +1183,7 @@ export default function App() {
             </div>
           )}
           <div className="inputrow">
+          <span className="prompt-glyph">❯</span>
           <div className="ghost-wrap">
             {input && (
               <div className="ghost-mirror" aria-hidden="true">
