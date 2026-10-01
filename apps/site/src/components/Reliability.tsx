@@ -1,10 +1,27 @@
+import { ChevronDown } from "lucide-react";
+
 const LOOP = [
-  { stage: "plan", prevents: "outlines the approach before touching anything" },
-  { stage: "approve", prevents: "proposed diffs shown — nothing lands unseen" },
-  { stage: "execute", prevents: "diff-level approval per write" },
-  { stage: "auto-verify", prevents: "repo's own tests run; failures feed back in" },
-  { stage: "blind review", prevents: "fresh-context model audits only the diff" },
-  { stage: "done", prevents: "every mutation checkpointed — /undo restores it" },
+  { stage: "Plan", description: "Outline the approach before making changes." },
+  { stage: "Approve", description: "Review the proposed changes." },
+  { stage: "Execute", description: "Approve writes as they happen." },
+  { stage: "Verify", description: "Run project tests and feed failures back in." },
+  { stage: "Review", description: "Check the diff with a fresh model context." },
+  { stage: "Done", description: "Keep checkpoints to restore with /undo." },
+];
+
+const BENEFITS = [
+  {
+    title: "Recover from interruptions",
+    description: "Retries, loop detection, and edit recovery help the agent handle stalls and failed changes.",
+  },
+  {
+    title: "Check the work",
+    description: "Project tests feed failures back to the agent. An independent review checks the diff for defects.",
+  },
+  {
+    title: "Stay in control",
+    description: "Review changes before they land, with checkpoints and undo when you want to take a step back.",
+  },
 ];
 
 const FAILURES: { when: string; mechanism: string }[] = [
@@ -47,69 +64,69 @@ const VERIFY = [
 
 export function Reliability() {
   return (
-    <section className="mt-16 w-full max-w-2xl text-left">
-      <h2 className="text-center text-[15px] font-medium tracking-[-0.01em]">
+    <section aria-labelledby="reliability-heading" className="mt-20 w-full max-w-3xl text-left">
+      <h2 id="reliability-heading" className="text-balance text-center text-[26px] font-medium leading-tight tracking-[-0.02em] sm:text-[28px]">
         Built to finish the task.
       </h2>
-      <p className="mx-auto mt-3 max-w-xl text-center text-[13px] leading-relaxed text-muted-foreground">
-        Every coding agent demos well. The difference is what happens at minute forty — when the
-        model repeats itself, the provider stalls, and an edit doesn't apply. That's where DxxpCode
-        is engineered.
+      <p className="mx-auto mt-4 max-w-lg text-center text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+        When an edit fails or a provider stalls, DxxpCode has a recovery path.
+        Changes are tested and reviewed before the task ends.
       </p>
 
-      {/* The loop */}
-      <div className="mt-10 border-y border-border py-6">
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-3 font-mono text-[12px]">
-          {LOOP.map((s, i) => (
-            <span key={s.stage} className="flex items-center gap-2">
-              {i > 0 && <span className="text-muted-foreground/50">→</span>}
-              <span className="text-foreground">{s.stage}</span>
+      <ol aria-label="Task workflow" className="mt-8 grid gap-x-5 gap-y-6 border-y border-border py-7 sm:grid-cols-3 lg:grid-cols-6">
+        {LOOP.map((s, i) => (
+          <li key={s.stage} className="grid grid-cols-[1.5rem_1fr] gap-x-3 sm:block">
+            <span aria-hidden="true" className="font-mono text-[11px] leading-5 text-muted-foreground">
+              {String(i + 1).padStart(2, "0")}
             </span>
-          ))}
-        </div>
-        <div className="mt-6 grid grid-cols-2 gap-px bg-border sm:grid-cols-3">
-          {LOOP.map((s) => (
-            <div key={s.stage} className="bg-background px-4 py-3">
-              <p className="font-mono text-[12px] font-medium">{s.stage}</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{s.prevents}</p>
+            <div className="sm:mt-3">
+              <h3 className="text-[14px] font-medium">{s.stage}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{s.description}</p>
             </div>
-          ))}
-        </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-3 divide-y divide-border">
+        {BENEFITS.map((benefit) => (
+          <div key={benefit.title} className="grid gap-2 py-6 sm:grid-cols-[220px_1fr] sm:gap-8">
+            <h3 className="text-[15px] font-medium tracking-[-0.01em]">{benefit.title}</h3>
+            <p className="text-[14px] leading-relaxed text-muted-foreground">{benefit.description}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Failure → mechanism */}
-      <div className="mt-10">
-        <h3 className="text-center text-[13px] font-medium text-muted-foreground">
-          What happens when things go wrong
-        </h3>
-        <div className="mt-4 divide-y divide-border border-y border-border">
-          {FAILURES.map((f) => (
-            <div key={f.when} className="grid gap-1 py-3.5 sm:grid-cols-[240px_1fr] sm:gap-4">
-              <p className="text-[13px] text-muted-foreground">{f.when}</p>
-              <p className="font-mono text-[12px] leading-relaxed text-foreground">{f.mechanism}</p>
-            </div>
-          ))}
+      <details className="group border-y border-border">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background [&::-webkit-details-marker]:hidden">
+          Technical details
+          <ChevronDown aria-hidden="true" strokeWidth={1.5} className="h-4 w-4 shrink-0 group-open:rotate-180" />
+        </summary>
+        <div className="pb-7">
+          <h3 className="text-[14px] font-medium">What happens when things go wrong</h3>
+          <dl className="mt-4 divide-y divide-border">
+            {FAILURES.map((f) => (
+              <div key={f.when} className="grid gap-2 py-4 sm:grid-cols-[220px_1fr] sm:gap-8">
+                <dt className="text-[13px] leading-relaxed text-muted-foreground">{f.when}</dt>
+                <dd className="text-[13px] leading-relaxed">{f.mechanism}</dd>
+              </div>
+            ))}
+          </dl>
+          <h3 className="mt-7 text-[14px] font-medium">Verify, don't trust</h3>
+          <dl className="mt-5 space-y-5">
+            {VERIFY.map((v) => (
+              <div key={v.lead} className="grid gap-2 sm:grid-cols-[220px_1fr] sm:gap-8">
+                <dt className="font-mono text-[12px] font-medium">{v.lead}</dt>
+                <dd className="text-[13px] leading-relaxed text-muted-foreground">{v.body}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      </div>
+      </details>
 
-      {/* Verify, don't trust */}
-      <div className="mt-10">
-        <h3 className="text-center text-[13px] font-medium text-muted-foreground">
-          Verify, don't trust
-        </h3>
-        <div className="mt-4 space-y-5">
-          {VERIFY.map((v) => (
-            <div key={v.lead} className="grid gap-1 sm:grid-cols-[120px_1fr] sm:gap-4">
-              <p className="font-mono text-[12px] font-medium">{v.lead}</p>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">{v.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <p className="mt-10 border-t border-border pt-5 text-center text-[12px] leading-relaxed text-muted-foreground">
-        Known limits: a mid-stream stall still needs esc to interrupt — we time out at connect and
-        header, not mid-body. One provider per session for now.
+      <p className="mx-auto mt-5 max-w-xl text-center text-[13px] leading-relaxed text-muted-foreground">
+        <span className="text-foreground">Known limits:</span> press <kbd className="font-mono text-[12px]">Esc</kbd> to
+        interrupt a mid-stream stall. Timeouts cover connection and headers, not the response body.
+        One provider per session.
       </p>
     </section>
   );
