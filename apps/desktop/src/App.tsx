@@ -1126,6 +1126,7 @@ export default function App() {
               <div className="modeseg" role="tablist" aria-label="Agent mode">
                 <button
                   className={`modeseg-btn${!chatMode ? " cur" : ""}`}
+                  title="Agent mode — plans, edits, and runs commands with your approval"
                   disabled={running}
                   onClick={() => void send({ type: "mode", mode: "code" })}
                 >
@@ -1133,6 +1134,7 @@ export default function App() {
                 </button>
                 <button
                   className={`modeseg-btn${chatMode ? " cur" : ""}`}
+                  title="Ask questions — read-only: no file writes, no commands, no approvals"
                   disabled={running}
                   onClick={() => void send({ type: "mode", mode: "chat" })}
                 >
