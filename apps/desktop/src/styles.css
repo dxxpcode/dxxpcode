@@ -262,10 +262,9 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   padding: 2px 0 4px 2px;
 }
 .tg-head .tg-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: none; }
-.tg-body { margin-left: 7px; padding-left: 6px; border-left: 1px solid var(--border); }
-.tg-body .tool { border-left: none; padding-left: 8px; }
+.tg-body { margin-left: 7px; padding-left: 6px; }
+.tg-body .tool { padding-left: 8px; }
 .tool {
-  border-left: 2px solid var(--border);
   padding: 4px 0 4px 14px;
 }
 .tool .head { display: flex; align-items: baseline; gap: 8px; }
@@ -284,8 +283,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .tool .out {
   color: var(--dim); font-size: 11.5px; font-family: var(--font-mono);
   white-space: pre-wrap; max-height: 220px; overflow-y: auto; margin-top: 6px;
-  background: var(--surface);
-  border-radius: var(--radius-sm); padding: 8px 10px;
+  padding: 2px 0;
 }
 .tool .out.err { color: var(--red); }
 .tool .out.live {
@@ -303,19 +301,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .tool.planx .icon, .tool.planx .name { color: var(--text); }
 
 /* ---------- cards ---------- */
-.card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
 .card .card-title {
-  padding: 9px 16px;
+  padding: 2px 0 6px;
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--faint); border-bottom: 1px solid var(--border);
+  color: var(--faint);
   display: flex; align-items: center; gap: 8px;
 }
-.card .card-body { padding: 14px 16px; font-size: 13.5px; line-height: 1.55; }
+.card .card-body { padding: 4px 0 10px; font-size: 13.5px; line-height: 1.55; }
 .plan-step { display: flex; gap: 10px; padding: 3px 0; }
 .plan-step .n { color: var(--faint); font-family: var(--font-mono); font-size: 12px; min-width: 18px; }
 .todo-item { display: flex; gap: 10px; padding: 3px 0; align-items: baseline; }
@@ -333,21 +325,19 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .diff .del .sign { color: var(--red); }
 .diff .hunk { color: var(--dim); padding: 3px 0; }
 .diff .hunkchip {
-  display: inline-block; padding: 1px 7px;
+  display: inline-block; padding: 1px 4px 1px 0;
   font-size: 10.5px; color: var(--faint);
-  background: var(--surface2); border-radius: var(--radius-sm);
 }
 .dc-badge {
   font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
-  padding: 1.5px 7px; border-radius: 999px; flex-shrink: 0;
+  padding: 1.5px 4px 1.5px 0; flex-shrink: 0;
 }
-.dc-badge.mod { color: var(--dim); background: var(--surface2); }
-.dc-badge.add { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
-.dc-badge.del { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.dc-badge.mod { color: var(--dim); }
+.dc-badge.add { color: var(--green); }
+.dc-badge.del { color: var(--red); }
 .dc-path { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
 .dc-toolchip {
-  font-family: var(--font-mono); font-size: 10.5px; color: var(--dim);
-  padding: 1.5px 7px; background: var(--surface2); border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--faint);
   flex-shrink: 0;
 }
 .dc-path .dc-base { color: var(--text); font-weight: 600; }
@@ -375,19 +365,15 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 
 /* ---------- approval ---------- */
 .approval {
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
+  padding: 12px 0;
   animation: rise 0.25s var(--ease);
 }
 .approval .title { color: var(--text); font-weight: 600; font-size: 13.5px; display: flex; gap: 8px; align-items: center; letter-spacing: -0.005em; }
 .approval .title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
 .approval .summary {
   font-family: var(--font-mono); font-size: 12.5px; margin: 10px 0;
-  white-space: pre-wrap; color: var(--text);
-  background: var(--surface2);
-  border-radius: var(--radius-sm); padding: 10px 12px;
+  white-space: pre-wrap; color: var(--dim);
+  padding: 0;
 }
 .approval .reason { color: var(--dim); font-size: 12px; }
 .approval .summary-md { position: relative; margin: 8px 0 4px; }
@@ -514,11 +500,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 /* ---------- command palette ---------- */
 .palette {
   margin-bottom: 10px;
-  background: var(--surface);
-  border-radius: var(--radius);
-  overflow: hidden;
   max-height: 260px; overflow-y: auto;
-  box-shadow: var(--shadow-lg);
 }
 .palette-row {
   display: flex; align-items: baseline; gap: 12px;
