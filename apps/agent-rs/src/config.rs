@@ -35,6 +35,8 @@ pub struct Config {
     pub effort: Option<String>,
     #[serde(default, rename = "effortAuto")]
     pub effort_auto: Option<bool>,
+    #[serde(default)]
+    pub speed: Option<String>,
     #[serde(default, rename = "maxIterations")]
     pub max_iterations: Option<u32>,
     #[serde(default, rename = "anthropicApiKey")]
