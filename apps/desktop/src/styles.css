@@ -116,6 +116,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 .modeseg-btn:disabled { opacity: 0.55; cursor: default; }
+.modehint { font-size: 11px; color: var(--faint); }
 .inctx {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 5px;
