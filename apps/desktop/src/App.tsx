@@ -59,6 +59,7 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState("");
+  const [chatMode, setChatMode] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [promptReq, setPromptReq] = useState<PromptState | null>(null);
   const [promptVal, setPromptVal] = useState("");
@@ -224,6 +225,7 @@ export default function App() {
         setItems([]);
         setApprovals([]);
         setSessionInfo({ id: null, tokens: 0 });
+        setChatMode(false);
         break;
       }
       case "user":
@@ -432,6 +434,12 @@ export default function App() {
       case "note":
         push({ k: "note", text: String(ev.text) });
         break;
+      case "mode": {
+        const m = String(ev.mode) === "chat";
+        setChatMode(m);
+        push({ k: "note", text: `mode: ${m ? "chat" : "code"}` });
+        break;
+      }
       case "done": {
         const r = ev.result as {
           status: string; summary: string; filesChanged?: string[];
@@ -1115,6 +1123,22 @@ export default function App() {
         <div className="inputbox">
           {ready && (
             <div className="inctx-row">
+              <div className="modeseg" role="tablist" aria-label="Agent mode">
+                <button
+                  className={`modeseg-btn${!chatMode ? " cur" : ""}`}
+                  disabled={running}
+                  onClick={() => void send({ type: "mode", mode: "code" })}
+                >
+                  Code
+                </button>
+                <button
+                  className={`modeseg-btn${chatMode ? " cur" : ""}`}
+                  disabled={running}
+                  onClick={() => void send({ type: "mode", mode: "chat" })}
+                >
+                  Chat
+                </button>
+              </div>
               <button className="inctx" title="Change project" onClick={openProject}>
                 <span className="inctx-name">{ready.project.name}</span>
                 {ready.project.git && (
@@ -1169,7 +1193,7 @@ export default function App() {
             ref={taRef}
             rows={1}
             autoFocus
-            placeholder="Ask dxxpcode anything…"
+            placeholder={chatMode ? "Ask about this codebase…" : "Ask dxxpcode anything…"}
             value={input}
             onChange={(e) => {
               setInput(e.target.value);

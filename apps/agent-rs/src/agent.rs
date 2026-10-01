@@ -431,6 +431,8 @@ pub struct RunOpts<'a> {
     /// discard the change.
     pub review_change: &'a mut dyn FnMut(&str, &Value, &str) -> bool,
     pub session: Option<SessionRecord>,
+    /// Chat mode: read-only toolset, no plan/approval phase.
+    pub chat: bool,
     pub effort: Option<String>,
     pub aborted: Arc<AtomicBool>,
     pub steer: &'a mut dyn FnMut() -> Option<String>,
@@ -824,7 +826,15 @@ fn stream_turn(
 /// The agent run — mirrors runTask(). Emits AgentEvent-shaped JSON objects.
 pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     let max_iterations = opts.max_iterations.unwrap_or(DEFAULT_MAX_ITERATIONS);
-    let (_project, system) = gather_context(&opts.project_root);
+    let (_project, mut system) = gather_context(&opts.project_root);
+    if opts.chat {
+        system.push_str(
+            "\n\nYou are in CHAT MODE — read-only. Answer questions about the codebase \
+             using the read/search/git tools. You cannot modify files, run shell commands, \
+             or make changes of any kind. If the user asks for a change, explain what you \
+             would do and suggest switching to Code mode.",
+        );
+    }
     emit(json!({"type": "status", "message": "Inspecting project…"}));
 
     let tools = tools::registry();
@@ -848,7 +858,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         commands: vec![],
         todos: None,
         result: None,
+        mode: None,
     });
+    session.mode = Some(if opts.chat { "chat" } else { "code" }.to_string());
 
     let persist = |session: &mut SessionRecord| {
         session.updated_at = iso_now();
@@ -906,7 +918,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     }
 
     /* ------------------------------ PLAN PHASE ------------------------------ */
-    let mut approved = false;
+    // Chat mode skips plan/approval entirely — there is nothing to approve.
+    let mut approved = opts.chat;
     let mut plan: Option<Value> = None;
     let mut iterations = 0u32;
 
@@ -1070,7 +1083,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             &opts.model,
             &system,
             &mut session.messages,
-            "execute",
+            if opts.chat { "chat" } else { "execute" },
             opts.effort.as_deref(),
             &opts.aborted,
             emit,
@@ -1185,6 +1198,11 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
 
         let mut results = vec![];
         let mut loop_nudge = false;
+        // Dispatch must honor the same phase filter as the advertised tool
+        // defs — in chat mode a mutating tool name the model emits anyway
+        // resolves to None and is denied, never reaching write/approval paths.
+        let allowed: Vec<&tools::Tool> =
+            tools::tools_for_phase(&tools, if opts.chat { "chat" } else { "execute" });
         for (id, name, input) in &calls {
             stats.tool_calls += 1;
             // Loop detection: the same tool + same args repeating while no
@@ -1215,7 +1233,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             if repeat == 3 {
                 loop_nudge = true;
             }
-            let tool = tools::find_tool(&tools, name);
+            let tool = allowed.iter().find(|t| t.name == *name).copied();
             if tool.is_none() || name == "propose_plan" {
                 emit(json!({"type": "denied", "tool": name, "reason": "unknown tool"}));
                 session.tool_calls.push(recorded(name, input, true, false));

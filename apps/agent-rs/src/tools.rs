@@ -1499,10 +1499,15 @@ pub fn find_tool<'a>(tools: &'a [Tool], name: &str) -> Option<&'a Tool> {
 }
 
 pub fn tools_for_phase<'a>(tools: &'a [Tool], phase: &str) -> Vec<&'a Tool> {
-    if phase == "plan" {
-        tools.iter().filter(|t| t.plan_phase).collect()
-    } else {
-        tools.iter().collect()
+    match phase {
+        "plan" => tools.iter().filter(|t| t.plan_phase).collect(),
+        // Chat mode: the read-only plan-phase set minus propose_plan —
+        // enforced here so the model can never reach a mutating tool.
+        "chat" => tools
+            .iter()
+            .filter(|t| t.plan_phase && t.name != "propose_plan")
+            .collect(),
+        _ => tools.iter().collect(),
     }
 }
 
