@@ -142,6 +142,17 @@ export default function App() {
           <DownloadButtons />
         </div>
 
+        <figure className="mt-12 w-full max-w-5xl overflow-hidden rounded-xl border border-border sm:mt-14">
+          <img
+            src={dark ? "/desktop-task-dark.webp" : "/desktop-task-light.webp"}
+            alt="DxxpCode fixing a cart total rounding bug, with an approved plan, the applied code diff, and three passing tests."
+            width={2200}
+            height={2100}
+            decoding="async"
+            className="block h-auto w-full"
+          />
+        </figure>
+
         <section className="mt-14 w-full max-w-2xl">
           <h2 className="text-[15px] font-medium tracking-[-0.01em]">Native Rust. Nothing bundled.</h2>
           <div className="mt-6 grid grid-cols-3 divide-x divide-border border-y border-border">
