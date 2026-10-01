@@ -4,6 +4,7 @@ import { Logo } from "./Logo";
 export const GITHUB_URL = "https://github.com/thenextdeveloper/DxxpCode-Terminal";
 
 const LINKS = [
+  ["/devs", "Devs"],
   ["/docs", "Docs"],
   ["/changelog", "Changelog"],
 ] as const;

@@ -5,6 +5,7 @@ import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
+import Devs from "./Devs";
 import Docs from "./Docs";
 
 const VERSION = "0.2.1";
@@ -113,6 +114,7 @@ export default function App() {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
+  if (window.location.pathname.startsWith("/devs")) return <Devs />;
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
 
