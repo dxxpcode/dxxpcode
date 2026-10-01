@@ -1183,8 +1183,7 @@ export default function App() {
                 <ChevronDown size={11} />
               </button>
               <span className="subline-model">
-                {ready.model}
-                {ready.effort && ready.effort !== "default" ? ` · ${ready.effort}` : ""}
+                {ready.model} · {ready.effort ?? "default"}
               </span>
             </div>
           )}
