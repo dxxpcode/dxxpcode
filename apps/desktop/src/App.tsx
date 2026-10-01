@@ -44,13 +44,6 @@ const IS_MAC = navigator.userAgent.includes("Macintosh");
 
 interface Ev { type: string; [k: string]: unknown }
 
-const SUGGESTIONS: { label: string; prompt: string }[] = [
-  { label: "Explore this codebase", prompt: "Give me a tour of this codebase — the main entry points, structure, and how the pieces fit together." },
-  { label: "Build a feature", prompt: "" },
-  { label: "Fix a bug", prompt: "" },
-  { label: "Review recent changes", prompt: "/review agent" },
-];
-
 export default function App() {
   const [ready, setReady] = useState<ReadyInfo | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -958,20 +951,6 @@ export default function App() {
                 {ready.project.name}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
               </button>?
-            </div>
-            <div className="hero-cards">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s.label}
-                  className="hero-card"
-                  onClick={() => { setInput(s.prompt); taRef.current?.focus(); }}
-                >
-                  <span className="hero-label">{s.label}</span>
-                  <span className="hero-arrow" aria-hidden>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                  </span>
-                </button>
-              ))}
             </div>
           </div>
         )}

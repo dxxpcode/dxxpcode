@@ -707,34 +707,6 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 }
 .hero-proj:hover { color: var(--text); }
 .hero-proj svg { width: 13px; height: 13px; align-self: center; }
-.hero-cards {
-  display: flex; flex-direction: column;
-  max-width: 480px;
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-.hero-card {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 16px;
-  cursor: pointer;
-  transition: background 0.15s var(--ease);
-}
-.hero-card + .hero-card { border-top: 1px solid var(--border); }
-.hero-card:hover { background: var(--surface2); }
-.hero-card:hover .hero-arrow { opacity: 1; transform: translateX(0); }
-.hero-arrow {
-  width: 14px; height: 14px; flex-shrink: 0;
-  color: var(--faint);
-  opacity: 0; transform: translateX(-4px);
-  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
-}
-.hero-arrow svg { width: 100%; height: 100%; }
-.hero-label { font-size: 13px; font-weight: 500; color: var(--text); letter-spacing: -0.005em; }
-
 /* ---------- onboarding ---------- */
 .onboarding {
   position: absolute;
