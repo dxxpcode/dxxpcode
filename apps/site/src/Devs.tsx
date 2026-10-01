@@ -51,9 +51,9 @@ export default function Devs() {
       <main className="flex flex-1 flex-col items-center px-6 pb-16 pt-10 text-center">
         <p className="font-mono text-[12px] text-muted-foreground">DxxpDevs</p>
         <h1 className="mt-2 text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
-          Build with the{" "}
+          A local coding agent{" "}
           <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-            DxxpCode API
+            other developer tools can control
           </span>
         </h1>
         <p className="mt-4 max-w-2xl text-pretty text-[14px] leading-relaxed text-muted-foreground">
