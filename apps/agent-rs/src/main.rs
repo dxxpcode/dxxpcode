@@ -8,6 +8,7 @@ mod errors;
 mod perm;
 mod project;
 mod provider;
+mod serve;
 mod tools;
 mod util;
 
@@ -21,6 +22,9 @@ fn latest_session_for_local(root: &str) -> Option<config::SessionRecord> {
 
 fn main() {
     let argv: Vec<String> = std::env::args().skip(1).collect();
+    if argv.first().map(|a| a.as_str()) == Some("serve") {
+        std::process::exit(serve::run());
+    }
     let mut app_mode = false;
     let mut plan = false;
     let mut resume = false;
