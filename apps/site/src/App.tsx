@@ -3,6 +3,7 @@ import { ArrowDown, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
+import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
 import Docs from "./Docs";
 
@@ -163,6 +164,8 @@ export default function App() {
             Compared with agents that bundle Electron, Node or Bun.
           </p>
         </section>
+
+        <Reliability />
       </main>
     </div>
   );
