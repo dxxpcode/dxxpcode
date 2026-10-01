@@ -79,6 +79,7 @@ function DownloadButtons() {
               </span>
             ))}
           </p>
+          <p className="mt-4 text-[12px] text-muted-foreground">Bring your own API key</p>
         </div>
         <GitHubStars />
       </div>
