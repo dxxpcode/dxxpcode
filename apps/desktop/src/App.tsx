@@ -98,7 +98,6 @@ export default function App() {
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
   const [sideOpen, setSideOpen] = useState(() => localStorage.getItem("sidebar") !== "closed");
-  const [modelPop, setModelPop] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
@@ -1140,46 +1139,6 @@ export default function App() {
                 </button>
               </div>
               <span className="modehint">{chatMode ? "read-only" : "read-write"}</span>
-              <button className="inctx" title="Change project" onClick={openProject}>
-                <span className="inctx-name">{ready.project.name}</span>
-                {ready.project.git && (
-                  <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-                )}
-                <ChevronDown size={11} />
-              </button>
-              <div className="inctx-anchor">
-                <button className="inctx" title="Model & effort" onClick={() => setModelPop((v) => !v)}>
-                  <span className="inctx-name">
-                    {ready.model}
-                    {ready.effort && ready.effort !== "default" ? ` · ${ready.effort}` : ""}
-                  </span>
-                  <ChevronDown size={11} />
-                </button>
-                {modelPop && (
-                  <>
-                    <div className="pop-back" onClick={() => setModelPop(false)} />
-                    <div className="inctx-pop">
-                      <button className="pop-row" onClick={() => { setModelPop(false); cmd("/model"); }}>
-                        <span className="pop-row-label">Change model…</span>
-                        <span className="pop-val mono">{ready.model}</span>
-                      </button>
-                      <div className="pop-sep" />
-                      <div className="pop-label">Reasoning effort</div>
-                      <div className="eff-grid">
-                        {EFFORT_LEVELS.map((lvl) => (
-                          <button
-                            key={lvl}
-                            className={`eff-pill${(ready.effort ?? "default") === lvl ? " cur" : ""}`}
-                            onClick={() => { setModelPop(false); cmd(`/effort ${lvl}`); }}
-                          >
-                            {lvl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
           )}
           <div className="inputrow">
@@ -1235,6 +1194,21 @@ export default function App() {
             }}
           >⏎</button>
           </div>
+          {ready && (
+            <div className="subline">
+              <button className="inctx" title="Change project" onClick={openProject}>
+                <span className="inctx-name">{ready.project.name}</span>
+                {ready.project.git && (
+                  <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+                )}
+                <ChevronDown size={11} />
+              </button>
+              <span className="subline-model">
+                {ready.model}
+                {ready.effort && ready.effort !== "default" ? ` · ${ready.effort}` : ""}
+              </span>
+            </div>
+          )}
         </div>
       </div>
       </div>
