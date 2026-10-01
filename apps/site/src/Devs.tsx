@@ -135,7 +135,16 @@ data: {"type":"done","result":{"status":"completed", …}}`}</Code>
           </div>
         </section>
 
-        <p className="mt-14 w-full max-w-2xl border-t border-border pt-6 font-mono text-[12px] text-muted-foreground">
+        <section className="mt-14 w-full max-w-2xl border-t border-border pt-8">
+          <p className="font-mono text-[12px] text-muted-foreground">
+            Engineering deep dives ·{" "}
+            <a href="/devs/notes" className="transition-colors hover:text-foreground">
+              Notes →
+            </a>
+          </p>
+        </section>
+
+        <p className="mt-8 w-full max-w-2xl font-mono text-[12px] text-muted-foreground">
           localhost only · bearer token required · bring your own API key
         </p>
       </main>
