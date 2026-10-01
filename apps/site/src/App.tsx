@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, Moon, Sun } from "lucide-react";
+import { ArrowDown, KeyRound, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
@@ -78,6 +78,10 @@ function DownloadButtons() {
                 </a>
               </span>
             ))}
+          </p>
+          <p className="mt-2 flex items-center justify-center gap-1.5 font-mono text-[12px] text-muted-foreground">
+            <KeyRound strokeWidth={1.5} className="h-3.5 w-3.5" />
+            Bring your own API key
           </p>
         </div>
         <GitHubStars />
