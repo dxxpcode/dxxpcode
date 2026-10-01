@@ -1139,7 +1139,7 @@ export default function App() {
                   Chat
                 </button>
               </div>
-              <span className="modehint">{chatMode ? "read-only" : "agent mode"}</span>
+              <span className="modehint">{chatMode ? "read-only" : "read-write"}</span>
               <button className="inctx" title="Change project" onClick={openProject}>
                 <span className="inctx-name">{ready.project.name}</span>
                 {ready.project.git && (
