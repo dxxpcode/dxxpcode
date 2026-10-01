@@ -207,6 +207,7 @@ fn run_task_once(root: &str, task: String) {
         approve_tool: &mut approve_tool,
         review_change: &mut review_change,
         session: None,
+        chat: false,
         effort: cfg.effort.clone(),
         aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         steer: &mut steer,

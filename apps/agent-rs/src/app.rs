@@ -148,6 +148,8 @@ pub struct Shared {
     pub auto_approve: AtomicBool,
     pub smart_mode: AtomicBool,
     pub mode: Mutex<String>,
+    /// Agent mode toggle: false = code (default), true = read-only chat.
+    pub chat_mode: Mutex<bool>,
     pub session: Mutex<Option<SessionRecord>>,
     pub allowlist: Mutex<HashSet<String>>,
     pub next_id: Mutex<u64>,
@@ -1329,6 +1331,13 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
     let sh_steer = Arc::clone(sh);
     let mut steer = move || sh_steer.steer_queue.lock().unwrap().pop_front();
 
+    // A resumed session keeps its own mode; otherwise use the toggle.
+    let chat = session_for_run
+        .as_ref()
+        .and_then(|s| s.mode.as_deref())
+        .map(|m| m == "chat")
+        .unwrap_or_else(|| *sh.chat_mode.lock().unwrap());
+
     let mut opts = agent::RunOpts {
         task: mentions.text,
         provider: &mut provider,
@@ -1340,6 +1349,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         approve_tool: &mut approve_tool,
         review_change: &mut review_change,
         session: session_for_run,
+        chat,
         effort,
         aborted: Arc::clone(&sh.aborted),
         steer: &mut steer,
@@ -1422,6 +1432,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         auto_approve: AtomicBool::new(deps.auto_approve),
         smart_mode: AtomicBool::new(deps.smart_approve_mode),
         mode: Mutex::new(deps.mode.clone()),
+        chat_mode: Mutex::new(false),
         session: Mutex::new(deps.session),
         allowlist: Mutex::new(HashSet::new()),
         next_id: Mutex::new(1),
@@ -1459,6 +1470,17 @@ pub fn run_app(deps: AppDeps) -> i32 {
         "project": deps.project.to_json(),
     }));
     sh.emit_session();
+
+    // Under a pty (desktop sidecar) stdin echoes input lines back onto stdout,
+    // where the UI would parse commands like {"type":"mode"} as real events.
+    #[cfg(unix)]
+    unsafe {
+        let mut t: libc::termios = std::mem::zeroed();
+        if libc::tcgetattr(0, &mut t) == 0 {
+            t.c_lflag &= !libc::ECHO;
+            libc::tcsetattr(0, libc::TCSANOW, &t);
+        }
+    }
 
     let inbox: Arc<Mutex<VecDeque<Value>>> = Arc::new(Mutex::new(VecDeque::new()));
     let stdin_inbox = Arc::clone(&inbox);
@@ -1519,6 +1541,20 @@ pub fn run_app(deps: AppDeps) -> i32 {
                     let d2 = Arc::clone(&dinfo);
                     let n = name.to_string();
                     std::thread::spawn(move || handle_command(&sh2, &d2, &n));
+                }
+            }
+            // Code/chat mode toggle — {type:"mode", mode:"code"|"chat"}.
+            "mode" => {
+                let m = cmd.get("mode").and_then(|v| v.as_str()).unwrap_or("code");
+                let m = if m == "chat" { "chat" } else { "code" };
+                *sh.chat_mode.lock().unwrap() = m == "chat";
+                if let Some(s) = sh.session.lock().unwrap().as_mut() {
+                    s.mode = Some(m.to_string());
+                    save_session(s);
+                }
+                emit(json!({"type": "mode", "mode": m}));
+                if sh.running.load(Ordering::SeqCst) {
+                    emit_note(format!("mode: {m} — applies to the next task"));
                 }
             }
             // Onboarding wizard: validate a provider key (or pick the demo),

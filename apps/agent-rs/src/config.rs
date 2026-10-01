@@ -106,6 +106,9 @@ pub struct SessionRecord {
     pub todos: Option<Vec<Value>>,
     #[serde(default)]
     pub result: Option<String>,
+    /// "code" (default) or "chat" — restored on resume.
+    #[serde(default)]
+    pub mode: Option<String>,
 }
 
 pub fn sessions_dir() -> PathBuf {
