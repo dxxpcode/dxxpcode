@@ -1471,6 +1471,17 @@ pub fn run_app(deps: AppDeps) -> i32 {
     }));
     sh.emit_session();
 
+    // Under a pty (desktop sidecar) stdin echoes input lines back onto stdout,
+    // where the UI would parse commands like {"type":"mode"} as real events.
+    #[cfg(unix)]
+    unsafe {
+        let mut t: libc::termios = std::mem::zeroed();
+        if libc::tcgetattr(0, &mut t) == 0 {
+            t.c_lflag &= !libc::ECHO;
+            libc::tcsetattr(0, libc::TCSANOW, &t);
+        }
+    }
+
     let inbox: Arc<Mutex<VecDeque<Value>>> = Arc::new(Mutex::new(VecDeque::new()));
     let stdin_inbox = Arc::clone(&inbox);
     std::thread::spawn(move || {
