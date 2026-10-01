@@ -7,12 +7,13 @@ use crate::provider::{Provider, ProviderError, ProviderEvent, Usage};
 use crate::tools::{self, Ctx, ToolResult};
 use crate::util::redact_secrets;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const DEFAULT_MAX_ITERATIONS: u32 = 40;
 
@@ -754,25 +755,50 @@ fn stream_turn(
     let mut usage: Option<Usage> = None;
     let mut err: Option<ProviderError> = None;
 
-    let res = provider.chat(
-        system,
-        messages,
-        &tool_defs,
-        model,
-        effort,
-        aborted,
-        |ev| match ev {
-            ProviderEvent::Text(t) => {
-                text_parts.push(t.clone());
-                emit(json!({"type": "text", "text": t}));
+    // Stall watchdog: while the provider call is open, a quiet stream
+    // (no tokens/events for 15s+) surfaces a status line instead of
+    // looking hung.
+    let emit_cell = Mutex::new(&mut *emit);
+    let last_ev = Arc::new(Mutex::new(Instant::now()));
+    let wd_stop = Arc::new(AtomicBool::new(false));
+    let res = std::thread::scope(|s| {
+        let last_ev2 = Arc::clone(&last_ev);
+        let wd_stop2 = Arc::clone(&wd_stop);
+        let emit_cell = &emit_cell;
+        s.spawn(move || {
+            let mut n = 0u64;
+            loop {
+                std::thread::sleep(Duration::from_secs(2));
+                if wd_stop2.load(std::sync::atomic::Ordering::Relaxed) {
+                    return;
+                }
+                let quiet = last_ev2.lock().unwrap().elapsed().as_secs();
+                while quiet >= 15 * (n + 1) {
+                    n += 1;
+                    (*emit_cell.lock().unwrap())(json!({
+                        "type": "status",
+                        "message": format!("Still working — no output for {}s", 15 * n),
+                    }));
+                }
             }
-            ProviderEvent::Thinking(t) => {
-                emit(json!({"type": "think", "text": t}));
+        });
+        let res = provider.chat(system, messages, &tool_defs, model, effort, aborted, |ev| {
+            *last_ev.lock().unwrap() = Instant::now();
+            match ev {
+                ProviderEvent::Text(t) => {
+                    text_parts.push(t.clone());
+                    (*emit_cell.lock().unwrap())(json!({"type": "text", "text": t}));
+                }
+                ProviderEvent::Thinking(t) => {
+                    (*emit_cell.lock().unwrap())(json!({"type": "think", "text": t}));
+                }
+                ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
+                ProviderEvent::Done { usage: u, .. } => usage = u,
             }
-            ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
-            ProviderEvent::Done { usage: u, .. } => usage = u,
-        },
-    );
+        });
+        wd_stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        res
+    });
     if let Err(e) = res {
         err = Some(e);
     }
@@ -1024,6 +1050,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     let mut verified_upto = 0usize;
     let mut verify_attempts = 0u32;
     let mut review_attempts = 0u32;
+    // (tool,args) -> (count, files_changed.len() at last call): repeated
+    // identical calls with no file changes between them mean a stuck loop.
+    let mut call_counts: HashMap<String, (u32, usize)> = HashMap::new();
     loop {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
             finish_emit!("cancelled", "Cancelled");
@@ -1155,8 +1184,37 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         }
 
         let mut results = vec![];
+        let mut loop_nudge = false;
         for (id, name, input) in &calls {
             stats.tool_calls += 1;
+            // Loop detection: the same tool + same args repeating while no
+            // file has changed means the agent is stuck. Nudge once, then
+            // stop the run on the next identical call.
+            let key = format!(
+                "{name}:{}",
+                serde_json::to_string(input).unwrap_or_default()
+            );
+            let e = call_counts
+                .entry(key)
+                .or_insert((0, session.files_changed.len()));
+            if e.1 != session.files_changed.len() {
+                *e = (0, session.files_changed.len());
+            }
+            e.0 += 1;
+            let repeat = e.0;
+            if repeat >= 4 {
+                emit(json!({"type": "status", "message": "Stopped a repeated tool loop"}));
+                finish_emit!(
+                    "error",
+                    format!(
+                        "Stopped: `{name}` was called with the same arguments repeatedly — the agent was stuck"
+                    ),
+                    vec![("error", json!("tool loop detected"))]
+                );
+            }
+            if repeat == 3 {
+                loop_nudge = true;
+            }
             let tool = tools::find_tool(&tools, name);
             if tool.is_none() || name == "propose_plan" {
                 emit(json!({"type": "denied", "tool": name, "reason": "unknown tool"}));
@@ -1255,6 +1313,16 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 role: "user".into(),
                 content: results,
             });
+        }
+        if loop_nudge {
+            session.messages.push(Message {
+                role: "user".into(),
+                content: vec![text_block(
+                    "You've repeated the same tool call without any file changing — \
+                     try a different approach, or stop and tell the user what's blocking you.",
+                )],
+            });
+            persist(&mut session);
         }
 
         let mut steered = vec![];
