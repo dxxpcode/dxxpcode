@@ -77,3 +77,12 @@
     transform: none;
   }
 }
+
+@keyframes thinkshine {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
