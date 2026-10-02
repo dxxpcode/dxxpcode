@@ -74,7 +74,9 @@ async function runFixture(name) {
   cpSync(dir, work, { recursive: true });
   rmSync(join(work, "eval.json"), { force: true });
   rmSync(join(work, "mock.json"), { force: true });
-  // baseline commit so the worktree diff measures regression
+  // baseline commit so the worktree diff measures regression;
+  // .dxxpcode/ holds the agent's own plan/todo mirrors — not a user regression
+  writeFileSync(join(work, ".gitignore"), ".dxxpcode/\n");
   sh("git init -q && git add -A && git -c user.email=eval@dxxp -c user.name=eval commit -qm baseline", work);
 
   const events = [];
