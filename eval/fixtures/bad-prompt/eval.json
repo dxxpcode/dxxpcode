@@ -4,5 +4,12 @@
   "verify": {
     "files": []
   },
-  "expect": { "max_tool_calls": 6, "autoApprove": true }
+  "expect": {
+    "max_tool_calls": 6,
+    "autoApprove": true,
+    "status": [
+      "incomplete",
+      "declined"
+    ]
+  }
 }

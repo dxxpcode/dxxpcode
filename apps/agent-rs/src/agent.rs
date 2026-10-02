@@ -89,6 +89,7 @@ fn run_verify(root: &str, command: &str) -> (bool, String) {
 
 const REVIEW_DIFF_CAP: usize = 60_000;
 const REVIEW_MAX_ATTEMPTS: u32 = 1;
+const DONE_CHECK_MAX_ATTEMPTS: u32 = 1;
 
 /// A blind end-of-run review: the reviewer gets only the diff (plus the
 /// contents of newly created files) in a fresh context — never the chat
@@ -922,6 +923,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     let mut approved = opts.chat;
     let mut plan: Option<Value> = None;
     let mut iterations = 0u32;
+    let mut done_checks = 0u32;
 
     while !approved {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1028,6 +1030,46 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             }
         } else {
             let summary = last_assistant_text(&session.messages);
+            // Done-gate: text-only finish during planning with no work
+            // evidence gets one self-check, then an honest status.
+            if !opts.chat
+                && session.files_changed.is_empty()
+                && !session.tool_calls.iter().any(|t| {
+                    t.get("name").and_then(|n| n.as_str()) == Some("run_command")
+                        && t.get("isError").and_then(|e| e.as_bool()) == Some(false)
+                })
+            {
+                if summary.trim_start().starts_with("DECLINE:") {
+                    let mut r = base("declined", &session, &stats);
+                    r["summary"] =
+                        json!(summary.trim_start()["DECLINE:".len()..].trim().to_string());
+                    emit(finish(r, &usage, &mut session));
+                    return;
+                }
+                if done_checks < DONE_CHECK_MAX_ATTEMPTS {
+                    done_checks += 1;
+                    emit(
+                        json!({"type": "status", "message": "Nothing changed — checking completion…"}),
+                    );
+                    session.messages.push(Message {
+                        role: "user".into(),
+                        content: vec![text_block(
+                            "The task is not done — nothing changed on disk and no plan was proposed. \
+                             Either propose a plan with `propose_plan` now, or reply `DECLINE: <reason>` if the task is impossible, unclear, or already satisfied.",
+                        )],
+                    });
+                    persist(&mut session);
+                    continue;
+                }
+                let mut r = base("incomplete", &session, &stats);
+                r["summary"] = json!(if summary.is_empty() {
+                    "Finished with no changes".to_string()
+                } else {
+                    summary
+                });
+                emit(finish(r, &usage, &mut session));
+                return;
+            }
             finish_emit!(
                 "completed",
                 if summary.is_empty() {
@@ -1181,6 +1223,49 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                         emit(json!({"type": "note", "text": format!("review skipped ({e})")}));
                     }
                 }
+            }
+            // Done-gate: a mutating task ending with no evidence of work
+            // (no file changes, no successful command) gets one self-check
+            // turn — then reports "incomplete", or "declined" when the
+            // model explicitly refuses the task.
+            if !opts.chat
+                && session.files_changed.is_empty()
+                && !session.tool_calls.iter().any(|t| {
+                    t.get("name").and_then(|n| n.as_str()) == Some("run_command")
+                        && t.get("isError").and_then(|e| e.as_bool()) == Some(false)
+                })
+            {
+                let summary = last_assistant_text(&session.messages);
+                if summary.trim_start().starts_with("DECLINE:") {
+                    let mut r = base("declined", &session, &stats);
+                    r["summary"] =
+                        json!(summary.trim_start()["DECLINE:".len()..].trim().to_string());
+                    emit(finish(r, &usage, &mut session));
+                    return;
+                }
+                if done_checks < DONE_CHECK_MAX_ATTEMPTS {
+                    done_checks += 1;
+                    emit(
+                        json!({"type": "status", "message": "Nothing changed — checking completion…"}),
+                    );
+                    session.messages.push(Message {
+                        role: "user".into(),
+                        content: vec![text_block(
+                            "The task is not done — nothing changed on disk and no command ran successfully. \
+                             Either make the change now, or reply `DECLINE: <reason>` if the task is impossible, unclear, or already satisfied.",
+                        )],
+                    });
+                    persist(&mut session);
+                    continue;
+                }
+                let mut r = base("incomplete", &session, &stats);
+                r["summary"] = json!(if summary.is_empty() {
+                    "Finished with no changes".to_string()
+                } else {
+                    summary
+                });
+                emit(finish(r, &usage, &mut session));
+                return;
             }
             let mut r = base("completed", &session, &stats);
             let summary = last_assistant_text(&session.messages);

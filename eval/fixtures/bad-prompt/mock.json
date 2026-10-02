@@ -1,7 +1,31 @@
 [
-  {"toolCalls": [{"name": "propose_plan", "input": {"summary": "Locate websocket handler", "steps": ["Search for websocket code", "Report if none exists"], "trivial": true}}]},
-  {"text": "Let me look for the handler.", "toolCalls": [
-    {"name": "search_files", "input": {"pattern": "websocket"}}
-  ]},
-  {"text": "There is no websocket handler in this project — nothing matches. Can you point me at the right file or repo?"}
+  {
+    "toolCalls": [
+      {
+        "name": "propose_plan",
+        "input": {
+          "summary": "Locate websocket handler",
+          "steps": [
+            "Search for websocket code",
+            "Report if none exists"
+          ],
+          "trivial": true
+        }
+      }
+    ]
+  },
+  {
+    "text": "Let me look for the handler.",
+    "toolCalls": [
+      {
+        "name": "search_files",
+        "input": {
+          "pattern": "websocket"
+        }
+      }
+    ]
+  },
+  {
+    "text": "DECLINE: there is no websocket reconnect handler in this project — nothing matches. Point me at the right file or repo."
+  }
 ]
