@@ -99,19 +99,33 @@ export function AgentRun() {
   const done = step >= ORDER.length - 1; // "done" phase onward, through the hold
   const running = started.current && !done;
 
+  const totalMs = ORDER.reduce((s, o) => s + o.after, 0);
+  const passedMs = ORDER.slice(0, Math.max(step, 0)).reduce((s, o) => s + o.after, 0);
+  const progress = done ? 1 : Math.min(1, (passedMs + elapsed * 1000) / totalMs);
+
   return (
     <div
       ref={ref}
-      className="overflow-hidden rounded-xl border border-border bg-muted/40 text-left font-mono text-[12px] leading-[1.7]"
+      className="relative overflow-hidden rounded-xl border border-border bg-muted/40 text-left font-mono text-[12px] leading-[1.7] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)]"
     >
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-        <span className="h-2 w-2 rounded-full bg-muted-foreground/25" />
-        <span className="h-2 w-2 rounded-full bg-muted-foreground/25" />
-        <span className="h-2 w-2 rounded-full bg-muted-foreground/25" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-foreground/[0.04] to-transparent"
+      />
+      <div className="flex items-center gap-2 border-b border-border bg-muted/70 px-4 py-2.5">
+        <span className="h-2 w-2 rounded-full bg-[#ff5f57]/40" />
+        <span className="h-2 w-2 rounded-full bg-[#febc2e]/40" />
+        <span className="h-2 w-2 rounded-full bg-[#28c840]/40" />
         <span className="ml-2 text-[11px] text-muted-foreground">dxxpcode · run</span>
         <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/70">
           {running ? `${elapsed.toFixed(0)}s` : done ? "done" : ""}
         </span>
+      </div>
+      <div className="h-px bg-border">
+        <div
+          className="h-px bg-foreground/40 transition-[width] duration-100 ease-linear"
+          style={{ width: `${progress * 100}%` }}
+        />
       </div>
       <div className="h-[264px] overflow-hidden p-4">
         {step >= 0 && (
