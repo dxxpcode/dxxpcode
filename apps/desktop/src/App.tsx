@@ -1005,13 +1005,9 @@ export default function App() {
           }
           return (
             <div className="approval row diffrev" key={`df${d.id}`}>
-              <div className="title">
-                Review change
-                <span className={`dc-badge ${d.diff.includes("+++ /dev/null") ? "del" : d.diff.includes("--- /dev/null") ? "add" : "mod"}`}>
-                  {d.diff.includes("+++ /dev/null") ? "deleted" : d.diff.includes("--- /dev/null") ? "created" : "modified"}
-                </span>
-                <span className="dc-path"><span className="dc-base">{d.path.split("/").pop()}</span><span className="dc-dir">{d.path.includes("/") ? d.path.slice(0, d.path.lastIndexOf("/") + 1) : ""}</span></span>
-                <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span><span className="ds-bar">{st.add + st.del > 0 && <><i className="ds-fill-add" style={{ flexGrow: st.add }} /><i className="ds-fill-del" style={{ flexGrow: st.del }} /></>}</span></span>
+              <div className="title oneline">
+                <span className="dot" />
+                Review change <span className="sep">·</span> <span className="dc-file">{d.path}</span> <span className="sep">·</span> <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
               </div>
               <Diff diff={d.diff} />
               <div className="btns">
