@@ -4,6 +4,7 @@ import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
 import { ApiTerminal } from "./components/ApiTerminal";
+import appShot from "./assets/app-shot.png";
 import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
 import Devs from "./Devs";
@@ -152,6 +153,14 @@ export default function App() {
 
         <div className="mt-7">
           <DownloadButtons />
+        </div>
+
+        <div className="mt-14 w-full max-w-5xl">
+          <img
+            src={appShot}
+            alt="DxxpCode desktop app reviewing a diff"
+            className="w-full rounded-xl border border-border shadow-2xl"
+          />
         </div>
 
         <section className="mt-14 w-full max-w-2xl">
