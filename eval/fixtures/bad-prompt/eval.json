@@ -1,0 +1,8 @@
+{
+  "name": "bad-prompt",
+  "task": "Fix the race condition in the websocket reconnect handler.",
+  "verify": {
+    "files": []
+  },
+  "expect": { "max_tool_calls": 6, "autoApprove": true }
+}

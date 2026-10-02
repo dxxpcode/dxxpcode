@@ -1,0 +1,10 @@
+{
+  "name": "extract-helper",
+  "task": "Extract the average computation in report() into a mean(scores) helper and reuse it.",
+  "verify": {
+    "command": "node calc.test.js",
+    "files": ["calc.js"],
+    "grep": ["function mean"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}

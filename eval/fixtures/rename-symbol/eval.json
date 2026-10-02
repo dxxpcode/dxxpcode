@@ -1,0 +1,10 @@
+{
+  "name": "rename-symbol",
+  "task": "Rename handleReq to handleRequest across the project.",
+  "verify": {
+    "command": "node -e \"const {handleRequest}=require('./helpers');if(typeof handleRequest!=='function')process.exit(1);require('./app')\"",
+    "files": ["helpers.js", "app.js"],
+    "grep": ["handleRequest"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}
