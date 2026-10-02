@@ -3,6 +3,7 @@ import { ArrowDown, KeyRound, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
+import { AgentRun } from "./components/AgentRun";
 import { ApiTerminal } from "./components/ApiTerminal";
 import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
@@ -152,6 +153,10 @@ export default function App() {
 
         <div className="mt-7">
           <DownloadButtons />
+        </div>
+
+        <div className="mt-10 w-full max-w-md">
+          <AgentRun />
         </div>
 
         <section className="mt-14 w-full max-w-2xl">

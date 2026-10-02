@@ -19,6 +19,65 @@ function Code({ children }: { children: string }) {
   );
 }
 
+const RUN_TABS: { label: string; code: string }[] = [
+  {
+    label: "cURL",
+    code: `$ TOKEN=$(cat ~/.dxxpcode/api-token)
+
+$ curl -X POST http://127.0.0.1:8787/tasks \\
+    -H "Authorization: Bearer $TOKEN" \\
+    -d '{"prompt": "fix the failing test", "cwd": "~/app"}'
+
+{"task_id": "21f7720c-9e62"}`,
+  },
+  {
+    label: "TypeScript",
+    code: `const res = await fetch("http://127.0.0.1:8787/tasks", {
+  method: "POST",
+  headers: { Authorization: \`Bearer \${token}\` },
+  body: JSON.stringify({ prompt: "fix the failing test", cwd: "~/app" }),
+});
+
+const { task_id } = await res.json();`,
+  },
+  {
+    label: "Python",
+    code: `res = requests.post(
+    "http://127.0.0.1:8787/tasks",
+    headers={"Authorization": f"Bearer {token}"},
+    json={"prompt": "fix the failing test", "cwd": "~/app"},
+)
+
+task_id = res.json()["task_id"]`,
+  },
+];
+
+function CodeTabs({ tabs }: { tabs: { label: string; code: string }[] }) {
+  const [active, setActive] = useState(0);
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-border bg-muted/40 text-left">
+      <div className="flex items-center gap-1 border-b border-border px-2 pt-2">
+        {tabs.map((t, i) => (
+          <button
+            key={t.label}
+            onClick={() => setActive(i)}
+            className={`rounded-t-md px-3 py-1.5 font-mono text-[11px] transition-colors ${
+              i === active
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-relaxed text-foreground/90">
+        {tabs[active].code}
+      </pre>
+    </div>
+  );
+}
+
 export default function Devs() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
 
@@ -75,13 +134,7 @@ token: dxp_…  (saved in ~/.dxxpcode/api-token)`}</Code>
 
         <section className="mt-12 w-full max-w-2xl">
           <h2 className="text-[15px] font-medium tracking-[-0.01em]">Run a task</h2>
-          <Code>{`$ TOKEN=$(cat ~/.dxxpcode/api-token)
-
-$ curl -X POST http://127.0.0.1:8787/tasks \\
-    -H "Authorization: Bearer $TOKEN" \\
-    -d '{"prompt": "fix the failing test", "cwd": "~/app"}'
-
-{"task_id": "21f7720c-9e62"}`}</Code>
+          <CodeTabs tabs={RUN_TABS} />
         </section>
 
         <section className="mt-12 w-full max-w-2xl">
