@@ -969,31 +969,44 @@ export default function App() {
           ),
         )}
         {approvals.map((a) => (
-          <div className={`approval row${a.answered ? " answered" : ""}`} key={`ap${a.id}`}>
-            <div className="title">
-              <span className="dot" />Approval required
-              {a.tool && <span className="dc-toolchip">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
+          a.answered ? (
+            <div className={`dresolved row${a.answered === "n" ? " deny" : " ok"}`} key={`ap${a.id}`}>
+              <span className="dres-mark">{a.answered === "n" ? "✗" : "✓"}</span>
+              {a.answered === "n" ? "Denied" : a.answered === "a" ? "Always allow" : a.answered === "s" ? "Approved + saved" : "Allowed"}
+              {a.tool && <span className="dres-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
-            <ApprovalSummary text={a.summary} kind={a.kind} />
-            {a.reason && <div className="reason">Reason: {a.reason}</div>}
-            {a.answered ? (
-              <div className="reason">answered: {a.answered === "n" ? "denied" : a.answered === "a" ? "always allow" : a.answered === "s" ? "approved + saved" : "allowed"}</div>
-            ) : (
+          ) : (
+            <div className="approval row" key={`ap${a.id}`}>
+              <div className="title">
+                Approval required
+                {a.tool && <span className="dc-toolchip">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
+              </div>
+              <ApprovalSummary text={a.summary} kind={a.kind} />
+              {a.reason && <div className="reason">Reason: {a.reason}</div>}
               <div className="btns">
                 <button className="btn allow" onClick={() => answer(a.id, "y")}>Allow</button>
                 {a.allowAlways && <button className="btn" onClick={() => answer(a.id, "a")}>Always allow</button>}
                 {a.extraChoice && <button className="btn" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
                 <button className="btn deny" onClick={() => answer(a.id, "n")}>Deny</button>
               </div>
-            )}
-          </div>
+            </div>
+          )
         ))}
         {diffs.map((d) => {
           const st = diffStats(d.diff);
+          if (d.decided) {
+            return (
+              <div className={`dresolved row${d.decided === "discard" ? " deny" : " ok"}`} key={`df${d.id}`}>
+                <span className="dres-mark">{d.decided === "discard" ? "✗" : "✓"}</span>
+                {d.path.split("/").pop()} {d.decided === "discard" ? "discarded" : "applied"}
+                <span className="dres-tool">+{st.add} −{st.del}</span>
+              </div>
+            );
+          }
           return (
-            <div className={`approval row diffrev${d.decided ? " answered" : ""}`} key={`df${d.id}`}>
+            <div className="approval row diffrev" key={`df${d.id}`}>
               <div className="title">
-                <span className="dot" />Review change
+                Review change
                 <span className={`dc-badge ${d.diff.includes("+++ /dev/null") ? "del" : d.diff.includes("--- /dev/null") ? "add" : "mod"}`}>
                   {d.diff.includes("+++ /dev/null") ? "deleted" : d.diff.includes("--- /dev/null") ? "created" : "modified"}
                 </span>
@@ -1001,15 +1014,11 @@ export default function App() {
                 <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span><span className="ds-bar">{st.add + st.del > 0 && <><i className="ds-fill-add" style={{ flexGrow: st.add }} /><i className="ds-fill-del" style={{ flexGrow: st.del }} /></>}</span></span>
               </div>
               <Diff diff={d.diff} />
-              {d.decided ? (
-                <div className="reason">{d.decided === "discard" ? "discarded" : "applied"}</div>
-              ) : (
-                <div className="btns">
-                  <button className="btn allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
-                  <button className="btn" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
-                  <button className="btn deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
-                </div>
-              )}
+              <div className="btns">
+                <button className="btn allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
+                <button className="btn" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
+                <button className="btn deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
+              </div>
             </div>
           );
         })}
