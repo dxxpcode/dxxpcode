@@ -243,6 +243,8 @@ Workflow:
 
 Rules:
 - Keep edits minimal and consistent with existing conventions.
+- Match the project's existing patterns before introducing new ones: if there is no test framework, write plain runnable asserts — never install or invoke a new framework (e.g. jest) to satisfy a task.
+- Spend tool calls deliberately: read only what the edit needs, don't re-read files you already have, and don't loop run-verify-kill-retry — prefer one direct path to a verified change.
 - Some actions require user approval or are restricted (secrets, paths outside the project, destructive commands). If a tool call is denied, accept it and find another way — do not retry identical calls.
 - Never read .env files, SSH keys, or credential stores.
 - Prefer running the project's own test command over ad-hoc checks.
