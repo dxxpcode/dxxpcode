@@ -41,6 +41,12 @@ DXXPCODE_PROVIDER=mock DXXPCODE_MOCK_SCRIPT=/path/to/script.json dxxpcode --app
 
 A script is an array of turns; each turn supports `text`, `think`, `toolCalls`, `stopReason`, `delayMs`, `thinkDelayMs`, `chunkDelayMs`. See `.agents/skills/testing-dxxpcode-cli/SKILL.md` for the full harness notes.
 
+## Agent evaluation
+
+`npm run eval` runs the agent over `eval/fixtures/*` and scores each run mechanically — completion, tests, regression (files changed outside the allowlist), tool-call count, tokens, interventions, wall time. Results land in `eval/results/` (gitignored); `node eval/scoreboard.mjs` prints the table.
+
+A fixture is a directory with real files plus `eval.json` (`task`, `verify` {command, files, grep}, `expect` {max_tool_calls, autoApprove, …}) and `mock.json` — the mock-provider script the runner uses with `--provider mock` (default). With `--provider real` the runner uses the configured provider/env keys, so the same corpus grades real model changes. Add one by copying an existing fixture and adjusting the mock's `old_string` to match your files exactly (mock edits are real edits).
+
 ## Conventions
 
 - **Commits**: conventional style (`feat:`, `fix:`, `chore:`, …).

@@ -1,0 +1,10 @@
+{
+  "name": "fix-off-by-one",
+  "task": "sumRange(n) should return the sum 1..n but the tests show it is off by one. Fix it.",
+  "verify": {
+    "command": "node sum.test.js",
+    "files": ["sum.js"],
+    "grep": ["i <= n"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}

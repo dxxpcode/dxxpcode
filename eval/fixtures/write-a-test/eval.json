@@ -1,0 +1,10 @@
+{
+  "name": "write-a-test",
+  "task": "Write a clamp.test.js that covers bounds and typical values, then run it.",
+  "verify": {
+    "command": "node clamp.test.js",
+    "files": ["clamp.test.js"],
+    "grep": ["clamp"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}
