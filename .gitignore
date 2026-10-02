@@ -7,3 +7,4 @@ apps/desktop/src-tauri/gen/
 .dxxp/
 npm-debug.log*
 apps/desktop/src-tauri/binaries/
+eval/results/

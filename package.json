@@ -21,7 +21,8 @@
     "build": "npm run build -w @dxxpcode/permissions && npm run build -w @dxxpcode/project && npm run build -w @dxxpcode/providers && npm run build -w @dxxpcode/tools && npm run build -w @dxxpcode/sessions && npm run build -w @dxxpcode/agent && npm run build -w dxxpcode",
     "test": "node --conditions=development --test \"test/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf packages/*/dist apps/*/dist"
+    "clean": "rm -rf packages/*/dist apps/*/dist",
+    "eval": "node eval/runner.mjs && node eval/scoreboard.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -1,0 +1,10 @@
+{
+  "name": "add-endpoint",
+  "task": "Add a GET /version endpoint that returns the package version as JSON.",
+  "verify": {
+    "command": "node --check server.js",
+    "files": ["server.js"],
+    "grep": ["/version"]
+  },
+  "expect": { "max_tool_calls": 6, "autoApprove": true }
+}

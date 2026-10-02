@@ -1,0 +1,8 @@
+[
+  {"toolCalls": [{"name": "propose_plan", "input": {"summary": "Add a test for clamp()", "steps": ["Write clamp.test.js", "Run it"], "trivial": true}}]},
+  {"text": "Writing the test and running it.", "toolCalls": [
+    {"name": "write_file", "input": {"path": "clamp.test.js", "content": "const assert = require(\"assert\");\nconst { clamp } = require(\"./clamp\");\n\nassert.strictEqual(clamp(5, 0, 10), 5);\nassert.strictEqual(clamp(-3, 0, 10), 0);\nassert.strictEqual(clamp(99, 0, 10), 10);\nassert.strictEqual(clamp(7, 7, 7), 7);\nconsole.log(\"ok\");\n"}},
+    {"name": "run_command", "input": {"command": "node clamp.test.js"}}
+  ]},
+  {"text": "Test written and passing."}
+]
