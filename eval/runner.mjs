@@ -207,7 +207,8 @@ async function runFixture(name) {
   }
   if (spec.expect?.max_tool_calls != null) check("tool-efficiency", metrics.toolCalls <= spec.expect.max_tool_calls, `${metrics.toolCalls} > ${spec.expect.max_tool_calls}`);
   if (spec.expect?.max_approvals != null) check("interventions", metrics.approvals <= spec.expect.max_approvals, `${metrics.approvals} > ${spec.expect.max_approvals}`);
-  check("completion", metrics.status === "completed" || metrics.status === spec.expect?.status, metrics.status ?? "no done");
+  const okStatuses = [].concat(spec.expect?.status ?? []);
+  check("completion", metrics.status === "completed" || okStatuses.includes(metrics.status), metrics.status ?? "no done");
 
   score.passed = score.checks.filter((c) => c.ok).length;
   score.total = score.checks.length;
