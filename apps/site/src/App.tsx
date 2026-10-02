@@ -3,6 +3,7 @@ import { ArrowDown, KeyRound, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
+import { ApiTerminal } from "./components/ApiTerminal";
 import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
 import Devs from "./Devs";
@@ -184,11 +185,8 @@ export default function App() {
             <code className="font-mono text-foreground">dxxpcode serve</code> exposes the agent loop over localhost
             HTTP — drive runs, stream events, and answer approvals from anything that speaks HTTP.
           </p>
-          <div className="mt-5 overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 text-left font-mono text-[12px] leading-relaxed text-foreground/90">
-            <p className="text-muted-foreground">$ curl -X POST http://127.0.0.1:8787/tasks \</p>
-            <p className="text-muted-foreground">{"    "}-H "Authorization: Bearer $(cat ~/.dxxpcode/api-token)" \</p>
-            <p className="text-muted-foreground">{'    -d \'{"prompt": "fix the failing test"}\''}</p>
-            <p className="mt-2">{'{"task_id": "21f7720c-9e62"}'}</p>
+          <div className="mt-5">
+            <ApiTerminal />
           </div>
           <p className="mt-4 text-[13px]">
             <a href="/devs" className="text-muted-foreground transition-colors hover:text-foreground">
