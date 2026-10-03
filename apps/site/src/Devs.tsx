@@ -35,7 +35,7 @@ export default function Devs() {
           <Logo className="h-[18px] w-auto" />
         </a>
         <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
-          <a href="/devs" className="text-foreground">
+          <a href="/" className="text-foreground">
             Devs
           </a>
           <button
@@ -138,7 +138,7 @@ data: {"type":"done","result":{"status":"completed", …}}`}</Code>
         <section className="mt-14 w-full max-w-2xl border-t border-border pt-8">
           <p className="font-mono text-[12px] text-muted-foreground">
             Engineering deep dives ·{" "}
-            <a href="/devs/notes" className="transition-colors hover:text-foreground">
+            <a href="/notes" className="transition-colors hover:text-foreground">
               Notes →
             </a>
           </p>
