@@ -47,3 +47,8 @@ SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 
 - Verify "not saved" claims by inspecting `$HOME/.dxxpcode/config.json` after a failed validation — it should only contain `installId`.
 - Kill the app with `kill $(pgrep -x dxxpcode-deskto)`; focus it with `wmctrl -i -a <winid>` (get the id from `wmctrl -l`).
 - To observe startup/`ready==null` states (e.g. the boot mark): point `DXXPCODE_BIN` at a wrapper script that sleeps then execs the real sidecar (`#!/bin/sh\nsleep 12\nexec <repo>/apps/agent-rs/target/debug/dxxpcode "$@"`). Also `pkill -f 'dxxpcode --app'` between launches — orphaned sidecars let the next launch connect instantly and skip boot.
+
+## Testing the site (apps/site) gated/API features
+- Vercel PR previews are deployment-protected — don't rely on them. Build `apps/site` (`npm run build`), serve `dist/` statically, and add a tiny node shim for `/api/*` that proxies to `$UPSTASH_REDIS_REST_URL`: POST a JSON command array (e.g. `["HGETALL","tier:1"]`) with `authorization: Bearer $UPSTASH_REDIS_REST_TOKEN`; response is `{"result": ...}`.
+- `HGETALL` returns a flat array `[field, value, …]` over REST — convert to an object before field access.
+- Seed/cleanup test purchases: `["HSET","purchase:cs_test","consumed",1,"license_key","dxxp-live-…"]` + `["SET","license:dxxp-live-…","cs_test"]`, then `["DEL",…]` after.
