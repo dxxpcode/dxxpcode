@@ -146,6 +146,7 @@ export default function App() {
   const rateChars = useRef(0);
   const rateStart = useRef(0);
   const rateTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runStart = useRef(0);
   const countStream = (n: number) => {
     if (!rateStart.current) {
       rateStart.current = Date.now();
@@ -225,6 +226,7 @@ export default function App() {
       case "user":
         push({ k: "user", text: String(ev.text) });
         setRunning(true);
+        runStart.current = Date.now();
         break;
       case "state":
         setReady((prev) =>
@@ -457,6 +459,7 @@ export default function App() {
         push({
           k: "done", status: r.status, summary: r.summary ?? "",
           filesChanged: r.filesChanged ?? [],
+          secs: runStart.current ? Math.round((Date.now() - runStart.current) / 1000) : undefined,
           tokens: r.usage ? (r.usage.inputTokens ?? 0) + (r.usage.outputTokens ?? 0) : undefined,
         });
         break;
@@ -1308,18 +1311,24 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
       );
     case "denied":
       return <div className="note row" style={{ color: "var(--red)" }}>⎿ Denied: {item.reason} ({item.tool})</div>;
-    case "done":
+    case "done": {
+      const bits = [
+        item.filesChanged.length > 0 ? `${item.filesChanged.length} file${item.filesChanged.length === 1 ? "" : "s"}` : null,
+        item.secs != null ? fmtDuration(item.secs) : null,
+        item.tokens ? fmtK(item.tokens) + " tok" : null,
+      ].filter(Boolean).join(" · ");
       return (
         <div className="done row">
           <span className={`st ${item.status === "completed" ? "ok" : item.status === "error" ? "err" : "warn"}`}>
             {item.status === "completed" ? "Completed" : item.status}
           </span>
-          <span className="meta">{item.tokens ? ` · ${item.tokens} tokens` : ""}</span>
+          {bits && <span className="meta">{bits}</span>}
           {item.filesChanged.length > 0 && (
             <ul>{item.filesChanged.map((f) => <li className="mono" key={f}>{f}</li>)}</ul>
           )}
         </div>
       );
+    }
     case "raw":
       return <div className="note row mono">{item.text}</div>;
   }
@@ -1359,6 +1368,17 @@ function SetAction({ label, desc, onClick, danger }: { label: string; desc?: str
       {Chevron}
     </button>
   );
+}
+
+function fmtDuration(secs: number) {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
+}
+
+function fmtK(n: number) {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
 }
 
 function Elapsed({ since }: { since: number }) {
