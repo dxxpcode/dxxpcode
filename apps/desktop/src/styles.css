@@ -53,14 +53,14 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
 
 /* Session palette — ⌘K command-style session switcher */
-.palette {
+.sesspal {
   position: fixed; inset: 0; z-index: 50;
   display: flex; align-items: flex-start; justify-content: center;
   padding-top: 14vh;
   background: rgb(0 0 0 / 0.35);
   animation: fadein 0.15s var(--ease);
 }
-.palette-dialog {
+.sesspal-dialog {
   width: min(460px, calc(100vw - 48px));
   max-height: min(400px, calc(100vh - 64px));
   display: flex; flex-direction: column;

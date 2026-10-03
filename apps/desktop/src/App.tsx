@@ -616,17 +616,19 @@ export default function App() {
     void send({ type: "diff_decide", id, decision });
   };
 
-  // ⌘K/Ctrl+K toggles the session palette.
+  // ⌘K/Ctrl+K toggles the session palette; Esc closes it from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (ready) setPalOpen((v) => !v);
+      } else if (e.key === "Escape" && palOpen) {
+        setPalOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ready]);
+  }, [ready, palOpen]);
 
   useEffect(() => {
     if (palOpen) {
@@ -669,8 +671,8 @@ export default function App() {
   return (
     <div className="app">
       {palOpen && ready && (
-        <div className="palette" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
-          <div className="palette-dialog">
+        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
+          <div className="sesspal-dialog">
             <div className="pal-search">
               <Search size={13} />
               <input
