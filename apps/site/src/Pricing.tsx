@@ -183,7 +183,17 @@ interface PurchaseInfo {
 
 export function PricingSuccess() {
   const [info, setInfo] = useState<PurchaseInfo | null>(null);
+  const [copied, setCopied] = useState<"key" | "cmd" | null>(null);
   const sessionId = new URLSearchParams(window.location.search).get("session_id") ?? "";
+
+  const copy = async (what: "key" | "cmd") => {
+    if (!info?.license_key) return;
+    await navigator.clipboard.writeText(
+      what === "cmd" ? `/license ${info.license_key}` : info.license_key,
+    );
+    setCopied(what);
+    setTimeout(() => setCopied(null), 1500);
+  };
 
   useEffect(() => {
     if (!sessionId) {
@@ -221,12 +231,21 @@ export function PricingSuccess() {
           <p className="mt-3 text-[13px] text-muted-foreground">
             Purchased for {info.price_paid_cents ? money(info.price_paid_cents) : ""} — this price is yours forever.
           </p>
-          <div className="mt-6 rounded-lg border border-border bg-muted/40 px-5 py-3 font-mono text-[13px]">
-            {info.license_key}
+          <div className="mt-6 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-5 py-3 font-mono text-[13px]">
+            <span>{info.license_key}</span>
+            <button
+              onClick={() => copy("key")}
+              className="ml-auto font-sans text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {copied === "key" ? "copied" : "copy"}
+            </button>
           </div>
           <p className="mt-4 max-w-xs text-[12px] leading-relaxed text-muted-foreground">
-            Save this key — enter it in the app with <span className="font-mono">/license</span> or
-            in Settings.
+            In the app, run{" "}
+            <button onClick={() => copy("cmd")} className="font-mono text-foreground underline-offset-2 hover:underline">
+              /license {info.license_key}
+            </button>{" "}
+            {copied === "cmd" ? "copied — " : ""}or paste the key in Settings.
           </p>
         </>
       )}
