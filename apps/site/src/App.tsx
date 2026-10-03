@@ -7,6 +7,7 @@ import Changelog from "./Changelog";
 import Devs from "./Devs";
 import Docs from "./Docs";
 import Notes from "./Notes";
+import Pricing, { PricingSuccess } from "./Pricing";
 
 const VERSION = "0.2.1";
 const RELEASE = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
@@ -98,11 +99,35 @@ function DownloadButtons() {
           All releases
         </a>
         {" · "}
+        <a href="/pricing" className={quiet}>
+          Pricing →
+        </a>
+        {" · "}
         <a href="https://developers.dxxp.codes" className={quiet}>
           Developer API →
         </a>
       </p>
     </div>
+  );
+}
+
+function Header({ dark, setDark }: { dark: boolean; setDark: (d: boolean) => void }) {
+  return (
+    <header className="grid h-16 grid-cols-3 items-center px-6">
+      <span />
+      <a href="/" className="justify-self-center" aria-label="DxxpCode">
+        <Logo className="h-[18px] w-auto" />
+      </a>
+      <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
+        <button
+          onClick={() => setDark(!dark)}
+          aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+          className="-mr-2 p-2 transition-colors hover:text-foreground"
+        >
+          {dark ? <Sun strokeWidth={1.5} className="h-4 w-4" /> : <Moon strokeWidth={1.5} className="h-4 w-4" />}
+        </button>
+      </nav>
+    </header>
   );
 }
 
@@ -129,24 +154,18 @@ export default function App() {
   if (devHost && !path.startsWith("/docs") && !path.startsWith("/changelog")) return <Devs />;
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
+  if (path === "/pricing" || path === "/pricing/success") {
+    return (
+      <div className="flex min-h-[100svh] flex-col bg-background">
+        <Header dark={dark} setDark={setDark} />
+        {path === "/pricing" ? <Pricing /> : <PricingSuccess />}
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[100svh] flex-col bg-background">
-      <header className="grid h-16 grid-cols-3 items-center px-6">
-        <span />
-        <a href="/" className="justify-self-center" aria-label="DxxpCode">
-          <Logo className="h-[18px] w-auto" />
-        </a>
-        <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
-          <button
-            onClick={() => setDark((d) => !d)}
-            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-            className="-mr-2 p-2 transition-colors hover:text-foreground"
-          >
-            {dark ? <Sun strokeWidth={1.5} className="h-4 w-4" /> : <Moon strokeWidth={1.5} className="h-4 w-4" />}
-          </button>
-        </nav>
-      </header>
+      <Header dark={dark} setDark={setDark} />
 
       <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
         <h1 className="text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">

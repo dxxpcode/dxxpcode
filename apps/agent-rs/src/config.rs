@@ -47,6 +47,8 @@ pub struct Config {
     pub install_id: Option<String>,
     #[serde(default, rename = "typeSafeApiKey")]
     pub type_safe_api_key: Option<String>,
+    #[serde(default, rename = "licenseKey")]
+    pub license_key: Option<String>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }

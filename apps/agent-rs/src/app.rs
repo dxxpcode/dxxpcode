@@ -33,6 +33,7 @@ const COMMAND_LIST: &[(&str, &str)] = &[
     ),
     ("/providers", "switch between configured providers"),
     ("/undo", "restore files from the last checkpoint"),
+    ("/license", "save or show your lifetime license key"),
     (
         "/compact",
         "compress old tool output in the session context",
@@ -920,6 +921,13 @@ fn show_status(sh: &Arc<Shared>, deps_root: &str, project: &ProjectInfo, version
             )
         ]),
         json!(["config", crate::config::config_path().display().to_string()]),
+        json!([
+            "license",
+            match &load_config().license_key {
+                Some(_) => "lifetime".to_string(),
+                None => "none".to_string(),
+            }
+        ]),
     ];
     drop(session);
     emit(json!({"type": "table", "title": "Status", "rows": rows}));
@@ -1003,6 +1011,33 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             }
         }
         "/status" => show_status(sh, &deps.root, &deps.project, &deps.version),
+        "/license" => {
+            let arg = raw
+                .trim()
+                .get("/license".len()..)
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+            let mut cfg = load_config();
+            match arg {
+                Some("clear") => {
+                    cfg.license_key = None;
+                    save_config(&cfg);
+                    emit_note("license removed".to_string());
+                }
+                Some(key) if key.starts_with("dxxp-live-") => {
+                    cfg.license_key = Some(key.to_string());
+                    save_config(&cfg);
+                    emit_note("license saved — lifetime access".to_string());
+                }
+                Some(_) => emit_note(
+                    "that doesn't look like a license key — keys start with dxxp-live-".to_string(),
+                ),
+                None => emit_note(match &cfg.license_key {
+                    Some(k) => format!("license: {k}"),
+                    None => "no license saved — paste a dxxp-live- key to add one".to_string(),
+                }),
+            }
+        }
         "/settings" => open_settings_menu(sh),
         "/approval" => match raw
             .trim()
