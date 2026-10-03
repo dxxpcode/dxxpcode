@@ -114,8 +114,14 @@ export default function App() {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
-  if (window.location.pathname.startsWith("/devs/notes")) return <Notes />;
-  if (window.location.pathname.startsWith("/devs")) return <Devs />;
+  // developers.dxxp.codes is the devs site: root serves the devs page,
+  // /notes serves engineering notes. Other paths fall through to /devs-style
+  // routing so existing links keep working.
+  const path = window.location.pathname;
+  const devHost = window.location.hostname === "developers.dxxp.codes";
+  if (path.startsWith("/devs/notes") || (devHost && (path === "/notes" || path.startsWith("/notes/")))) return <Notes />;
+  if (path.startsWith("/devs")) return <Devs />;
+  if (devHost && !path.startsWith("/docs") && !path.startsWith("/changelog")) return <Devs />;
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
 
