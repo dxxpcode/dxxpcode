@@ -1,0 +1,9 @@
+[
+  {"toolCalls": [{"name": "propose_plan", "input": {"summary": "Fix broken require path", "steps": ["Point index.js at ./lib/greet"], "trivial": true}}]},
+  {"toolCalls": [{"name": "run_command", "input": {"command": "node index.js"}}]},
+  {"text": "The require path is wrong — greet.js lives in lib/.", "toolCalls": [
+    {"name": "edit_file", "input": {"path": "index.js", "old_string": "require(\"./greet\")", "new_string": "require(\"./lib/greet\")"}}
+  ]},
+  {"toolCalls": [{"name": "run_command", "input": {"command": "node index.js"}}]},
+  {"text": "Fixed — index.js now prints the greeting."}
+]

@@ -1,0 +1,7 @@
+[
+  {"toolCalls": [{"name": "propose_plan", "input": {"summary": "Bump config version", "steps": ["Edit version 1 to 2"], "trivial": true}}]},
+  {"toolCalls": [{"name": "read_file", "input": {"path": "config.js"}}]},
+  {"toolCalls": [{"name": "read_file", "input": {"path": "config.js"}}]},
+  {"toolCalls": [{"name": "edit_file", "input": {"path": "config.js", "old_string": "version: 1", "new_string": "version: 2"}}]},
+  {"text": "Version bumped to 2."}
+]

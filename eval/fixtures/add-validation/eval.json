@@ -1,0 +1,10 @@
+{
+  "name": "add-validation",
+  "task": "parseAge(input) should throw on non-numeric or negative input. Add validation and keep the tests passing.",
+  "verify": {
+    "command": "node age.test.js",
+    "files": ["age.js"],
+    "grep": ["throw"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}

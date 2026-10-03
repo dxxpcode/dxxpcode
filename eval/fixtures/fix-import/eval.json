@@ -1,0 +1,10 @@
+{
+  "name": "fix-import",
+  "task": "node index.js crashes with a module-not-found error. Find the broken require and fix it so index.js prints the greeting.",
+  "verify": {
+    "command": "node index.js",
+    "files": ["index.js"],
+    "grep": ["./lib/greet"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}

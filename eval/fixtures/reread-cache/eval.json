@@ -1,0 +1,9 @@
+{
+  "name": "reread-cache",
+  "task": "Increment the version in config.js from 1 to 2.",
+  "verify": {
+    "command": "node -e \"const c=require('./config');if(c.version!==2)process.exit(1)\"",
+    "files": ["config.js"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}

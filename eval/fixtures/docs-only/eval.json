@@ -1,0 +1,9 @@
+{
+  "name": "docs-only",
+  "task": "The README's install command is wrong — it says `npm i -g oldname`. Fix it to `npm i -g dxxpcode`.",
+  "verify": {
+    "command": "grep -q 'npm i -g dxxpcode' README.md",
+    "files": ["README.md"]
+  },
+  "expect": { "max_tool_calls": 8, "autoApprove": true }
+}
