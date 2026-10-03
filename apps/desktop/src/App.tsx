@@ -515,7 +515,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && stickBottom.current) el.scrollTo({ top: el.scrollHeight });
+    if (el && stickBottom.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [items, approvals, status]);
 
   // Ask the CLI for @mention completions whenever the fragment changes.
@@ -1242,7 +1242,7 @@ export default function App() {
           >⏎</button>
           </div>
           {ready && (
-            <div className="subline">
+            <div className={`subline${running ? " dim" : ""}`}>
               <button className="inctx" title="Change project" onClick={openProject}>
                 <span className="inctx-name">{ready.project.name}</span>
                 {ready.project.git && (
