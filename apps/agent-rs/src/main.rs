@@ -187,8 +187,12 @@ fn run_task_once(root: &str, task: String) {
             std::env::set_var("OPENAI_BASE_URL", b);
         }
     }
+    let provider_name = std::env::var("DXXPCODE_PROVIDER")
+        .ok()
+        .or(cfg.provider.clone());
+    let model_name = std::env::var("DXXPCODE_MODEL").ok().or(cfg.model.clone());
     let (mut provider, model) =
-        match provider::resolve_provider(cfg.provider.as_deref(), cfg.model.as_deref(), &cfg) {
+        match provider::resolve_provider(provider_name.as_deref(), model_name.as_deref(), &cfg) {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("{e}");

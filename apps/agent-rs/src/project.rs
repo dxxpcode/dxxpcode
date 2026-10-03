@@ -209,6 +209,32 @@ pub fn load_instructions(root: &str) -> Option<(String, String)> {
     None
 }
 
+/// `.dxxpcode/memory.md` — durable notes the agent appends to via `remember`.
+/// Read whole, capped at ~4KB: human notes lead, agent bullets trim from the
+/// top (recency wins) when over the cap.
+pub fn load_memory(root: &str) -> Option<String> {
+    const CAP: usize = 4096;
+    let path = Path::new(root).join(".dxxpcode/memory.md");
+    let content = fs::read_to_string(&path).ok()?.trim().to_string();
+    if content.is_empty() {
+        return None;
+    }
+    if content.len() <= CAP {
+        return Some(content);
+    }
+    // Split human notes (before "## Notes") from agent bullets (after it).
+    let (head, notes) = match content.find("## Notes") {
+        Some(i) => (content[..i].trim().to_string(), content[i..].to_string()),
+        None => (String::new(), content.clone()),
+    };
+    let head = head.chars().take(CAP / 2).collect::<String>();
+    let mut tail: Vec<&str> = notes.lines().collect();
+    while head.len() + tail.join("\n").len() > CAP && tail.len() > 1 {
+        tail.remove(0);
+    }
+    Some(format!("{head}\n{}", tail.join("\n")).trim().to_string())
+}
+
 pub fn top_level_listing(root: &str) -> Vec<String> {
     const SKIP: &[&str] = &[
         "node_modules",
@@ -248,6 +274,7 @@ Rules:
 - Some actions require user approval or are restricted (secrets, paths outside the project, destructive commands). If a tool call is denied, accept it and find another way — do not retry identical calls.
 - Never read .env files, SSH keys, or credential stores.
 - Prefer running the project's own test command over ad-hoc checks.
+- Memory: call `remember` with a one-line note when you learn something durable about this project — conventions, commands that worked, decisions made. It lands in `.dxxpcode/memory.md` and every future session reads it. Never store secrets, task state, or anything already in the project instructions.
 - Project tools: `.dxxpcode/tools/` may hold user-provided scripts + docs. Check that directory before saying you can't do something — read a tool's file for usage, then invoke it with run_command.
 - Be concise — the user reads this in a terminal."#;
 
@@ -292,6 +319,11 @@ pub fn gather_context(root: &str) -> (ProjectInfo, String) {
         lines.push(format!("Project instructions ({path}):"));
         lines.push(content);
     }
+    if let Some(memory) = load_memory(root) {
+        lines.push(String::new());
+        lines.push("Project memory (.dxxpcode/memory.md):".to_string());
+        lines.push(memory);
+    }
     let tools_dir = std::path::Path::new(root).join(".dxxpcode/tools");
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         let names: Vec<String> = entries
@@ -310,4 +342,50 @@ pub fn gather_context(root: &str) -> (ProjectInfo, String) {
         }
     }
     (project, lines.join("\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn memory_injected_and_trimmed() {
+        let dir = std::env::temp_dir().join(format!("dxxp-ctx-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join(".dxxpcode")).unwrap();
+        fs::write(
+            dir.join(".dxxpcode/memory.md"),
+            "# Project notes\nHand-written line.\n\n## Notes\n- tests run via make check\n",
+        )
+        .unwrap();
+        let (_, system) = gather_context(dir.to_str().unwrap());
+        assert!(
+            system.contains("Project memory (.dxxpcode/memory.md):"),
+            "{system}"
+        );
+        assert!(system.contains("- tests run via make check"), "{system}");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn memory_cap_keeps_recent() {
+        let dir = std::env::temp_dir().join(format!("dxxp-cap-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join(".dxxpcode")).unwrap();
+        let notes = (0..300)
+            .map(|i| format!("- note number {i} with some padding text"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(
+            dir.join(".dxxpcode/memory.md"),
+            format!("Human header.\n\n## Notes\n{notes}\n"),
+        )
+        .unwrap();
+        let mem = load_memory(dir.to_str().unwrap()).unwrap();
+        assert!(mem.len() <= 4096 + 60, "{}", mem.len());
+        assert!(mem.contains("Human header."));
+        assert!(mem.contains("- note number 299"), "{mem}");
+        assert!(!mem.contains("- note number 0\n"), "{mem}");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

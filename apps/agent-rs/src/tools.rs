@@ -1284,6 +1284,47 @@ fn exec_todo(_i: &Value, _c: &Ctx) -> ToolResult {
     ToolResult::ok("checklist updated")
 }
 
+/// Append one durable note to `.dxxpcode/memory.md` under `## Notes`.
+/// The file is metadata, not project code — no changed_file/diff review.
+fn exec_remember(input: &Value, ctx: &Ctx) -> ToolResult {
+    let Ok(text) = str_arg(input, "text") else {
+        return ToolResult::err("missing required arg: text");
+    };
+    let line = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if line.is_empty() {
+        return ToolResult::err("empty note");
+    }
+    let path = Path::new(&ctx.root).join(".dxxpcode/memory.md");
+    if let Some(parent) = path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            return ToolResult::err(format!("mkdir failed: {e}"));
+        }
+    }
+    let mut content = fs::read_to_string(&path).unwrap_or_default();
+    if !content.contains("## Notes") {
+        if !content.trim().is_empty() && !content.ends_with('\n') {
+            content.push('\n');
+        }
+        content.push_str(if content.is_empty() {
+            "## Notes\n"
+        } else {
+            "\n## Notes\n"
+        });
+    } else if !content.ends_with('\n') {
+        content.push('\n');
+    }
+    content.push_str(&format!("- {line}\n"));
+    match fs::write(&path, content) {
+        Ok(_) => ToolResult::ok(format!("noted: {line}")),
+        Err(e) => ToolResult::err(format!("write failed: {e}")),
+    }
+}
+
 pub fn registry() -> Vec<Tool> {
     vec![
         Tool {
@@ -1465,6 +1506,14 @@ pub fn registry() -> Vec<Tool> {
             execute: exec_kill_process,
         },
         Tool {
+            name: "remember",
+            description: "Append a durable one-line note to this project's memory (.dxxpcode/memory.md) — every future session reads it. Call when you learn something that will still be true later: project conventions, commands that worked, decisions made. Never store secrets, task state, file contents, or anything already in the project instructions.",
+            schema: schema(&[("text", p_str("One-line fact worth keeping across sessions"))], &["text"]),
+            plan_phase: true,
+            permission: perm_safe,
+            execute: exec_remember,
+        },
+        Tool {
             name: "git_status",
             description: "Show git status (branch + working tree changes) for the project.",
             schema: schema(&[], &[]),
@@ -1562,5 +1611,29 @@ mod tests {
         assert_eq!(out, "1\ntwo\n3\n");
         let err = apply_edits(raw, &[e("one", "1"), e("missing", "x")], false, "f").unwrap_err();
         assert!(err.starts_with("edit 2:"), "{err}");
+    }
+
+    #[test]
+    fn remember_appends() {
+        let dir = std::env::temp_dir().join(format!("dxxp-mem-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let ctx = Ctx {
+            root: dir.to_string_lossy().to_string(),
+            aborted: Default::default(),
+            procs: Default::default(),
+            live_out: Default::default(),
+        };
+        let r = exec_remember(&json!({ "text": "tests run via make check" }), &ctx);
+        assert!(!r.is_error, "{}", r.content);
+        let mem = fs::read_to_string(dir.join(".dxxpcode/memory.md")).unwrap();
+        assert!(mem.contains("## Notes"), "{mem}");
+        assert!(mem.contains("- tests run via make check"), "{mem}");
+        let r2 = exec_remember(&json!({ "text": "use pnpm" }), &ctx);
+        assert!(!r2.is_error);
+        let mem = fs::read_to_string(dir.join(".dxxpcode/memory.md")).unwrap();
+        assert_eq!(mem.matches("## Notes").count(), 1, "{mem}");
+        assert!(mem.contains("- use pnpm"), "{mem}");
+        let _ = fs::remove_dir_all(&dir);
     }
 }
