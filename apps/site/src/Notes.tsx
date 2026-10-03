@@ -22,7 +22,7 @@ function Header({ dark, setDark }: { dark: boolean; setDark: SetDark }) {
         <Logo className="h-[18px] w-auto" />
       </a>
       <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
-        <a href="/devs" className="transition-colors hover:text-foreground">
+        <a href="/" className="transition-colors hover:text-foreground">
           Devs
         </a>
         <button
@@ -48,7 +48,7 @@ function Shell({ children, dark, setDark }: { children: ReactNode; dark: boolean
 
 export default function Notes() {
   const { dark, setDark } = useTheme();
-  const slug = window.location.pathname.replace(/^\/devs\/notes\/?/, "").replace(/\/$/, "");
+  const slug = window.location.pathname.replace(/^\/(devs\/)?notes\/?/, "").replace(/\/$/, "");
   const post = POSTS.find((p) => p.slug === slug);
   if (post) return <NotePost post={post} dark={dark} setDark={setDark} />;
 
@@ -68,7 +68,7 @@ export default function Notes() {
 
       <div className="mt-14 w-full max-w-2xl divide-y divide-border border-y border-border text-left">
         {POSTS.map((p) => (
-          <a key={p.slug} href={`/devs/notes/${p.slug}`} className="group block py-5">
+          <a key={p.slug} href={`/notes/${p.slug}`} className="group block py-5">
             <p className="font-mono text-[11px] text-muted-foreground">
               {p.date} · {p.tag} · {p.minutes} min
             </p>
@@ -88,7 +88,7 @@ function NotePost({ post, dark, setDark }: { post: Post; dark: boolean; setDark:
   return (
     <Shell dark={dark} setDark={setDark}>
       <a
-        href="/devs/notes"
+        href="/notes"
         className="inline-flex items-center gap-1.5 self-center font-mono text-[12px] text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft strokeWidth={1.5} className="h-3.5 w-3.5" />
@@ -104,7 +104,7 @@ function NotePost({ post, dark, setDark }: { post: Post; dark: boolean; setDark:
         <Body />
       </div>
       <p className="mt-14 w-full max-w-2xl border-t border-border pt-6 font-mono text-[12px] text-muted-foreground">
-        DxxpDevs · <a href="/devs" className="transition-colors hover:text-foreground">API quickstart →</a>
+        DxxpDevs · <a href="/" className="transition-colors hover:text-foreground">API quickstart →</a>
       </p>
     </Shell>
   );

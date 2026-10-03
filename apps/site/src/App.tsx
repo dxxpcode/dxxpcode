@@ -98,7 +98,7 @@ function DownloadButtons() {
           All releases
         </a>
         {" · "}
-        <a href="/devs" className={quiet}>
+        <a href="https://developers.dxxp.codes" className={quiet}>
           Developer API →
         </a>
       </p>
@@ -119,8 +119,13 @@ export default function App() {
   // routing so existing links keep working.
   const path = window.location.pathname;
   const devHost = window.location.hostname === "developers.dxxp.codes";
-  if (path.startsWith("/devs/notes") || (devHost && (path === "/notes" || path.startsWith("/notes/")))) return <Notes />;
-  if (path.startsWith("/devs")) return <Devs />;
+  // Devs content lives exclusively at developers.dxxp.codes: /devs* on any
+  // host forwards there with the prefix stripped.
+  if (path.startsWith("/devs")) {
+    window.location.replace(`https://developers.dxxp.codes${path.replace(/^\/devs/, "") || "/"}`);
+    return null;
+  }
+  if (devHost && (path === "/notes" || path.startsWith("/notes/"))) return <Notes />;
   if (devHost && !path.startsWith("/docs") && !path.startsWith("/changelog")) return <Devs />;
   if (window.location.pathname.startsWith("/docs")) return <Docs />;
   if (window.location.pathname.startsWith("/changelog")) return <Changelog />;
