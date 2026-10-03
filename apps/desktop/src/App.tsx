@@ -7,7 +7,7 @@ import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Card, CardContent, CardFooter, CardHeader } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
-import { Plus, Search, PanelLeft, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -92,7 +92,9 @@ export default function App() {
   // event then finishes onboarding instead of re-showing it.
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
-  const [sideOpen, setSideOpen] = useState(() => localStorage.getItem("sidebar") !== "closed");
+  const [palOpen, setPalOpen] = useState(false);
+  const [palQuery, setPalQuery] = useState("");
+  const [palIdx, setPalIdx] = useState(0);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
@@ -614,20 +616,35 @@ export default function App() {
     void send({ type: "diff_decide", id, decision });
   };
 
+  // ⌘K/Ctrl+K toggles the session palette; Esc closes it from anywhere.
   useEffect(() => {
-    localStorage.setItem("sidebar", sideOpen ? "open" : "closed");
-  }, [sideOpen]);
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (ready) setPalOpen((v) => !v);
+      } else if (e.key === "Escape" && palOpen) {
+        setPalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ready, palOpen]);
 
-  const [sbQuery, setSbQuery] = useState("");
-
-  // Refresh the session list on boot, project switch, and session change.
   useEffect(() => {
-    if (ready && sideOpen) void send({ type: "sessions" });
-  }, [ready, sideOpen, sessionInfo.id]);
+    if (palOpen) {
+      setPalQuery("");
+      setPalIdx(0);
+    }
+  }, [palOpen]);
+
+  // Refresh the session list when the palette opens or the session changes.
+  useEffect(() => {
+    if (ready && palOpen) void send({ type: "sessions" });
+  }, [ready, palOpen, sessionInfo.id]);
 
   // Group sessions by recency: desc is "<yyyy-mm-dd> · N msg".
   const sessionGroups = (() => {
-    const q = sbQuery.trim().toLowerCase();
+    const q = palQuery.trim().toLowerCase();
     const filtered = q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
     const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -641,64 +658,82 @@ export default function App() {
     }
     return groups;
   })();
+  const palRows = sessionGroups.flatMap(([, g]) => g);
+  const palPick = (idx: number) => {
+    setPalOpen(false);
+    if (idx === 0) cmd("/new");
+    else {
+      const s = palRows[idx - 1];
+      if (s) void send({ type: "resume", id: s.id });
+    }
+  };
 
   return (
     <div className="app">
-      {sideOpen && ready && (
-        <aside className="sidebar" data-tauri-drag-region>
-          <div className="sb-top">
-            <Button variant="ghost" className="w-full justify-start h-8 px-2.5" onClick={() => cmd("/new")}>
-              <Plus size={13} />
-              <span>New session</span>
-            </Button>
-            <div className="sb-search">
-              <Search size={12} />
-              <Input
+      {palOpen && ready && (
+        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
+          <div className="sesspal-dialog">
+            <div className="pal-search">
+              <Search size={13} />
+              <input
+                autoFocus
                 type="text"
-                placeholder="Search"
-                value={sbQuery}
-                onChange={(e) => setSbQuery(e.target.value)}
+                placeholder="Search sessions…"
+                value={palQuery}
+                onChange={(e) => { setPalQuery(e.target.value); setPalIdx(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setPalOpen(false);
+                  else if (e.key === "ArrowDown") { e.preventDefault(); setPalIdx((i) => Math.min(i + 1, palRows.length)); }
+                  else if (e.key === "ArrowUp") { e.preventDefault(); setPalIdx((i) => Math.max(i - 1, 0)); }
+                  else if (e.key === "Enter") { e.preventDefault(); palPick(palIdx); }
+                }}
                 spellCheck={false}
               />
             </div>
+            <ScrollArea className="pal-list">
+              <Button
+                variant="ghost"
+                data-active={palIdx === 0 || undefined}
+                className="pal-row"
+                onMouseEnter={() => setPalIdx(0)}
+                onClick={() => palPick(0)}
+              >
+                <Plus size={13} />
+                <span>New session</span>
+              </Button>
+              {sessionGroups.length === 0 && <p className="pal-empty">{palQuery ? "No matches." : "No sessions in this project yet."}</p>}
+              {(() => {
+                let row = 0;
+                return sessionGroups.map(([label, group]) => (
+                  <div key={label}>
+                    <div className="pal-group-label">{label}</div>
+                    {group.map((s) => {
+                      const idx = ++row;
+                      return (
+                        <Button
+                          key={s.id}
+                          variant="ghost"
+                          data-active={palIdx === idx || undefined}
+                          title={s.title}
+                          className="pal-row"
+                          onMouseEnter={() => setPalIdx(idx)}
+                          onClick={() => palPick(idx)}
+                        >
+                          <span className="truncate">{s.title || "Untitled"}</span>
+                          {s.id === sessionInfo.id && <span className="pal-current">current</span>}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                ));
+              })()}
+            </ScrollArea>
           </div>
-          <ScrollArea className="sb-list">
-            <div className="sb-items">
-              {sessionGroups.length === 0 && <p className="sb-empty">{sbQuery ? "No matches." : "No sessions in this project yet."}</p>}
-              {sessionGroups.map(([label, group]) => (
-                <div className="sb-group" key={label}>
-                  <div className="sb-group-label">{label}</div>
-                  {group.map((s) => {
-                    const active = s.id === sessionInfo.id;
-                    return (
-                      <Button
-                        key={s.id}
-                        variant={active ? "secondary" : "ghost"}
-                        title={s.title}
-                        onClick={() => void send({ type: "resume", id: s.id })}
-                        className={`w-full justify-start h-8 px-2.5${active ? " shadow-[var(--shadow-sm)] ring-1 ring-inset ring-[var(--border)]" : ""}`}
-                      >
-                        <span className={`truncate${active ? " font-semibold" : ""}`}>{s.title || "Untitled"}</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </aside>
+        </div>
       )}
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
-          <Button
-            variant="ghost"
-            size="icon"
-            title={sideOpen ? "Hide sessions" : "Show sessions"}
-            onClick={() => setSideOpen((v) => !v)}
-          >
-            <PanelLeft size={14} />
-          </Button>
           <Logo className="logo-mark" />
         </div>
         <span className="spacer" />
@@ -804,7 +839,7 @@ export default function App() {
                   <div className="setlist">
                     <div className="setrow static"><span className="setlabel">Session ID<span className="setdesc">Identifier for this conversation</span></span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
                     <div className="setrow static"><span className="setlabel">Context<span className="setdesc">Tokens used against the context limit</span></span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" desc="Pick up a previous conversation" onClick={() => cmd("/resume")} />
+                    <SetAction label="Resume a session…" desc="Pick up a previous conversation (⌘K)" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
                     <SetAction label="Compact context" desc="Summarize old messages to free space" onClick={() => cmd("/compact")} />
                     <SetAction label="Undo last checkpoint" desc="Revert the agent's last change" onClick={() => cmd("/undo")} />
                     <SetAction label="Start new session" desc="Begin a fresh conversation" onClick={() => cmd("/new")} />
