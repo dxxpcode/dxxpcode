@@ -97,6 +97,10 @@ function DownloadButtons() {
         <a href={RELEASES} className={quiet}>
           All releases
         </a>
+        {" · "}
+        <a href="/devs" className={quiet}>
+          Developer API →
+        </a>
       </p>
     </div>
   );
