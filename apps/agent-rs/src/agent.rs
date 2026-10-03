@@ -1108,6 +1108,14 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     // (tool,args) -> (count, files_changed.len() at last call): repeated
     // identical calls with no file changes between them mean a stuck loop.
     let mut call_counts: HashMap<String, (u32, usize)> = HashMap::new();
+    // read cache: args -> file mtime at read time. A re-read whose file
+    // hasn't been touched (by anyone — mtime, not files_changed) returns a
+    // cached note instead of re-executing, saving the round-trip.
+    let mut read_cache: HashMap<String, u128> = HashMap::new();
+    // Tool budget: past TOOL_BUDGET calls the model gets one quiet nudge to
+    // work economically — most overruns are exploration loops, not work.
+    const TOOL_BUDGET: usize = 40;
+    let mut budget_warned = false;
     loop {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
             finish_emit!("cancelled", "Cancelled");
@@ -1267,6 +1275,29 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 emit(finish(r, &usage, &mut session));
                 return;
             }
+            // Thin-completion gate: files changed but nothing was ever run —
+            // give one turn to verify or justify before calling it done.
+            if !opts.chat
+                && !session.files_changed.is_empty()
+                && !session.tool_calls.iter().any(|t| {
+                    t.get("name").and_then(|n| n.as_str()) == Some("run_command")
+                        && t.get("isError").and_then(|e| e.as_bool()) == Some(false)
+                })
+                && done_checks < DONE_CHECK_MAX_ATTEMPTS
+            {
+                done_checks += 1;
+                emit(json!({"type": "status", "message": "No checks ran — verifying claim…"}));
+                session.messages.push(Message {
+                    role: "user".into(),
+                    content: vec![text_block(
+                        "You changed files but ran no checks. Run the repo's build/test/lint \
+                         to prove the change works — or reply with one line explaining why no \
+                         check applies (e.g. docs-only, no test suite).",
+                    )],
+                });
+                persist(&mut session);
+                continue;
+            }
             let mut r = base("completed", &session, &stats);
             let summary = last_assistant_text(&session.messages);
             r["summary"] = json!(if summary.is_empty() {
@@ -1387,6 +1418,35 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     }
                 }
             }
+            let read_key = serde_json::to_string(input).unwrap_or_default();
+            let read_mtime = (name == "read_file")
+                .then(|| {
+                    input
+                        .get("path")
+                        .and_then(|v| v.as_str())
+                        .and_then(|p| fs::metadata(std::path::Path::new(&ctx.root).join(p)).ok())
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_nanos())
+                })
+                .flatten();
+            if name == "read_file" {
+                if let (Some(mt), Some(&cached)) = (read_mtime, read_cache.get(&read_key)) {
+                    if cached == mt {
+                        session.tool_calls.push(recorded(name, input, false, false));
+                        emit(json!({"type": "tool_start", "tool": name, "input": input}));
+                        emit(
+                            json!({"type": "tool_end", "tool": name, "result": {"content": "unchanged since earlier read", "cached": true}}),
+                        );
+                        results.push(tool_result_block(
+                            id,
+                            "Unchanged since your earlier read — the content already in context is still current.",
+                            false,
+                        ));
+                        continue;
+                    }
+                }
+            }
             emit(json!({"type": "tool_start", "tool": name, "input": input}));
             let raw = exec_streaming(tool, name, input, &ctx, emit);
             let result = ToolResult {
@@ -1403,6 +1463,11 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     session.files_changed.push(cf.clone());
                 }
             }
+            if name == "read_file" && !result.is_error {
+                if let Some(mt) = read_mtime {
+                    read_cache.insert(read_key, mt);
+                }
+            }
             session.tool_calls.push(json!({
                 "name": name, "input": input, "isError": result.is_error,
                 "changedFile": result.changed_file,
@@ -1416,6 +1481,20 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 role: "user".into(),
                 content: results,
             });
+        }
+        if !budget_warned && stats.tool_calls > TOOL_BUDGET {
+            budget_warned = true;
+            emit(
+                json!({"type": "status", "message": format!("{} tool calls — wrapping up", TOOL_BUDGET)}),
+            );
+            session.messages.push(Message {
+                role: "user".into(),
+                content: vec![text_block(&format!(
+                    "You've made {TOOL_BUDGET} tool calls this run. Wrap up: apply the change now, \
+                     verify once, then stop. Don't keep exploring."
+                ))],
+            });
+            persist(&mut session);
         }
         if loop_nudge {
             session.messages.push(Message {

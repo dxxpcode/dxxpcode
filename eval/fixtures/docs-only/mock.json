@@ -1,0 +1,6 @@
+[
+  {"toolCalls": [{"name": "propose_plan", "input": {"summary": "Fix install command in README", "steps": ["Replace oldname with dxxpcode"], "trivial": true}}]},
+  {"toolCalls": [{"name": "edit_file", "input": {"path": "README.md", "old_string": "npm i -g oldname", "new_string": "npm i -g dxxpcode"}}]},
+  {"text": "Fixed the install command."},
+  {"text": "Docs-only change — no test suite applies; the README now shows the correct command."}
+]
