@@ -1424,9 +1424,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     input
                         .get("path")
                         .and_then(|v| v.as_str())
-                        .and_then(|p| {
-                            fs::metadata(std::path::Path::new(&ctx.root).join(p)).ok()
-                        })
+                        .and_then(|p| fs::metadata(std::path::Path::new(&ctx.root).join(p)).ok())
                         .and_then(|m| m.modified().ok())
                         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                         .map(|d| d.as_nanos())
@@ -1437,7 +1435,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     if cached == mt {
                         session.tool_calls.push(recorded(name, input, false, false));
                         emit(json!({"type": "tool_start", "tool": name, "input": input}));
-                        emit(json!({"type": "tool_end", "tool": name, "result": {"content": "unchanged since earlier read", "cached": true}}));
+                        emit(
+                            json!({"type": "tool_end", "tool": name, "result": {"content": "unchanged since earlier read", "cached": true}}),
+                        );
                         results.push(tool_result_block(
                             id,
                             "Unchanged since your earlier read — the content already in context is still current.",
@@ -1484,7 +1484,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         }
         if !budget_warned && stats.tool_calls > TOOL_BUDGET {
             budget_warned = true;
-            emit(json!({"type": "status", "message": format!("{} tool calls — wrapping up", TOOL_BUDGET)}));
+            emit(
+                json!({"type": "status", "message": format!("{} tool calls — wrapping up", TOOL_BUDGET)}),
+            );
             session.messages.push(Message {
                 role: "user".into(),
                 content: vec![text_block(&format!(
