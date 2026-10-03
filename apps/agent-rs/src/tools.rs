@@ -1509,7 +1509,7 @@ pub fn registry() -> Vec<Tool> {
             name: "remember",
             description: "Append a durable one-line note to this project's memory (.dxxpcode/memory.md) — every future session reads it. Call when you learn something that will still be true later: project conventions, commands that worked, decisions made. Never store secrets, task state, file contents, or anything already in the project instructions.",
             schema: schema(&[("text", p_str("One-line fact worth keeping across sessions"))], &["text"]),
-            plan_phase: false,
+            plan_phase: true,
             permission: perm_safe,
             execute: exec_remember,
         },

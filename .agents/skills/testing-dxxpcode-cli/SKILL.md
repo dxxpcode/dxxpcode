@@ -13,7 +13,7 @@ IMPORTANT for interactive runs: the TTY UI is ink/React (`apps/cli/src/ui/App.ts
 ## Deterministic agent runs (no API keys needed)
 - `DXXPCODE_PROVIDER=mock DXXPCODE_MOCK_SCRIPT=/path/script.json` — script is a JSON array of turns consumed one per provider call: `{text?, toolCalls?: [{name, input}], stopReason?}`.
 - A turn with `propose_plan` (`input: {summary, steps: [...], trivial}`) ends the plan phase. `trivial: true` skips the approval prompt entirely but still prints the plan. Use `trivial:false` when you need to drive the plan approval menu. A turn may set `delayMs` to simulate latency (needed to see `◆ Thought for Ns` and the spinner).
-- Tools: `read_file`, `write_file`, `edit_file`, `list_directory`, `search_files`, `run_command`, `git_status/diff/log`, `delete_file`. Plan phase only allows read-only tools.
+- Tools: `read_file`, `write_file`, `edit_file`, `list_directory`, `search_files`, `run_command`, `git_status/diff/log`, `delete_file`, `remember`. Plan phase only allows read-only tools (plus `remember`) — a mock script calling an execute-phase-only tool before `propose_plan` gets `Denied: not available while planning`; emit `propose_plan` (use `trivial:true` to skip approval) first.
 - `DXXPCODE_HOME=/tmp/somewhere` isolates sessions/config from `~/.dxxpcode` — always set it in tests.
 
 ## Driving interactive prompts under a PTY
