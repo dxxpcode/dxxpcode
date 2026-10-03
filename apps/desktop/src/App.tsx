@@ -93,6 +93,7 @@ export default function App() {
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
   const [sideOpen, setSideOpen] = useState(() => localStorage.getItem("sidebar") !== "closed");
+  const [bootGone, setBootGone] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
@@ -620,6 +621,16 @@ export default function App() {
 
   const [sbQuery, setSbQuery] = useState("");
 
+  // Boot hand-off: when ready lands, the boot mark fades/scales out over
+  // ~300ms while the hero fades in, then unmounts.
+  useEffect(() => {
+    if (ready) {
+      const t = setTimeout(() => setBootGone(true), 300);
+      return () => clearTimeout(t);
+    }
+    setBootGone(false);
+  }, [ready]);
+
   // Refresh the session list on boot, project switch, and session change.
   useEffect(() => {
     if (ready && sideOpen) void send({ type: "sessions" });
@@ -948,9 +959,13 @@ export default function App() {
         </div>
       )}
       <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { visibility: "hidden" } : undefined}>
-        {!ready && (
-          <div className="boot">
-            <Logo className="boot-mark" />
+        {(!ready || !bootGone) && (
+          <div className={`boot${ready ? " out" : ""}`}>
+            <div className="boot-logo">
+              <Logo className="boot-mark" />
+              <Logo className="boot-shine" />
+            </div>
+            <span className="boot-word">starting engine…</span>
           </div>
         )}
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
@@ -1616,7 +1631,7 @@ function syntaxSpans(text: string) {
 function Logo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 442 270" fill="currentColor" role="img" aria-label="DxxpCode" className={className}>
-      <path d="M0 0L95 135L0 270H66L257 0H191L128.5 88L66 0ZM375 0L185.5 270H252L314 183L375.5 270H441L347 135L441.5 0ZM267 23L234 70L272 123.5L305.5 76.5ZM171 148L138 195L176 248.5L209.5 201.5Z" />
+      <path pathLength={1000} d="M0 0L95 135L0 270H66L257 0H191L128.5 88L66 0ZM375 0L185.5 270H252L314 183L375.5 270H441L347 135L441.5 0ZM267 23L234 70L272 123.5L305.5 76.5ZM171 148L138 195L176 248.5L209.5 201.5Z" />
     </svg>
   );
 }
