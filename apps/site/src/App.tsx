@@ -127,9 +127,6 @@ export default function App() {
           <Logo className="h-[18px] w-auto" />
         </a>
         <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
-          <a href="/devs" className="transition-colors hover:text-foreground">
-            Devs
-          </a>
           <button
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
