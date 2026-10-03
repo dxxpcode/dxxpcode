@@ -3,8 +3,6 @@ import { ArrowDown, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
-import { ApiTerminal } from "./components/ApiTerminal";
-import { Reliability } from "./components/Reliability";
 import Changelog from "./Changelog";
 import Devs from "./Devs";
 import Docs from "./Docs";
@@ -149,40 +147,6 @@ export default function App() {
         <div className="mt-7">
           <DownloadButtons />
         </div>
-
-        <section className="mt-14 w-full max-w-2xl">
-          <h2 className="text-[15px] font-medium tracking-[-0.01em]">Native Rust. Nothing bundled.</h2>
-          <div className="mt-6 grid grid-cols-3 divide-x divide-border border-y border-border">
-            {[
-              { value: "3.6 MB", label: "engine size" },
-              { value: "<5 ms", label: "cold start" },
-              { value: "4 MB", label: "idle memory" },
-            ].map((s) => (
-              <div key={s.label} className="flex flex-col items-center px-2 py-6">
-                <p className="font-mono text-[20px] font-medium tracking-tight">{s.value}</p>
-                <p className="mt-1 text-[12px] text-muted-foreground">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <Reliability />
-
-        <section className="mt-16 w-full max-w-2xl">
-          <h2 className="text-[15px] font-medium tracking-[-0.01em]">Build with the DxxpCode API</h2>
-          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            <code className="font-mono text-foreground">dxxpcode serve</code> exposes the agent loop over localhost
-            HTTP — drive runs, stream events, and answer approvals from anything that speaks HTTP.
-          </p>
-          <div className="mt-5">
-            <ApiTerminal />
-          </div>
-          <p className="mt-4 text-[13px]">
-            <a href="/devs" className="text-muted-foreground transition-colors hover:text-foreground">
-              DxxpDevs — quickstart and reference →
-            </a>
-          </p>
-        </section>
       </main>
     </div>
   );
