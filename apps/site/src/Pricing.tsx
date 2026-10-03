@@ -111,6 +111,12 @@ export default function Pricing() {
           <p className="mt-3 font-mono text-[12px] text-muted-foreground">
             ● {active.sold} of {active.total} claimed
           </p>
+          <div className="mt-2 h-px w-40 bg-border">
+            <div
+              className="h-full bg-foreground transition-[width] duration-500"
+              style={{ width: `${Math.min(100, (active.sold / active.total) * 100)}%` }}
+            />
+          </div>
 
           <p className="mt-4 max-w-xs text-[13px] text-muted-foreground">
             One payment. All current and future versions.
@@ -127,23 +133,35 @@ export default function Pricing() {
           {notice && <p className="mt-3 text-[12px] text-muted-foreground">{notice}</p>}
           {error && <p className="mt-3 text-[12px] text-muted-foreground">{error}</p>}
 
-          <div className="mt-10 grid grid-cols-3 gap-8 font-mono text-[12px]">
-            {state.tiers.map((t) => (
-              <div key={t.id} className="flex flex-col gap-1">
-                <span className={
-                  t.status === "sold_out"
-                    ? "text-muted-foreground/50 line-through"
-                    : t.status === "active"
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                }>
-                  {money(t.price_cents)}
-                </span>
-                <span className={
-                  t.status === "active" ? "text-foreground" : "text-muted-foreground/60"
-                }>
-                  {t.status === "sold_out" ? "sold out" : t.label}
-                </span>
+          <div className="mt-10 flex items-start justify-center gap-0 font-mono text-[12px]">
+            {state.tiers.map((t, i) => (
+              <div key={t.id} className="flex items-center">
+                {i > 0 && <div className="mx-3 mt-[-34px] h-px w-10 bg-border" />}
+                <div className="flex w-16 flex-col items-center gap-2">
+                  <span
+                    className={
+                      t.status === "sold_out"
+                        ? "h-1.5 w-1.5 rounded-full bg-muted-foreground/40"
+                        : t.status === "active"
+                          ? "h-1.5 w-1.5 rounded-full bg-foreground ring-4 ring-foreground/10"
+                          : "h-1.5 w-1.5 rounded-full border border-muted-foreground/40"
+                    }
+                  />
+                  <span className={
+                    t.status === "sold_out"
+                      ? "text-muted-foreground/50 line-through"
+                      : t.status === "active"
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                  }>
+                    {money(t.price_cents)}
+                  </span>
+                  <span className={
+                    t.status === "active" ? "text-foreground" : "text-muted-foreground/60"
+                  }>
+                    {t.status === "sold_out" ? "sold out" : t.label}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

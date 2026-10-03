@@ -48,10 +48,17 @@ export async function consumeLicense(tier: Tier): Promise<boolean> {
   return (await cmd("EVAL", CONSUME_SCRIPT, 1, `tier:${tier.id}`, tier.total)) === 1;
 }
 
+// HGETALL returns a flat [field, value, field, value…] array over REST.
+export function toHash(res: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (Array.isArray(res)) for (let i = 0; i + 1 < res.length; i += 2) out[String(res[i])] = String(res[i + 1]);
+  return out;
+}
+
 export async function getTiers(): Promise<Tier[]> {
   return Promise.all(
     TIERS.map(async (t) => {
-      const h = (await cmd("HGETALL", `tier:${t.id}`)) as Record<string, string> | null;
+      const h = toHash(await cmd("HGETALL", `tier:${t.id}`));
       return {
         ...t,
         price_cents: Number(h?.price_cents ?? t.price_cents),

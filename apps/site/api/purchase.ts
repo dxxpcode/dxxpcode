@@ -1,4 +1,4 @@
-import { cmd, upstashReady } from "./_pricing";
+import { cmd, toHash, upstashReady } from "./_pricing";
 
 // GET /api/purchase?session_id=cs_… → the confirmed purchase for the success
 // page. Reads only what the signed webhook wrote — never confirms from the
@@ -7,8 +7,8 @@ export async function GET(req: Request) {
   if (!upstashReady()) return Response.json({ confirmed: false }, { status: 503 });
   const id = new URL(req.url).searchParams.get("session_id") ?? "";
   if (!id.startsWith("cs_")) return Response.json({ confirmed: false }, { status: 400 });
-  const h = ((await cmd("HGETALL", `purchase:${id}`)) ?? null) as Record<string, string> | null;
-  if (!h || !h.license_key) return Response.json({ confirmed: false });
+  const h = toHash(await cmd("HGETALL", `purchase:${id}`));
+  if (!h.license_key) return Response.json({ confirmed: false });
   return Response.json(
     {
       confirmed: h.consumed === "1",
