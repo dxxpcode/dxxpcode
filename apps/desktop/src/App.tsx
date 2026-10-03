@@ -948,6 +948,11 @@ export default function App() {
         </div>
       )}
       <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { visibility: "hidden" } : undefined}>
+        {!ready && (
+          <div className="boot">
+            <Logo className="boot-mark" />
+          </div>
+        )}
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
           <div className="hero">
             <Logo className="hero-mark" />
