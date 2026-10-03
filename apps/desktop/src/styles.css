@@ -96,6 +96,41 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 
 
+/* Boot — centered mark while the sidecar starts (before first ready) */
+.boot {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px;
+  animation: fadein 0.15s var(--ease);
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.boot.out { opacity: 0; transform: scale(0.97); }
+.boot-logo { position: relative; }
+.boot-mark { display: block; height: 30px; width: auto; color: var(--faint); }
+.boot-mark path {
+  stroke: currentColor; stroke-width: 5px;
+  fill-opacity: 0;
+  stroke-dasharray: 1000; stroke-dashoffset: 1000;
+  animation: bootdraw 0.9s var(--ease) forwards, bootfill 0.45s var(--ease) 0.85s forwards;
+}
+@keyframes bootdraw { to { stroke-dashoffset: 0; } }
+@keyframes bootfill { to { fill-opacity: 1; } }
+/* A light band sweeps the mark once it's drawn — the same idea as thinkshine. */
+.boot-shine {
+  position: absolute; inset: 0;
+  height: 30px; width: auto; color: var(--text); opacity: 0.5;
+  clip-path: polygon(-30% 0, -10% 0, -40% 100%, -60% 100%);
+  animation: bootshine 2.4s ease-in-out 1.1s infinite;
+}
+@keyframes bootshine { to { clip-path: polygon(130% 0, 150% 0, 120% 100%, 100% 100%); } }
+.boot-word {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.02em;
+  background: linear-gradient(90deg, var(--faint) 35%, var(--text) 50%, var(--faint) 65%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: thinkshine 1.6s linear infinite;
+}
+
 /* ---------- header ---------- */
 .header {
   display: flex; align-items: center; gap: 14px;
