@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, KeyRound, Moon, Sun } from "lucide-react";
+import { ArrowDown, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
@@ -82,10 +82,6 @@ function DownloadButtons() {
               </span>
             ))}
           </p>
-          <p className="mt-2 flex items-center justify-center gap-1.5 font-mono text-[12px] text-muted-foreground">
-            <KeyRound strokeWidth={1.5} className="h-3.5 w-3.5" />
-            Bring your own API key
-          </p>
         </div>
         <GitHubStars />
       </div>
@@ -153,29 +149,6 @@ export default function App() {
         <div className="mt-7">
           <DownloadButtons />
         </div>
-
-        <section className="mt-14 w-full max-w-2xl">
-          <h2 className="text-[15px] font-medium tracking-[-0.01em]">Native Rust. Nothing bundled.</h2>
-          <div className="mt-6 grid grid-cols-3 divide-x divide-border border-y border-border">
-            {[
-              { value: "3.6 MB", label: "engine size", others: "80–300 MB" },
-              { value: "<5 ms", label: "cold start", others: "seconds" },
-              { value: "4 MB", label: "idle memory", others: "100–400 MB" },
-            ].map((s) => (
-              <div key={s.label} className="flex flex-col items-center px-2 py-6">
-                <p className="font-mono text-[20px] font-medium tracking-tight">{s.value}</p>
-                <p className="mt-1 text-[12px] text-muted-foreground">{s.label}</p>
-                <p className="mt-2 font-mono text-[11px] text-muted-foreground/70">
-                  <span className="block sm:inline">others </span>
-                  <span className="whitespace-nowrap">{s.others}</span>
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-[12px] text-muted-foreground">
-            Compared with agents that bundle Electron, Node or Bun.
-          </p>
-        </section>
 
         <Reliability />
 
