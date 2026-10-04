@@ -1,4 +1,5 @@
-import { cmd, consumeLicense, licenseKeyFor, upstashReady } from "../pricing-lib.js";
+import { cmd, consumeLicense, licenseKeyFor, toHash, upstashReady } from "../pricing-lib.js";
+import { mailReady, sendLicenseEmail } from "../mail.js";
 
 const WH_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -40,11 +41,33 @@ export async function POST(req: Request) {
     data?: {
       object?: {
         id?: string;
+        payment_intent?: string;
         metadata?: { tier_id?: string; price_cents?: string };
         customer_details?: { email?: string };
       };
     };
   };
+  const obj = event.data?.object;
+
+  // checkout.session.expired → the buyer abandoned before paying; clear the
+  // "pending" claim so a later completed delivery isn't misread as a duplicate.
+  if (event.type === "checkout.session.expired" && obj?.id) {
+    await cmd("DEL", `purchase:${obj.id}`);
+    return new Response("ok");
+  }
+
+  // charge.refunded → revoke the license tied to the checkout session that
+  // produced this charge (looked up via the payment_intent index we write at
+  // purchase time). License validation keys off refunded=1.
+  if (event.type === "charge.refunded" && obj?.payment_intent) {
+    const sessionId = (await cmd("GET", `pi:${obj.payment_intent}`)) as string | null;
+    if (!sessionId) return new Response("ok");
+    const h = toHash(await cmd("HGETALL", `purchase:${sessionId}`));
+    if (!h.license_key) return new Response("ok");
+    await cmd("HSET", `purchase:${sessionId}`, "refunded", 1);
+    return new Response("ok");
+  }
+
   if (event.type !== "checkout.session.completed") return new Response("ok");
   const session = event.data?.object;
   const sessionId = session?.id;
@@ -65,15 +88,27 @@ export async function POST(req: Request) {
     label: "",
   });
   const license = licenseKeyFor(sessionId);
+  const email = session?.customer_details?.email ?? "";
   await cmd(
     "HSET", `purchase:${sessionId}`,
     "tier_id", tierId,
     "price_paid_cents", priceCents,
     "license_key", license,
-    "email", session?.customer_details?.email ?? "",
+    "email", email,
     "consumed", consumed ? 1 : 0,
   );
   await cmd("SET", `license:${license}`, sessionId);
+  // Indexes for refunds and lost-key recovery.
+  if (session?.payment_intent) await cmd("SET", `pi:${session.payment_intent}`, sessionId);
+  if (email) await cmd("SET", `email:${email.toLowerCase()}`, sessionId);
+  if (consumed && email && mailReady()) {
+    try {
+      await sendLicenseEmail(email, license);
+      await cmd("HSET", `purchase:${sessionId}`, "emailed", 1);
+    } catch {
+      await cmd("HSET", `purchase:${sessionId}`, "emailed", 0);
+    }
+  }
   // consumed=false = payment succeeded but the tier had just sold out — the
   // purchase is still recorded (with consumed=0) for support/refund handling.
   return new Response("ok");
