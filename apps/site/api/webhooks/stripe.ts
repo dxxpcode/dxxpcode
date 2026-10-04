@@ -1,4 +1,4 @@
-import { cmd, consumeLicense, licenseKeyFor, upstashReady } from "../_pricing";
+import { cmd, consumeLicense, licenseKeyFor, upstashReady } from "../pricing-lib";
 
 const WH_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 

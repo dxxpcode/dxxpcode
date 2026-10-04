@@ -1,4 +1,4 @@
-import { activeTier, getTiers, seedTiersIfMissing, upstashReady } from "./_pricing";
+import { activeTier, getTiers, seedTiersIfMissing, upstashReady } from "./pricing-lib";
 
 // GET /api/pricing → data-driven pricing state for the /pricing card.
 // sold counts are authoritative — "0 of 49" until real purchases confirm.

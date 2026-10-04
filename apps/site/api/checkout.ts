@@ -1,4 +1,4 @@
-import { activeTier, getTiers, upstashReady } from "./_pricing";
+import { activeTier, getTiers, upstashReady } from "./pricing-lib";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 

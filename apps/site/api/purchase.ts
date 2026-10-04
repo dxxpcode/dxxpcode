@@ -1,4 +1,4 @@
-import { cmd, toHash, upstashReady } from "./_pricing";
+import { cmd, toHash, upstashReady } from "./pricing-lib";
 
 // GET /api/purchase?session_id=cs_… → the confirmed purchase for the success
 // page. Reads only what the signed webhook wrote — never confirms from the
