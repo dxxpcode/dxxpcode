@@ -188,7 +188,7 @@ function LicenseGate({ children }: { children: ReactNode }) {
           disabled={!ready}
           className="mr-1 flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-40"
         >
-          Download
+          Unlock
         </button>
       </div>
       <p className="font-mono text-[11.5px] text-muted-foreground/70">
