@@ -160,6 +160,7 @@ fn review_changes(
         &[],
         model,
         Some("low"),
+        None,
         aborted,
         |ev| {
             if let ProviderEvent::Text(t) = ev {
@@ -435,6 +436,9 @@ pub struct RunOpts<'a> {
     /// Chat mode: read-only toolset, no plan/approval phase.
     pub chat: bool,
     pub effort: Option<String>,
+    /// Active model-variant option bag — extra request-body fields each
+    /// provider picks the keys it understands.
+    pub variant_opts: Option<Value>,
     pub aborted: Arc<AtomicBool>,
     pub steer: &'a mut dyn FnMut() -> Option<String>,
     pub procs: tools::CtxProcTable,
@@ -744,6 +748,7 @@ fn stream_turn(
     messages: &mut Vec<Message>,
     phase: &str,
     effort: Option<&str>,
+    provider_opts: Option<&Value>,
     aborted: &Arc<AtomicBool>,
     emit: &mut Emit<'_>,
 ) -> Result<(Vec<(String, String, Value)>, Option<Usage>), ProviderError> {
@@ -785,23 +790,34 @@ fn stream_turn(
                 }
             }
         });
-        let res = provider.chat(system, messages, &tool_defs, model, effort, aborted, |ev| {
-            *last_ev.lock().unwrap() = Instant::now();
-            match ev {
-                ProviderEvent::Text(t) => {
-                    text_parts.push(t.clone());
-                    (*emit_cell.lock().unwrap())(json!({"type": "text", "text": t}));
+        let res = provider.chat(
+            system,
+            messages,
+            &tool_defs,
+            model,
+            effort,
+            provider_opts,
+            aborted,
+            |ev| {
+                *last_ev.lock().unwrap() = Instant::now();
+                match ev {
+                    ProviderEvent::Text(t) => {
+                        text_parts.push(t.clone());
+                        (*emit_cell.lock().unwrap())(json!({"type": "text", "text": t}));
+                    }
+                    ProviderEvent::Thinking(t) => {
+                        (*emit_cell.lock().unwrap())(json!({"type": "think", "text": t}));
+                    }
+                    ProviderEvent::ToolUse { id, name, input } => {
+                        tool_calls.push((id, name, input))
+                    }
+                    ProviderEvent::Done { usage: u, .. } => usage = u,
+                    ProviderEvent::Status(m) => {
+                        (*emit_cell.lock().unwrap())(json!({"type": "status", "message": m}));
+                    }
                 }
-                ProviderEvent::Thinking(t) => {
-                    (*emit_cell.lock().unwrap())(json!({"type": "think", "text": t}));
-                }
-                ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
-                ProviderEvent::Done { usage: u, .. } => usage = u,
-                ProviderEvent::Status(m) => {
-                    (*emit_cell.lock().unwrap())(json!({"type": "status", "message": m}));
-                }
-            }
-        });
+            },
+        );
         wd_stop.store(true, std::sync::atomic::Ordering::Relaxed);
         res
     });
@@ -951,6 +967,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             &mut session.messages,
             "plan",
             opts.effort.as_deref(),
+            opts.variant_opts.as_ref(),
             &opts.aborted,
             emit,
         ) {
@@ -1138,6 +1155,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             &mut session.messages,
             if opts.chat { "chat" } else { "execute" },
             opts.effort.as_deref(),
+            opts.variant_opts.as_ref(),
             &opts.aborted,
             emit,
         ) {

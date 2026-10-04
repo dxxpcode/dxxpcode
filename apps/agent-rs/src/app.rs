@@ -28,6 +28,10 @@ const COMMAND_LIST: &[(&str, &str)] = &[
     ("/approval", "approval mode — ask, always, or smart (Jev)"),
     ("/effort", "reasoning effort for the next task"),
     (
+        "/variant",
+        "model variant — a named preset from your config",
+    ),
+    (
         "/setup",
         "guided setup — provider, effort, optional Jev key",
     ),
@@ -130,6 +134,7 @@ pub struct AppDeps {
     pub provider: Provider,
     pub model: String,
     pub effort: Option<String>,
+    pub variant: Option<String>,
     pub project: ProjectInfo,
     pub root: String,
     pub session: Option<SessionRecord>,
@@ -146,6 +151,7 @@ pub struct Shared {
     pub provider_name: Mutex<String>,
     pub model: Mutex<String>,
     pub effort: Mutex<Option<String>>,
+    pub variant: Mutex<Option<String>>,
     pub auto_approve: AtomicBool,
     pub smart_mode: AtomicBool,
     pub mode: Mutex<String>,
@@ -176,6 +182,8 @@ impl Shared {
             "provider": *self.provider_name.lock().unwrap(),
             "model": *self.model.lock().unwrap(),
             "effort": if self.effort_auto() { "auto (Jev)".to_string() } else { self.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into()) },
+            "variant": self.variant.lock().unwrap().clone().unwrap_or_else(|| "default".into()),
+            "variants": variant_names(),
             "mode": *self.mode.lock().unwrap(),
         }));
     }
@@ -496,6 +504,82 @@ fn set_effort(sh: &Arc<Shared>, next: &str) {
     sh.emit_state();
 }
 
+/// Variant names from config (`variants.<name>`), sorted.
+fn variant_names() -> Vec<String> {
+    load_config()
+        .variants
+        .map(|v| v.keys().cloned().collect())
+        .unwrap_or_default()
+}
+
+/// The active variant's option bag (extra request-body fields), or None
+/// when `default` / unset / unknown.
+fn variant_opts(sh: &Arc<Shared>) -> Option<Value> {
+    let name = sh.variant.lock().unwrap().clone()?;
+    load_config().variants.and_then(|v| v.get(&name).cloned())
+}
+
+fn open_variant_menu(sh: &Arc<Shared>) {
+    let names = variant_names();
+    let mut opts = vec![json!({"label": "default", "desc": "no variant — plain provider request"})];
+    let cfg = load_config();
+    for n in &names {
+        let desc = cfg
+            .variants
+            .as_ref()
+            .and_then(|v| v.get(n))
+            .map(|o| {
+                o.as_object()
+                    .map(|m| {
+                        m.iter()
+                            .map(|(k, v)| format!("{k}={v}"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_else(|| o.to_string())
+            })
+            .unwrap_or_default();
+        opts.push(json!({"label": n, "desc": desc}));
+    }
+    let cur = sh
+        .variant
+        .lock()
+        .unwrap()
+        .clone()
+        .unwrap_or_else(|| "default".into());
+    let labels: Vec<String> = std::iter::once("default".to_string())
+        .chain(names.iter().cloned())
+        .collect();
+    let current = labels.iter().position(|o| *o == cur).unwrap_or(0);
+    let Some(i) = sh.menu(
+        "Model variant — applies to the next task",
+        opts,
+        Some(current),
+    ) else {
+        return;
+    };
+    set_variant(sh, &labels[i]);
+}
+
+fn set_variant(sh: &Arc<Shared>, next: &str) {
+    if next != "default" && !variant_names().iter().any(|n| n == next) {
+        emit_note(format!(
+            "unknown variant: {next} — define it under \"variants\" in ~/.dxxpcode/config.json"
+        ));
+        return;
+    }
+    *sh.variant.lock().unwrap() = if next == "default" {
+        None
+    } else {
+        Some(next.to_string())
+    };
+    let mut cfg = load_config();
+    cfg.variant = sh.variant.lock().unwrap().clone();
+    save_config(&cfg);
+    emit_note(format!("variant: {next} (saved)"));
+    sh.emit_state();
+}
+
 fn open_approval_menu(sh: &Arc<Shared>) {
     let opts = ["ask", "always-approve", "smart (Jev)"];
     let cur = if sh.smart_mode.load(Ordering::Relaxed) {
@@ -597,26 +681,57 @@ fn switch_provider(sh: &Arc<Shared>, name: &str) {
     }
 }
 
+/// Popular providers offered in "Connect a provider" — (label, desc,
+/// OpenAI-compatible base URL; None = Anthropic-native or asks for a URL).
+const PROVIDER_PRESETS: &[(&str, &str, Option<&str>)] = &[
+    ("Anthropic", "Claude models", None),
+    (
+        "OpenRouter",
+        "one key — Claude, GPT, Gemini, Llama",
+        Some("https://openrouter.ai/api/v1"),
+    ),
+    ("OpenAI", "GPT models", Some("https://api.openai.com/v1")),
+    (
+        "Gemini",
+        "Google AI Studio key",
+        Some("https://generativelanguage.googleapis.com/v1beta/openai"),
+    ),
+    (
+        "Groq",
+        "fast open models — Llama, GPT-OSS",
+        Some("https://api.groq.com/openai/v1"),
+    ),
+    (
+        "DeepSeek",
+        "DeepSeek-V3 / R1",
+        Some("https://api.deepseek.com/v1"),
+    ),
+    ("xAI", "Grok models", Some("https://api.x.ai/v1")),
+    (
+        "Mistral",
+        "Mistral models",
+        Some("https://api.mistral.ai/v1"),
+    ),
+    (
+        "Other OpenAI-compatible",
+        "any endpoint that speaks /chat/completions",
+        None,
+    ),
+];
+
 fn connect_provider(sh: &Arc<Shared>) -> bool {
     let Some(which) = sh.menu(
         "Connect a provider",
-        vec![
-            json!({"label": "Anthropic", "desc": "Claude models"}),
-            json!({"label": "OpenRouter", "desc": "one key — Claude, GPT, Gemini, Llama"}),
-            json!({"label": "OpenAI-compatible", "desc": "OpenAI, Gemini, local endpoints"}),
-        ],
+        PROVIDER_PRESETS
+            .iter()
+            .map(|(l, d, _)| json!({"label": l, "desc": d}))
+            .collect(),
         None,
     ) else {
         return false;
     };
-    let Some(key) = sh.prompt(
-        match which {
-            0 => "Anthropic API key:",
-            1 => "OpenRouter API key:",
-            _ => "OpenAI-compatible API key:",
-        },
-        true,
-    ) else {
+    let (label, _, preset_url) = PROVIDER_PRESETS[which];
+    let Some(key) = sh.prompt(&format!("{label} API key:"), true) else {
         return false;
     };
     let key = key.trim().to_string();
@@ -624,14 +739,14 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
         return false;
     }
     let mut base_url = None;
-    if which == 1 {
-        base_url = Some("https://openrouter.ai/api/v1".to_string());
-    } else if which == 2 {
-        if let Some(b) = sh.prompt("Base URL (blank = api.openai.com):", false) {
-            let b = b.trim();
-            if !b.is_empty() {
-                base_url = Some(b.to_string());
-            }
+    if which == 0 {
+        // Anthropic-native provider.
+    } else if let Some(b) = preset_url {
+        base_url = Some(b.to_string());
+    } else if let Some(b) = sh.prompt("Base URL (blank = api.openai.com):", false) {
+        let b = b.trim();
+        if !b.is_empty() {
+            base_url = Some(b.to_string());
         }
     }
     let mut cfg = load_config();
@@ -646,14 +761,7 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
     save_config(&cfg);
     let name = if which == 0 { "anthropic" } else { "openai" };
     switch_provider(sh, name);
-    emit_note(format!(
-        "{} key saved",
-        match which {
-            0 => "Anthropic",
-            1 => "OpenRouter",
-            _ => "OpenAI-compatible",
-        }
-    ));
+    emit_note(format!("{label} key saved"));
     true
 }
 
@@ -847,7 +955,13 @@ fn open_provider_menu(sh: &Arc<Shared>) {
 }
 
 fn open_settings_menu(sh: &Arc<Shared>) {
-    let entries = ["Approval mode", "Provider", "Model", "Reasoning effort"];
+    let entries = [
+        "Approval mode",
+        "Provider",
+        "Model",
+        "Reasoning effort",
+        "Speed",
+    ];
     let Some(i) = sh.menu("Settings", labeled_options(&entries, None), None) else {
         return;
     };
@@ -856,6 +970,7 @@ fn open_settings_menu(sh: &Arc<Shared>) {
         1 => open_provider_menu(sh),
         2 => open_model_menu(sh),
         3 => open_effort_menu(sh),
+        4 => open_variant_menu(sh),
         _ => {}
     }
 }
@@ -1066,6 +1181,15 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
         {
             Some(level) => set_effort(sh, level),
             None => open_effort_menu(sh),
+        },
+        "/variant" => match raw
+            .trim()
+            .get("/variant".len()..)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(name) => set_variant(sh, name),
+            None => open_variant_menu(sh),
         },
         "/provider" | "/providers" => open_provider_menu(sh),
         "/setup" => run_onboarding(sh),
@@ -1386,6 +1510,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         session: session_for_run,
         chat,
         effort,
+        variant_opts: variant_opts(sh),
         aborted: Arc::clone(&sh.aborted),
         steer: &mut steer,
         procs: Arc::clone(&sh.procs),
@@ -1464,6 +1589,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         provider_name: Mutex::new(provider_label.clone()),
         model: Mutex::new(deps.model.clone()),
         effort: Mutex::new(deps.effort.clone()),
+        variant: Mutex::new(deps.variant.clone()),
         auto_approve: AtomicBool::new(deps.auto_approve),
         smart_mode: AtomicBool::new(deps.smart_approve_mode),
         mode: Mutex::new(deps.mode.clone()),
@@ -1499,6 +1625,8 @@ pub fn run_app(deps: AppDeps) -> i32 {
         "provider": provider_label,
         "model": deps.model,
         "effort": deps.effort,
+        "variant": deps.variant,
+        "variants": variant_names(),
         "mode": deps.mode,
         "commands": COMMAND_LIST.iter().map(|(n, d)| json!({"name": n, "desc": d})).collect::<Vec<_>>(),
         "needsSetup": needs_setup,

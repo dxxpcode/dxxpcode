@@ -33,6 +33,7 @@ fn main() {
     let mut provider_flag: Option<String> = None;
     let mut model_flag: Option<String> = None;
     let mut effort_flag: Option<String> = None;
+    let mut variant_flag: Option<String> = None;
     let mut max_iterations: Option<u32> = None;
     let mut task_prompt: Option<String> = None;
     let mut i = 0;
@@ -64,6 +65,10 @@ fn main() {
                 i += 1;
                 effort_flag = argv.get(i).cloned();
             }
+            "--variant" => {
+                i += 1;
+                variant_flag = argv.get(i).cloned();
+            }
             "--max-iterations" => {
                 i += 1;
                 max_iterations = argv
@@ -78,6 +83,8 @@ fn main() {
                     model_flag = Some(v.to_string());
                 } else if let Some(v) = a.strip_prefix("--effort=") {
                     effort_flag = Some(v.to_string());
+                } else if let Some(v) = a.strip_prefix("--variant=") {
+                    variant_flag = Some(v.to_string());
                 }
             }
         }
@@ -141,6 +148,17 @@ fn main() {
             })
         })
         .or_else(|| cfg.effort.clone());
+    let env_variant = std::env::var("DXXPCODE_VARIANT").ok();
+    let variant = variant_flag
+        .or(env_variant)
+        .or_else(|| cfg.variant.clone())
+        .filter(|s| s != "default")
+        .filter(|s| {
+            cfg.variants.as_ref().is_some_and(|v| v.contains_key(s)) || {
+                eprintln!("unknown variant: {s} — define it under \"variants\" in config.json");
+                false
+            }
+        });
     let auto_approve = yes || cfg.approval_mode.as_deref() == Some("auto");
     let smart_mode = !yes && cfg.approval_mode.as_deref() == Some("smart");
     let mode = if plan {
@@ -165,6 +183,7 @@ fn main() {
         provider,
         model,
         effort,
+        variant,
         project,
         root,
         session,
@@ -217,6 +236,10 @@ fn run_task_once(root: &str, task: String) {
         session: None,
         chat: false,
         effort: cfg.effort.clone(),
+        variant_opts: cfg
+            .variant
+            .as_ref()
+            .and_then(|n| cfg.variants.as_ref().and_then(|v| v.get(n).cloned())),
         aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         steer: &mut steer,
         procs,

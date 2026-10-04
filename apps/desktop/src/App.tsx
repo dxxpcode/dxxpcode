@@ -98,8 +98,26 @@ export default function App() {
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
   const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project" | "first">("welcome");
-  const [obProvider, setObProvider] = useState<"anthropic" | "openai" | "openrouter">("anthropic");
-  const OB_BASE: Record<string, string | undefined> = { openrouter: "https://openrouter.ai/api/v1" };
+  const [obProvider, setObProvider] = useState<string>("anthropic");
+  const OB_BASE: Record<string, string | undefined> = {
+    openrouter: "https://openrouter.ai/api/v1",
+    gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
+    groq: "https://api.groq.com/openai/v1",
+    deepseek: "https://api.deepseek.com/v1",
+    xai: "https://api.x.ai/v1",
+    mistral: "https://api.mistral.ai/v1",
+  };
+  const OB_PROVIDERS: { id: string; name: string; desc: string }[] = [
+    { id: "anthropic", name: "Anthropic", desc: "Claude models" },
+    { id: "openrouter", name: "OpenRouter", desc: "one key — Claude, GPT, Gemini, Llama" },
+    { id: "openai", name: "OpenAI", desc: "GPT models" },
+    { id: "gemini", name: "Gemini", desc: "Google AI Studio key" },
+    { id: "groq", name: "Groq", desc: "fast open models — Llama, GPT-OSS" },
+    { id: "deepseek", name: "DeepSeek", desc: "DeepSeek-V3 / R1" },
+    { id: "xai", name: "xAI", desc: "Grok models" },
+    { id: "mistral", name: "Mistral", desc: "Mistral models" },
+    { id: "custom", name: "Other endpoint", desc: "any OpenAI-compatible API" },
+  ];
   const [obKey, setObKey] = useState("");
   const [obBase, setObBase] = useState("");
   const [obBusy, setObBusy] = useState(false);
@@ -255,6 +273,8 @@ export default function App() {
                 provider: String(ev.provider),
                 model: String(ev.model),
                 effort: ev.effort as string | undefined,
+                variant: ev.variant as string | undefined,
+                variants: ev.variants as string[] | undefined,
                 mode: String(ev.mode),
               }
             : prev,
@@ -1012,6 +1032,13 @@ export default function App() {
                       onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
                     />
                     <SetSelect
+                      label="Model variant"
+                      desc="Named request preset from your config.json variants"
+                      value={ready.variant ?? "default"}
+                      options={["default", ...(ready.variants ?? [])]}
+                      onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
+                    />
+                    <SetSelect
                       label="Approval mode"
                       desc="When the agent asks before acting"
                       value={ready.mode === "smart" ? "smart (Jev)" : ready.mode}
@@ -1106,18 +1133,12 @@ export default function App() {
                 <div className="ob-title">Connect a provider</div>
                 <p className="ob-desc">Pick where your models come from — you can add more later.</p>
                 <div className="ob-providers">
-                  <button className="ob-prov" onClick={() => { setObProvider("anthropic"); setObStep("key"); setObError(null); }}>
-                    <span className="ob-prov-name">Anthropic</span>
-                    <span className="ob-prov-desc">Claude models</span>
-                  </button>
-                  <button className="ob-prov" onClick={() => { setObProvider("openrouter"); setObStep("key"); setObError(null); }}>
-                    <span className="ob-prov-name">OpenRouter</span>
-                    <span className="ob-prov-desc">one key — Claude, GPT, Gemini, Llama</span>
-                  </button>
-                  <button className="ob-prov" onClick={() => { setObProvider("openai"); setObStep("key"); setObError(null); }}>
-                    <span className="ob-prov-name">OpenAI-compatible</span>
-                    <span className="ob-prov-desc">OpenAI, Gemini, local endpoints</span>
-                  </button>
+                  {OB_PROVIDERS.map((p) => (
+                    <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                      <span className="ob-prov-name">{p.name}</span>
+                      <span className="ob-prov-desc">{p.desc}</span>
+                    </button>
+                  ))}
                   <button className="ob-prov demo" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
                     <span className="ob-prov-name">Just explore</span>
                     <span className="ob-prov-desc">demo mode — no key needed</span>
@@ -1162,23 +1183,23 @@ export default function App() {
             )}
             {obStep === "key" && (
               <>
-                <div className="ob-title">{obProvider === "anthropic" ? "Anthropic API key" : obProvider === "openrouter" ? "OpenRouter API key" : "OpenAI-compatible key"}</div>
-                <p className="ob-desc">Validated against {obProvider === "anthropic" ? "api.anthropic.com" : obProvider === "openrouter" ? "openrouter.ai/api/v1" : "the /models endpoint"} before it's saved.</p>
+                <div className="ob-title">{OB_PROVIDERS.find((p) => p.id === obProvider)?.name ?? "Provider"} API key</div>
+                <p className="ob-desc">Validated against {obProvider === "anthropic" ? "api.anthropic.com" : (OB_BASE[obProvider]?.replace("https://", "") ?? "the /models endpoint")} before it's saved.</p>
                 <input
                   className="ob-input mono"
                   type="password"
                   autoFocus
-                  placeholder={obProvider === "anthropic" ? "sk-ant-…" : "sk-…"}
+                  placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "sk-…"}
                   value={obKey}
                   onChange={(e) => { setObKey(e.target.value); setObError(null); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && obKey.trim() && !obBusy) {
                       setObBusy(true);
-                      void send({ type: "setup", provider: obProvider === "openrouter" ? "openai" : obProvider, key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
+                      void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
                     }
                   }}
                 />
-                {obProvider === "openai" && (
+                {obProvider === "custom" && (
                   <input
                     className="ob-input mono"
                     type="text"
@@ -1195,7 +1216,7 @@ export default function App() {
                     disabled={!obKey.trim() || obBusy}
                     onClick={() => {
                       setObBusy(true);
-                      void send({ type: "setup", provider: obProvider === "openrouter" ? "openai" : obProvider, key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
+                      void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
                     }}
                   >
                     {obBusy ? "Validating…" : "Validate & connect"}
@@ -1519,7 +1540,7 @@ export default function App() {
                 <ChevronDown size={11} />
               </button>
               <span className="subline-model">
-                {ready.model} · {ready.effort ?? "default"}
+                {ready.model} · {ready.effort ?? "default"}{ready.variant ? ` · ${ready.variant}` : ""}
               </span>
             </div>
           )}

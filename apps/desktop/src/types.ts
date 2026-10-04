@@ -5,6 +5,8 @@ export interface ReadyInfo {
   provider: string;
   model: string;
   effort?: string;
+  variant?: string;
+  variants?: string[];
   mode: string;
   needsSetup?: boolean;
   commands?: { name: string; desc: string }[];
