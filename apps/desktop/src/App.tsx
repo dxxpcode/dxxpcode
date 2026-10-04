@@ -142,7 +142,9 @@ export default function App() {
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-  const dark = theme === "system" ? sysDark : theme === "dark";
+  const [previewTheme, setPreviewTheme] = useState<"light" | "dark" | "system" | null>(null);
+  const shownTheme = previewTheme ?? theme;
+  const dark = shownTheme === "system" ? sysDark : shownTheme === "dark";
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
