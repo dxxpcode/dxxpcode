@@ -142,7 +142,9 @@ export default function App() {
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-  const dark = theme === "system" ? sysDark : theme === "dark";
+  const [previewTheme, setPreviewTheme] = useState<"light" | "dark" | "system" | null>(null);
+  const shownTheme = previewTheme ?? theme;
+  const dark = shownTheme === "system" ? sysDark : shownTheme === "dark";
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
@@ -1064,18 +1066,24 @@ export default function App() {
                   <div className="setgroup-title">Appearance</div>
                   <div className="setlist">
                     <div className="setrow static">
-                      <span className="setlabel">Theme<span className="setdesc">Follow the OS, or force light or dark</span></span>
-                      <span className="theme-opts">
+                      <span className="setlabel">Theme<span className="setdesc">Follow the OS, or force light or dark — hover to preview</span></span>
+                      <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
                         {(["system", "light", "dark"] as const).map((t) => (
-                          <button key={t} className={`eff-pill${theme === t ? " cur" : ""}`} onClick={() => setTheme(t)}>
+                          <button
+                            key={t}
+                            className={`modeseg-btn${theme === t ? " cur" : ""}`}
+                            onMouseEnter={() => setPreviewTheme(t)}
+                            onClick={() => { setTheme(t); setPreviewTheme(null); }}
+                          >
                             {t}
                           </button>
                         ))}
                       </span>
                     </div>
-                    <SetAction
-                      label={artDir ? `Art — ${artDir.split("/").filter(Boolean).pop()}` : "Art…"}
-                      desc={artDir ? "Showing a random image from this folder as the window backdrop" : "Use an image folder as the window backdrop"}
+                    <SetRow
+                      label="Art"
+                      desc="Use an image folder as the window backdrop"
+                      value={artDir ? (artDir.split("/").filter(Boolean).pop() ?? "") : "None"}
                       onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) setArtDir(dir); })}
                     />
                     {artDir && (
