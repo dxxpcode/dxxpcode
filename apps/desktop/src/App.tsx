@@ -7,7 +7,7 @@ import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Card, CardContent, CardFooter, CardHeader } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -45,6 +45,13 @@ const win = getCurrentWindow();
 const IS_MAC = navigator.userAgent.includes("Macintosh");
 
 interface Ev { type: string; [k: string]: unknown }
+
+// A queued prompt running in parallel: its own git worktree + sidecar.
+interface WTask {
+  id: number; text: string; dir: string; branch: string;
+  phase: "running" | "done" | "failed" | "merged" | "discarded";
+  status: string; calls: number; result?: string;
+}
 
 export default function App() {
   const [ready, setReady] = useState<ReadyInfo | null>(null);
@@ -84,6 +91,10 @@ export default function App() {
   const [queue, setQueue] = useState<string[]>([]);
   const queueRef = useRef<string[]>([]);
   const lastDone = useRef<string | null>(null);
+  const [wtasks, setWtasks] = useState<WTask[]>([]);
+  const wbuf = useRef<Record<number, string>>({});
+  const wPending = useRef<Record<number, string>>({});
+  const rootRef = useRef<string>("");
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
   const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project">("welcome");
@@ -554,6 +565,108 @@ export default function App() {
     if (queueKey) localStorage.setItem(queueKey, JSON.stringify(queue));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queueKey, queue]);
+
+  // Project root for worktrees — the sidecar's cwd.
+  useEffect(() => {
+    if (ready) void invoke<string>("session_cwd").then((r) => { rootRef.current = r; });
+  }, [ready]);
+
+  // Worker sidecar events: NDJSON lines on `worker-out` tagged by worker id.
+  const workerEvent = useCallback((id: number, ev: Ev) => {
+    switch (ev.type) {
+      case "ready": {
+        const text = wPending.current[id];
+        if (text) {
+          void invoke("worker_write", { id, data: JSON.stringify({ type: "submit", text }) + "\n" });
+          delete wPending.current[id];
+        }
+        break;
+      }
+      case "tool_start":
+        setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, calls: w.calls + 1, status: String(ev.tool) } : w));
+        break;
+      case "status":
+        setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, status: String(ev.text) } : w));
+        break;
+      case "done": {
+        const r = ev.result as { status?: string; summary?: string };
+        setWtasks((ts) => ts.map((w) => w.id === id ? {
+          ...w, phase: r?.status === "completed" ? "done" : "failed",
+          result: r?.summary || r?.status || "", status: "",
+        } : w));
+        break;
+      }
+      case "error":
+        setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, phase: "failed", result: String(ev.message ?? "error") } : w));
+        break;
+    }
+  }, []);
+
+  useEffect(() => {
+    const dec = new TextDecoder();
+    const un = listen<{ id: number; data: number[] }>("worker-out", (e) => {
+      const { id, data } = e.payload;
+      let buf = (wbuf.current[id] ?? "") + dec.decode(new Uint8Array(data), { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const t = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!t) continue;
+        try { workerEvent(id, JSON.parse(t) as Ev); } catch { /* partial */ }
+      }
+      wbuf.current[id] = buf;
+    });
+    const un2 = listen<number>("worker-exit", (e) => {
+      const id = e.payload;
+      setWtasks((ts) => ts.map((w) =>
+        w.id === id && w.phase === "running" ? { ...w, phase: "failed", result: "worker exited" } : w));
+    });
+    return () => { void un.then((f) => f()); void un2.then((f) => f()); };
+  }, [workerEvent]);
+
+  // Start a queued prompt immediately in a git worktree on its own sidecar.
+  const startParallel = async (text: string, qi: number) => {
+    const root = rootRef.current;
+    if (!root) { push({ k: "note", text: "parallel needs a project" }); return; }
+    const name = `w${Date.now().toString(36)}`;
+    let wt: { dir: string; branch: string };
+    try {
+      wt = await invoke("worktree_create", { root, name });
+    } catch (e) {
+      push({ k: "note", text: `worktree failed — ${e}` });
+      return;
+    }
+    const id = await invoke<number>("worker_start", { cwd: wt.dir });
+    wPending.current[id] = text;
+    setWtasks((ts) => [...ts, { id, text, dir: wt.dir, branch: wt.branch, phase: "running", status: "starting", calls: 0 }]);
+    setQueue((q) => q.filter((_, j) => j !== qi));
+  };
+
+  const resolveWorker = async (id: number, merge: boolean) => {
+    const t = wtasks.find((w) => w.id === id);
+    if (!t) return;
+    if (merge) {
+      try {
+        const stat = await invoke<string>("worktree_merge", { root: rootRef.current, dir: t.dir, branch: t.branch });
+        push({ k: "note", text: stat === "no changes" ? `merged ${t.branch} — no changes` : `merged ${t.branch} — ${stat}` });
+        setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, phase: "merged" } : w));
+      } catch (e) {
+        push({ k: "note", text: String(e) });
+        return;
+      }
+    } else {
+      void invoke("worktree_discard", { root: rootRef.current, dir: t.dir, branch: t.branch }).catch(() => {});
+      setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, phase: "discarded" } : w));
+    }
+    void invoke("worker_stop", { id });
+  };
+
+  const stopWorker = (id: number) => {
+    const t = wtasks.find((w) => w.id === id);
+    void invoke("worker_stop", { id });
+    if (t) void invoke("worktree_discard", { root: rootRef.current, dir: t.dir, branch: t.branch }).catch(() => {});
+    setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, phase: "discarded" } : w));
+  };
 
   // Ask the CLI for @mention completions whenever the fragment changes.
   useEffect(() => {
@@ -1253,6 +1366,15 @@ export default function App() {
               <div className="queuerow" key={`${i}-${text.slice(0, 12)}`}>
                 <span className="qlabel mono">{i === 0 ? "next" : `+${i}`}</span>
                 <span className="qtext truncate">{text}</span>
+                {ready?.project.git && (
+                  <button
+                    className="qdrop"
+                    title="Run now in a git worktree"
+                    onClick={() => void startParallel(text, i)}
+                  >
+                    <GitBranch size={11} />
+                  </button>
+                )}
                 <button
                   className="qdrop"
                   title="Drop from queue"
@@ -1262,6 +1384,35 @@ export default function App() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+        {wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
+          <div className="queuelist">
+            {wtasks
+              .filter((w) => w.phase !== "merged" && w.phase !== "discarded")
+              .map((w) => (
+                <div className="queuerow workerrow" key={w.id}>
+                  <span className="qlabel mono">{w.phase === "running" ? "‖" : w.phase === "done" ? "✓" : "×"}</span>
+                  <span className="qtext truncate">{w.text}</span>
+                  {w.phase === "running" && (
+                    <>
+                      <span className="wstatus mono truncate">{w.status}</span>
+                      <button className="qdrop" title="Stop + discard worktree" onClick={() => stopWorker(w.id)}>
+                        <X size={11} />
+                      </button>
+                    </>
+                  )}
+                  {w.phase === "done" && (
+                    <>
+                      <button className="wact mono" onClick={() => void resolveWorker(w.id, true)}>merge</button>
+                      <button className="wact mono" onClick={() => void resolveWorker(w.id, false)}>discard</button>
+                    </>
+                  )}
+                  {w.phase === "failed" && (
+                    <button className="wact mono" title={w.result} onClick={() => void resolveWorker(w.id, false)}>discard</button>
+                  )}
+                </div>
+              ))}
           </div>
         )}
         <div className="inputbox">
