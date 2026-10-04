@@ -1,5 +1,5 @@
 const RESEND_KEY = process.env.RESEND_API_KEY;
-const MAIL_FROM = "DxxpCode <licenses@dxxp.codes>";
+const MAIL_FROM = process.env.RESEND_FROM ?? "DxxpCode <licenses@dxxp.codes>";
 
 export function mailReady() {
   return Boolean(RESEND_KEY);
