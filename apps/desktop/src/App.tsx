@@ -147,6 +147,16 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
   }, [dark, theme]);
+  const [artDir, setArtDir] = useState(() => localStorage.getItem("artDir") ?? "");
+  const [artSrc, setArtSrc] = useState<string | null>(null);
+  useEffect(() => {
+    localStorage.setItem("artDir", artDir);
+    setArtSrc(null);
+    if (!artDir) return;
+    invoke<{ dataUrl: string }>("art_image", { dir: artDir })
+      .then((r) => setArtSrc(r.dataUrl))
+      .catch(() => {});
+  }, [artDir]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1062,6 +1072,14 @@ export default function App() {
                         ))}
                       </span>
                     </div>
+                    <SetAction
+                      label={artDir ? `Character art — ${artDir.split("/").filter(Boolean).pop()}` : "Character art…"}
+                      desc={artDir ? "Showing a random image from this folder on the hero" : "Show artwork from a folder on the hero"}
+                      onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) setArtDir(dir); })}
+                    />
+                    {artDir && (
+                      <SetAction label="Clear character art" desc="Stop showing artwork on the hero" onClick={() => setArtDir("")} />
+                    )}
                   </div>
                 </div>
               )}
@@ -1239,6 +1257,7 @@ export default function App() {
         )}
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
           <div className="hero">
+            {artSrc && <img className="hero-art" src={artSrc} alt="" />}
             <Logo className="hero-mark" />
             <div className="hero-title">What should we build in
               <button className="hero-proj" title="Change project" onClick={openProject}>

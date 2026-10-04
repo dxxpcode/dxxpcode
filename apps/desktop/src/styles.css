@@ -776,6 +776,14 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   padding: 24px;
   animation: fadein 0.3s var(--ease);
 }
+.hero-art {
+  max-width: min(300px, 60%);
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  opacity: 0.96;
+}
 .hero-mark { width: 44px; height: auto; color: var(--faint); margin-bottom: 6px; }
 .hero-title {
   font-size: 21px; font-weight: 600; letter-spacing: -0.02em;
