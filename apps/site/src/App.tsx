@@ -84,7 +84,7 @@ function DownloadButtons() {
         </div>
         <GitHubStars />
       </div>
-      <p className="mt-6 text-[13px] text-muted-foreground">
+      <p className="mt-6 animate-gate-in-late text-[13px] text-muted-foreground">
         Also available for{" "}
         {others.map((d, i) => (
           <span key={d.os}>
@@ -188,7 +188,7 @@ function LicenseGate({ children }: { children: ReactNode }) {
           disabled={!ready}
           className="mr-1 flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-40"
         >
-          Download
+          Unlock
         </button>
       </div>
       <p className="font-mono text-[11.5px] text-muted-foreground/70">
