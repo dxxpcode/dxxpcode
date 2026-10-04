@@ -120,7 +120,7 @@ function LicenseGate({ children }: { children: ReactNode }) {
   const [key, setKey] = useState("");
   const [state, setState] = useState<"idle" | "checking" | "invalid">("idle");
 
-  if (unlocked) return children;
+  if (unlocked) return <div className="animate-gate-in">{children}</div>;
 
   const submit = async () => {
     setState("checking");
@@ -143,7 +143,7 @@ function LicenseGate({ children }: { children: ReactNode }) {
   const ready = key.trim().startsWith("dxxp-live-") && state !== "checking";
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="flex h-11 w-[340px] max-w-full items-center rounded-full border border-border transition-colors focus-within:border-foreground/40">
         <input
           value={key}
           onChange={(e) => {
@@ -154,30 +154,33 @@ function LicenseGate({ children }: { children: ReactNode }) {
           placeholder="dxxp-live-…"
           autoComplete="off"
           spellCheck={false}
-          className="h-11 w-56 rounded-full border border-border bg-transparent px-4 font-mono text-[13px] placeholder:text-muted-foreground/50 focus:border-foreground/40 focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent pl-4 font-mono text-[13px] placeholder:text-muted-foreground/50 focus:outline-none"
         />
         <button
           onClick={submit}
           disabled={!ready}
-          className="h-11 rounded-full bg-foreground px-5 text-[14px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-40"
+          className="mr-1 flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-40"
         >
-          {state === "checking" ? "Checking…" : "Download"}
+          {state === "checking" ? (
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border border-background/40 border-t-transparent" />
+          ) : (
+            "Download"
+          )}
         </button>
       </div>
-      <p className="text-[12px] text-muted-foreground">
+      <p className="font-mono text-[11.5px] text-muted-foreground/70">
         {state === "invalid" ? (
           <>
-            That key isn't valid —{" "}
-            <a href="/pricing" className="text-foreground underline-offset-4 hover:underline">
-              get one
+            not a key —{" "}
+            <a href="/pricing" className={quiet}>
+              get one →
             </a>
-            .
           </>
         ) : (
           <>
-            Downloads need a lifetime license —{" "}
+            no key yet?{" "}
             <a href="/pricing" className={quiet}>
-              Pricing →
+              $49 lifetime →
             </a>
           </>
         )}
