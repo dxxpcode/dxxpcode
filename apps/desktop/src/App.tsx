@@ -97,7 +97,7 @@ export default function App() {
   const rootRef = useRef<string>("");
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
-  const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project">("welcome");
+  const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project" | "first">("welcome");
   const [obProvider, setObProvider] = useState<"anthropic" | "openai" | "openrouter">("anthropic");
   const OB_BASE: Record<string, string | undefined> = { openrouter: "https://openrouter.ai/api/v1" };
   const [obKey, setObKey] = useState("");
@@ -1133,12 +1133,31 @@ export default function App() {
                 <div className="ob-title">Open a project</div>
                 <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
                 <div className="setbtns">
-                  <button className="btn primary" onClick={() => setOnboarding(false)}>Use {ready?.project.name ?? "this folder"}</button>
+                  <button className="btn primary" onClick={() => setObStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
                   <button className="btn" onClick={openProject}>
                     Choose folder…
                   </button>
                 </div>
                 <p className="ob-hint">Switch anytime with Settings → Open a project</p>
+              </>
+            )}
+            {obStep === "first" && (
+              <>
+                <div className="ob-title">See it work</div>
+                <p className="ob-desc">One small task — it plans, shows you the diff, and asks before it writes.</p>
+                <div className="setbtns">
+                  <button
+                    className="btn primary"
+                    onClick={() => {
+                      setOnboarding(false);
+                      void send({ type: "submit", text: "Create a file named DXXPCODE.md in this project containing a one-sentence summary of what this project does." });
+                    }}
+                  >
+                    Write a summary file
+                  </button>
+                  <button className="btn" onClick={() => setOnboarding(false)}>Not now</button>
+                </div>
+                <p className="ob-hint">You'll approve the change before anything lands</p>
               </>
             )}
             {obStep === "key" && (
