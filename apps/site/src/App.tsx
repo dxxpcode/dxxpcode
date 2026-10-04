@@ -119,6 +119,18 @@ function LicenseGate({ children }: { children: ReactNode }) {
   );
   const [key, setKey] = useState("");
   const [state, setState] = useState<"idle" | "checking" | "invalid">("idle");
+  const [price, setPrice] = useState<number | null>(null);
+  const [ended, setEnded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/pricing", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d?.active?.price_cents === "number") setPrice(d.active.price_cents);
+        else if (d?.ended) setEnded(true);
+      })
+      .catch(() => {});
+  }, []);
 
   if (unlocked) return <div className="animate-gate-in">{children}</div>;
 
@@ -178,10 +190,16 @@ function LicenseGate({ children }: { children: ReactNode }) {
           </>
         ) : (
           <>
-            no key yet?{" "}
-            <a href="/pricing" className={quiet}>
-              $49 lifetime →
-            </a>
+            {ended ? (
+              <>sold out</>
+            ) : (
+              <>
+                no key yet?{" "}
+                <a href="/pricing" className={quiet}>
+                  {price === null ? "lifetime →" : `$${price / 100} lifetime →`}
+                </a>
+              </>
+            )}
           </>
         )}
       </p>
