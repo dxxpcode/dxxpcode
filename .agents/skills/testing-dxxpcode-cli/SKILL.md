@@ -52,3 +52,6 @@ SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 
 - Vercel PR previews are deployment-protected — don't rely on them. Build `apps/site` (`npm run build`), serve `dist/` statically, and add a tiny node shim for `/api/*` that proxies to `$UPSTASH_REDIS_REST_URL`: POST a JSON command array (e.g. `["HGETALL","tier:1"]`) with `authorization: Bearer $UPSTASH_REDIS_REST_TOKEN`; response is `{"result": ...}`.
 - `HGETALL` returns a flat array `[field, value, …]` over REST — convert to an object before field access.
 - Seed/cleanup test purchases: `["HSET","purchase:cs_test","consumed",1,"license_key","dxxp-live-…"]` + `["SET","license:dxxp-live-…","cs_test"]`, then `["DEL",…]` after.
+- Mock `delayMs` creates an observable interrupt window, but Escape may not cancel a pre-turn sleep — a delayed mock turn can run to completion despite focused Esc presses.
+- Webview clicks via xdotool intermittently miss buttons: retry with real-screen coordinates (crop → 2× → divide back) rather than assuming the click landed.
+- Relaunching the app into a fresh `DXXPCODE_HOME` re-shows onboarding — use "Skip for now"/"Just explore" to keep the mock env instead of re-walking the wizard.
