@@ -77,7 +77,7 @@ fn retryable(e: &ureq::Error) -> bool {
 fn send_retry(
     provider: &str,
     aborted: &Arc<AtomicBool>,
-    mut make: impl FnMut() -> Result<ureq::http::Response<ureq::Body>, ureq::Error>,
+    make: impl FnMut() -> Result<ureq::http::Response<ureq::Body>, ureq::Error> + Send + Clone + 'static,
 ) -> Result<ureq::http::Response<ureq::Body>, ProviderError> {
     let mut delay_ms = 1000u64;
     let mut last: Option<ureq::Error> = None;
@@ -85,7 +85,32 @@ fn send_retry(
         if aborted.load(Ordering::Relaxed) {
             return Err(ProviderError("aborted".into(), None));
         }
-        match make() {
+        // ureq's blocking call can't be cancelled mid-flight, so run it on a
+        // worker and poll `aborted` — esc lands during pre-token latency, not
+        // just once streaming starts. On abort the worker is detached and
+        // exits when the call returns or times out.
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut m = make.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(m());
+        });
+        let attempt_result = loop {
+            match rx.recv_timeout(std::time::Duration::from_millis(50)) {
+                Ok(r) => break r,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    if aborted.load(Ordering::Relaxed) {
+                        return Err(ProviderError("aborted".into(), None));
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    break Err(ureq::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "request worker died",
+                    )));
+                }
+            }
+        };
+        match attempt_result {
             Ok(resp) => return Ok(resp),
             Err(e) => {
                 if attempt >= MAX_ATTEMPTS || !retryable(&e) {
@@ -247,7 +272,7 @@ impl Provider {
             Self::Mock { script, turn } => {
                 let t = script.get(*turn).cloned();
                 *turn += 1;
-                mock_emit(t, emit);
+                mock_emit(t, emit, aborted);
                 Ok(())
             }
         }
@@ -290,12 +315,14 @@ fn anthropic_chat(
         body["thinking"] = json!({"type": "enabled", "budget_tokens": b});
     }
 
-    let mut resp = send_retry("Anthropic", aborted, || {
+    let key = key.to_string();
+    let body = body.to_string();
+    let mut resp = send_retry("Anthropic", aborted, move || {
         with_timeouts(agent().post("https://api.anthropic.com/v1/messages"))
             .header("content-type", "application/json")
-            .header("x-api-key", key)
+            .header("x-api-key", &key)
             .header("anthropic-version", "2023-06-01")
-            .send(body.to_string())
+            .send(body.clone())
     })?;
 
     let mut usage = Usage::default();
@@ -454,11 +481,14 @@ fn openai_chat(
         body["reasoning_effort"] = json!(e);
     }
 
-    let mut resp = send_retry("OpenAI", aborted, || {
-        with_timeouts(agent().post(&format!("{base_url}/chat/completions")))
+    let url = format!("{base_url}/chat/completions");
+    let auth = format!("Bearer {key}");
+    let body = body.to_string();
+    let mut resp = send_retry("OpenAI", aborted, move || {
+        with_timeouts(agent().post(&url))
             .header("content-type", "application/json")
-            .header("authorization", &format!("Bearer {key}"))
-            .send(body.to_string())
+            .header("authorization", &auth)
+            .send(body.clone())
     })?;
 
     let mut usage: Option<Usage> = None;
@@ -584,7 +614,17 @@ fn to_openai_messages(m: &crate::config::Message) -> Vec<Value> {
     vec![out]
 }
 
-fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
+/// Sleep in 50ms slices so esc can cancel a delayed mock turn.
+fn abortable_sleep(ms: u64, aborted: &Arc<AtomicBool>) {
+    for _ in 0..(ms / 50) {
+        if aborted.load(Ordering::Relaxed) {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent), aborted: &Arc<AtomicBool>) {
     let Some(t) = turn else {
         emit(ProviderEvent::Text("(mock: no scripted turn)".into()));
         emit(ProviderEvent::Done {
@@ -594,7 +634,10 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
         return;
     };
     if let Some(ms) = t.get("delayMs").and_then(|v| v.as_u64()) {
-        std::thread::sleep(std::time::Duration::from_millis(ms));
+        abortable_sleep(ms, aborted);
+    }
+    if aborted.load(Ordering::Relaxed) {
+        return;
     }
     if let Some(text) = t.get("think").and_then(|v| v.as_str()) {
         for chunk in text.as_bytes().chunks(24) {
@@ -603,7 +646,7 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
             ));
         }
         if let Some(ms) = t.get("thinkDelayMs").and_then(|v| v.as_u64()) {
-            std::thread::sleep(std::time::Duration::from_millis(ms));
+            abortable_sleep(ms, aborted);
         }
     }
     if let Some(text) = t.get("text").and_then(|v| v.as_str()) {
@@ -612,7 +655,10 @@ fn mock_emit(turn: Option<Value>, mut emit: impl FnMut(ProviderEvent)) {
                 String::from_utf8_lossy(chunk).to_string(),
             ));
             if let Some(ms) = t.get("chunkDelayMs").and_then(|v| v.as_u64()) {
-                std::thread::sleep(std::time::Duration::from_millis(ms));
+                abortable_sleep(ms, aborted);
+                if aborted.load(Ordering::Relaxed) {
+                    return;
+                }
             }
         }
     }
@@ -824,23 +870,25 @@ mod tests {
 
     #[test]
     fn send_retry_gives_up_after_max() {
-        let mut n = 0;
-        let err = send_retry("OpenAI", &flag(), || {
-            n += 1;
+        let n = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let n2 = Arc::clone(&n);
+        let err = send_retry("OpenAI", &flag(), move || {
+            n2.fetch_add(1, Ordering::Relaxed);
             Err(ureq::Error::StatusCode(503))
         })
         .unwrap_err();
-        assert_eq!(n, MAX_ATTEMPTS as usize);
+        assert_eq!(n.load(Ordering::Relaxed), MAX_ATTEMPTS as usize);
         assert!(err.to_string().contains("503"));
     }
 
     #[test]
     fn send_retry_no_retry_on_4xx() {
-        let mut n = 0;
-        let _ = send_retry("OpenAI", &flag(), || {
-            n += 1;
+        let n = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let n2 = Arc::clone(&n);
+        let _ = send_retry("OpenAI", &flag(), move || {
+            n2.fetch_add(1, Ordering::Relaxed);
             Err(ureq::Error::StatusCode(401))
         });
-        assert_eq!(n, 1);
+        assert_eq!(n.load(Ordering::Relaxed), 1);
     }
 }
