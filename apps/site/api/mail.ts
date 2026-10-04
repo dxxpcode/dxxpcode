@@ -1,6 +1,6 @@
 const RESEND_KEY = process.env.RESEND_API_KEY;
 const MAIL_FROM = process.env.RESEND_FROM ?? "DxxpCode <licenses@dxxp.codes>";
-const LOGO_URL = "https://dxxp.codes/email-logo.png";
+const LOGO_URL = "https://www.dxxp.codes/email-logo.png";
 
 export function mailReady() {
   return Boolean(RESEND_KEY);
