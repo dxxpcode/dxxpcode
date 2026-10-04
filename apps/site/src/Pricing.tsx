@@ -22,6 +22,9 @@ export default function Pricing() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [recoverEmail, setRecoverEmail] = useState("");
+  const [sent, setSent] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -92,6 +95,37 @@ export default function Pricing() {
           <p className="mt-3 text-[13px] text-muted-foreground">
             DxxpCode remains free during early access — <a className="text-foreground underline-offset-4 hover:underline" href="/">download</a>.
           </p>
+          <p className="mt-8 font-mono text-[11px] text-muted-foreground/60">
+            lost your key?{" "}
+            <button
+              onClick={() => setRecovering((v) => !v)}
+              className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              resend →
+            </button>
+          </p>
+          {recovering && (
+            <form
+              className="mt-3 flex items-center gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setSent(true);
+                await fetch(`/api/recover?email=${encodeURIComponent(recoverEmail)}`).catch(() => {});
+              }}
+            >
+              <input
+                type="email"
+                required
+                value={recoverEmail}
+                onChange={(e) => setRecoverEmail(e.target.value)}
+                placeholder="you@email.com"
+                className="h-8 w-48 rounded-md border border-border bg-transparent px-3 font-mono text-[12px] outline-none placeholder:text-muted-foreground/50 focus:border-foreground/40"
+              />
+              <button className="h-8 rounded-md border border-border px-3 font-mono text-[12px] text-muted-foreground transition-colors hover:text-foreground">
+                {sent ? "sent — check inbox" : "send"}
+              </button>
+            </form>
+          )}
         </>
       )}
 
@@ -169,6 +203,38 @@ export default function Pricing() {
           <p className="mt-8 max-w-xs text-[11px] leading-relaxed text-muted-foreground/70">
             The price rises only when a tier sells out — never on a timer.
           </p>
+
+          <p className="mt-6 font-mono text-[11px] text-muted-foreground/60">
+            lost your key?{" "}
+            <button
+              onClick={() => setRecovering((v) => !v)}
+              className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              resend →
+            </button>
+          </p>
+          {recovering && (
+            <form
+              className="mt-3 flex items-center gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setSent(true);
+                await fetch(`/api/recover?email=${encodeURIComponent(recoverEmail)}`).catch(() => {});
+              }}
+            >
+              <input
+                type="email"
+                required
+                value={recoverEmail}
+                onChange={(e) => setRecoverEmail(e.target.value)}
+                placeholder="you@email.com"
+                className="h-8 w-48 rounded-md border border-border bg-transparent px-3 font-mono text-[12px] outline-none placeholder:text-muted-foreground/50 focus:border-foreground/40"
+              />
+              <button className="h-8 rounded-md border border-border px-3 font-mono text-[12px] text-muted-foreground transition-colors hover:text-foreground">
+                {sent ? "sent — check inbox" : "send"}
+              </button>
+            </form>
+          )}
         </>
       )}
     </main>

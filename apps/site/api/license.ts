@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const h = toHash(await cmd("HGETALL", `purchase:${sessionId}`));
   return Response.json(
     {
-      valid: h.consumed === "1",
+      valid: h.consumed === "1" && h.refunded !== "1",
       tier_id: Number(h.tier_id ?? 0) || null,
       price_paid_cents: Number(h.price_paid_cents ?? 0) || null,
     },
