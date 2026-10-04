@@ -66,6 +66,75 @@ async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
         .map(|p| p.to_string()))
 }
 
+/// Pick a random image file in `dir` and return it as a data URL.
+#[tauri::command]
+fn art_image(dir: String) -> Result<serde_json::Value, String> {
+    let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    let mut files: Vec<std::path::PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            matches!(
+                p.extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.to_ascii_lowercase())
+                    .as_deref(),
+                Some("png" | "jpg" | "jpeg" | "webp" | "gif" | "avif")
+            )
+        })
+        .collect();
+    files.sort();
+    if files.is_empty() {
+        return Err("no images in that folder".into());
+    }
+    let idx = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as usize)
+        .unwrap_or(0))
+        % files.len();
+    let path = files[idx].clone();
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let mime = match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("png") => "image/png",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("avif") => "image/avif",
+        _ => "image/jpeg",
+    };
+    let data_url = format!(
+        "data:{};base64,{}",
+        mime,
+        base64_encode(&bytes)
+    );
+    Ok(serde_json::json!({
+        "path": path.to_string_lossy(),
+        "dataUrl": data_url,
+    }))
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len() * 4 / 3 + 4);
+    for c in bytes.chunks(3) {
+        let b = [c[0], *c.get(1).unwrap_or(&0), *c.get(2).unwrap_or(&0)];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        let pad = 3 - c.len();
+        for i in 0..4 {
+            out.push(if i >= 4 - pad {
+                '='
+            } else {
+                T[(n >> (18 - 6 * i) & 63) as usize] as char
+            });
+        }
+    }
+    out
+}
+
 fn cli_binary(app: &tauri::AppHandle) -> String {
     if let Ok(p) = std::env::var("DXXPCODE_BIN") {
         return p;
@@ -418,6 +487,7 @@ fn main() {
             pty_resize,
             ui_ready,
             pick_folder,
+            art_image,
             restart_sidecar,
             session_cwd,
             worker_start,
