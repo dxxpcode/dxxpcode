@@ -54,6 +54,7 @@
   to { opacity: 1; transform: none; }
 }
 .animate-gate-in { animation: gate-in 0.22s ease-out both; }
+.animate-gate-in-late { animation: gate-in 0.22s ease-out 0.08s both; }
 
 @layer components {
   .prose-site {

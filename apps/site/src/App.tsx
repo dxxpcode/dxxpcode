@@ -84,7 +84,7 @@ function DownloadButtons() {
         </div>
         <GitHubStars />
       </div>
-      <p className="mt-6 text-[13px] text-muted-foreground">
+      <p className="mt-6 animate-gate-in-late text-[13px] text-muted-foreground">
         Also available for{" "}
         {others.map((d, i) => (
           <span key={d.os}>
