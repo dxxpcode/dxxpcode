@@ -436,7 +436,9 @@ pub struct RunOpts<'a> {
     /// Chat mode: read-only toolset, no plan/approval phase.
     pub chat: bool,
     pub effort: Option<String>,
-    pub speed: Option<String>,
+    /// Active model-variant option bag — extra request-body fields each
+    /// provider picks the keys it understands.
+    pub variant_opts: Option<Value>,
     pub aborted: Arc<AtomicBool>,
     pub steer: &'a mut dyn FnMut() -> Option<String>,
     pub procs: tools::CtxProcTable,
@@ -746,7 +748,7 @@ fn stream_turn(
     messages: &mut Vec<Message>,
     phase: &str,
     effort: Option<&str>,
-    speed: Option<&str>,
+    provider_opts: Option<&Value>,
     aborted: &Arc<AtomicBool>,
     emit: &mut Emit<'_>,
 ) -> Result<(Vec<(String, String, Value)>, Option<Usage>), ProviderError> {
@@ -794,7 +796,7 @@ fn stream_turn(
             &tool_defs,
             model,
             effort,
-            speed,
+            provider_opts,
             aborted,
             |ev| {
                 *last_ev.lock().unwrap() = Instant::now();
@@ -965,7 +967,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             &mut session.messages,
             "plan",
             opts.effort.as_deref(),
-            opts.speed.as_deref(),
+            opts.variant_opts.as_ref(),
             &opts.aborted,
             emit,
         ) {
@@ -1153,7 +1155,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             &mut session.messages,
             if opts.chat { "chat" } else { "execute" },
             opts.effort.as_deref(),
-            opts.speed.as_deref(),
+            opts.variant_opts.as_ref(),
             &opts.aborted,
             emit,
         ) {

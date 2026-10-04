@@ -273,7 +273,8 @@ export default function App() {
                 provider: String(ev.provider),
                 model: String(ev.model),
                 effort: ev.effort as string | undefined,
-                speed: ev.speed as string | undefined,
+                variant: ev.variant as string | undefined,
+                variants: ev.variants as string[] | undefined,
                 mode: String(ev.mode),
               }
             : prev,
@@ -1031,11 +1032,11 @@ export default function App() {
                       onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
                     />
                     <SetSelect
-                      label="Speed"
-                      desc="Serving tier — faster output at premium pricing"
-                      value={ready.speed ?? "standard"}
-                      options={["standard", "fast", "ultra"]}
-                      onChange={(v) => void send({ type: "command", name: `/speed ${v}` })}
+                      label="Model variant"
+                      desc="Named request preset from your config.json variants"
+                      value={ready.variant ?? "default"}
+                      options={["default", ...(ready.variants ?? [])]}
+                      onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
                     />
                     <SetSelect
                       label="Approval mode"
@@ -1539,7 +1540,7 @@ export default function App() {
                 <ChevronDown size={11} />
               </button>
               <span className="subline-model">
-                {ready.model} · {ready.effort ?? "default"} · {ready.speed ?? "standard"}
+                {ready.model} · {ready.effort ?? "default"}{ready.variant ? ` · ${ready.variant}` : ""}
               </span>
             </div>
           )}

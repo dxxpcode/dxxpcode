@@ -35,8 +35,13 @@ pub struct Config {
     pub effort: Option<String>,
     #[serde(default, rename = "effortAuto")]
     pub effort_auto: Option<bool>,
+    /// Active model-variant name — indexes `variants`.
     #[serde(default)]
-    pub speed: Option<String>,
+    pub variant: Option<String>,
+    /// Named model variants: name → extra request-body fields each provider
+    /// picks the keys it understands (opencode-style `providerOptions`).
+    #[serde(default)]
+    pub variants: Option<std::collections::BTreeMap<String, Value>>,
     #[serde(default, rename = "maxIterations")]
     pub max_iterations: Option<u32>,
     #[serde(default, rename = "anthropicApiKey")]

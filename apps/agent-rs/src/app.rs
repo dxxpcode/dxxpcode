@@ -27,7 +27,10 @@ const COMMAND_LIST: &[(&str, &str)] = &[
     ("/settings", "approval mode, provider, model, effort"),
     ("/approval", "approval mode — ask, always, or smart (Jev)"),
     ("/effort", "reasoning effort for the next task"),
-    ("/speed", "serving speed tier — standard, fast, or ultra"),
+    (
+        "/variant",
+        "model variant — a named preset from your config",
+    ),
     (
         "/setup",
         "guided setup — provider, effort, optional Jev key",
@@ -56,24 +59,7 @@ const KNOWN_MODELS: &[(&str, &[&str])] = &[
         "anthropic",
         &["claude-opus-5-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
     ),
-    (
-        "openai",
-        &["gpt-6", "gpt-5.6-sol", "gpt-5", "gpt-5-mini", "gpt-4o"],
-    ),
-];
-
-/// Popular OpenAI-compatible endpoint models — offered when a custom
-/// `openaiBaseUrl` is set (OpenRouter, Groq, DeepSeek, Mistral, xAI, …).
-const COMPAT_EXTRA_MODELS: &[&str] = &[
-    "grok-4",
-    "grok-code-fast-1",
-    "gemini-3-pro",
-    "gemini-3-flash",
-    "deepseek-v3.2",
-    "deepseek-r1",
-    "qwen3-coder",
-    "kimi-k2.5",
-    "mistral-large-3",
+    ("openai", &["gpt-6", "gpt-5", "gpt-4o"]),
 ];
 
 fn emit(v: Value) {
@@ -148,7 +134,7 @@ pub struct AppDeps {
     pub provider: Provider,
     pub model: String,
     pub effort: Option<String>,
-    pub speed: Option<String>,
+    pub variant: Option<String>,
     pub project: ProjectInfo,
     pub root: String,
     pub session: Option<SessionRecord>,
@@ -165,7 +151,7 @@ pub struct Shared {
     pub provider_name: Mutex<String>,
     pub model: Mutex<String>,
     pub effort: Mutex<Option<String>>,
-    pub speed: Mutex<Option<String>>,
+    pub variant: Mutex<Option<String>>,
     pub auto_approve: AtomicBool,
     pub smart_mode: AtomicBool,
     pub mode: Mutex<String>,
@@ -196,7 +182,8 @@ impl Shared {
             "provider": *self.provider_name.lock().unwrap(),
             "model": *self.model.lock().unwrap(),
             "effort": if self.effort_auto() { "auto (Jev)".to_string() } else { self.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into()) },
-            "speed": self.speed.lock().unwrap().clone().unwrap_or_else(|| "standard".into()),
+            "variant": self.variant.lock().unwrap().clone().unwrap_or_else(|| "default".into()),
+            "variants": variant_names(),
             "mode": *self.mode.lock().unwrap(),
         }));
     }
@@ -328,7 +315,8 @@ fn open_model_menu(sh: &Arc<Shared>) {
         .map(|(_, m)| m.iter().map(|s| s.to_string()).collect())
         .unwrap_or_default();
     if name == "openai" && load_config().openai_base_url.is_some() {
-        fallback.extend(COMPAT_EXTRA_MODELS.iter().map(|s| s.to_string()));
+        fallback.push("grok-4".into());
+        fallback.push("gemini-3-pro".into());
     }
     let mut list = sh
         .provider
@@ -411,7 +399,8 @@ fn model_options(sh: &Arc<Shared>) -> Vec<String> {
         .map(|(_, m)| m.iter().map(|s| s.to_string()).collect())
         .unwrap_or_default();
     if name == "openai" && load_config().openai_base_url.is_some() {
-        fallback.extend(COMPAT_EXTRA_MODELS.iter().map(|s| s.to_string()));
+        fallback.push("grok-4".into());
+        fallback.push("gemini-3-pro".into());
     }
     let mut list = sh
         .provider
@@ -515,63 +504,79 @@ fn set_effort(sh: &Arc<Shared>, next: &str) {
     sh.emit_state();
 }
 
-const SPEED_TIERS: &[&str] = &["standard", "fast", "ultra"];
+/// Variant names from config (`variants.<name>`), sorted.
+fn variant_names() -> Vec<String> {
+    load_config()
+        .variants
+        .map(|v| v.keys().cloned().collect())
+        .unwrap_or_default()
+}
 
-fn open_speed_menu(sh: &Arc<Shared>) {
-    let provider = sh.provider_name.lock().unwrap().clone();
-    let descs = match provider.as_str() {
-        "anthropic" => [
-            "provider default speed and pricing",
-            "premium serving — up to ~2.5× output tokens/s (research preview)",
-            "no Anthropic ultra tier — clamps to fast",
-        ],
-        "openai" => [
-            "provider default speed and pricing",
-            "Fast mode — ~2.5× output speed, premium pricing",
-            "clamps to Fast mode (~2.5×) — OpenAI's fastest serving tier",
-        ],
-        _ => [
-            "provider default speed and pricing",
-            "fast serving where the provider supports it",
-            "fastest available — clamps to the provider's fastest tier",
-        ],
-    };
+/// The active variant's option bag (extra request-body fields), or None
+/// when `default` / unset / unknown.
+fn variant_opts(sh: &Arc<Shared>) -> Option<Value> {
+    let name = sh.variant.lock().unwrap().clone()?;
+    load_config().variants.and_then(|v| v.get(&name).cloned())
+}
+
+fn open_variant_menu(sh: &Arc<Shared>) {
+    let names = variant_names();
+    let mut opts = vec![json!({"label": "default", "desc": "no variant — plain provider request"})];
+    let cfg = load_config();
+    for n in &names {
+        let desc = cfg
+            .variants
+            .as_ref()
+            .and_then(|v| v.get(n))
+            .map(|o| {
+                o.as_object()
+                    .map(|m| {
+                        m.iter()
+                            .map(|(k, v)| format!("{k}={v}"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_else(|| o.to_string())
+            })
+            .unwrap_or_default();
+        opts.push(json!({"label": n, "desc": desc}));
+    }
     let cur = sh
-        .speed
+        .variant
         .lock()
         .unwrap()
         .clone()
-        .unwrap_or_else(|| "standard".into());
-    let current = SPEED_TIERS.iter().position(|o| *o == cur).unwrap_or(0);
+        .unwrap_or_else(|| "default".into());
+    let labels: Vec<String> = std::iter::once("default".to_string())
+        .chain(names.iter().cloned())
+        .collect();
+    let current = labels.iter().position(|o| *o == cur).unwrap_or(0);
     let Some(i) = sh.menu(
-        "Speed tier — applies to the next task",
-        labeled_options(SPEED_TIERS, Some(&descs)),
+        "Model variant — applies to the next task",
+        opts,
         Some(current),
     ) else {
         return;
     };
-    set_speed(sh, SPEED_TIERS[i]);
+    set_variant(sh, &labels[i]);
 }
 
-fn set_speed(sh: &Arc<Shared>, next: &str) {
-    if !SPEED_TIERS.contains(&next) {
-        emit_note(format!("unknown speed tier: {next}"));
+fn set_variant(sh: &Arc<Shared>, next: &str) {
+    if next != "default" && !variant_names().iter().any(|n| n == next) {
+        emit_note(format!(
+            "unknown variant: {next} — define it under \"variants\" in ~/.dxxpcode/config.json"
+        ));
         return;
     }
-    *sh.speed.lock().unwrap() = if next == "standard" {
+    *sh.variant.lock().unwrap() = if next == "default" {
         None
     } else {
         Some(next.to_string())
     };
     let mut cfg = load_config();
-    cfg.speed = sh.speed.lock().unwrap().clone();
+    cfg.variant = sh.variant.lock().unwrap().clone();
     save_config(&cfg);
-    let note = if next == "ultra" {
-        "speed: ultra (saved) — clamps to fast".to_string()
-    } else {
-        format!("speed: {next} (saved)")
-    };
-    emit_note(note);
+    emit_note(format!("variant: {next} (saved)"));
     sh.emit_state();
 }
 
@@ -965,7 +970,7 @@ fn open_settings_menu(sh: &Arc<Shared>) {
         1 => open_provider_menu(sh),
         2 => open_model_menu(sh),
         3 => open_effort_menu(sh),
-        4 => open_speed_menu(sh),
+        4 => open_variant_menu(sh),
         _ => {}
     }
 }
@@ -1177,14 +1182,14 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             Some(level) => set_effort(sh, level),
             None => open_effort_menu(sh),
         },
-        "/speed" => match raw
+        "/variant" => match raw
             .trim()
-            .get("/speed".len()..)
+            .get("/variant".len()..)
             .map(str::trim)
             .filter(|s| !s.is_empty())
         {
-            Some(tier) => set_speed(sh, tier),
-            None => open_speed_menu(sh),
+            Some(name) => set_variant(sh, name),
+            None => open_variant_menu(sh),
         },
         "/provider" | "/providers" => open_provider_menu(sh),
         "/setup" => run_onboarding(sh),
@@ -1505,7 +1510,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         session: session_for_run,
         chat,
         effort,
-        speed: sh.speed.lock().unwrap().clone(),
+        variant_opts: variant_opts(sh),
         aborted: Arc::clone(&sh.aborted),
         steer: &mut steer,
         procs: Arc::clone(&sh.procs),
@@ -1584,7 +1589,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         provider_name: Mutex::new(provider_label.clone()),
         model: Mutex::new(deps.model.clone()),
         effort: Mutex::new(deps.effort.clone()),
-        speed: Mutex::new(deps.speed.clone()),
+        variant: Mutex::new(deps.variant.clone()),
         auto_approve: AtomicBool::new(deps.auto_approve),
         smart_mode: AtomicBool::new(deps.smart_approve_mode),
         mode: Mutex::new(deps.mode.clone()),
@@ -1620,7 +1625,8 @@ pub fn run_app(deps: AppDeps) -> i32 {
         "provider": provider_label,
         "model": deps.model,
         "effort": deps.effort,
-        "speed": deps.speed,
+        "variant": deps.variant,
+        "variants": variant_names(),
         "mode": deps.mode,
         "commands": COMMAND_LIST.iter().map(|(n, d)| json!({"name": n, "desc": d})).collect::<Vec<_>>(),
         "needsSetup": needs_setup,

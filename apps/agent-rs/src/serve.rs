@@ -3,7 +3,7 @@
 //! Bind: 127.0.0.1 only. Every route requires `Authorization: Bearer <token>`;
 //! the token is auto-generated (0600) at ~/.dxxpcode/api-token on first run.
 //!
-//!   POST   /tasks                {prompt, cwd?, model?, effort?, speed?, mode?, autoApprove?}
+//!   POST   /tasks                {prompt, cwd?, model?, effort?, variant?, mode?, autoApprove?}
 //!   GET    /tasks                list
 //!   GET    /tasks/:id            status + result
 //!   GET    /tasks/:id/events     SSE stream of agent events (replays history)
@@ -236,12 +236,13 @@ fn spawn_task(srv: &Arc<Serve>, body: &Value) -> Result<Arc<TaskState>, String> 
         .and_then(|e| e.as_str())
         .map(String::from)
         .or_else(|| srv.cfg.effort.clone());
-    let speed = body
-        .get("speed")
+    let variant_opts = body
+        .get("variant")
         .and_then(|s| s.as_str())
         .map(String::from)
-        .or_else(|| srv.cfg.speed.clone())
-        .filter(|s| s != "standard");
+        .or_else(|| srv.cfg.variant.clone())
+        .filter(|s| s != "default")
+        .and_then(|n| srv.cfg.variants.as_ref().and_then(|v| v.get(&n).cloned()));
     let model_override = body.get("model").and_then(|m| m.as_str()).map(String::from);
     let auto = body
         .get("autoApprove")
@@ -311,7 +312,7 @@ fn spawn_task(srv: &Arc<Serve>, body: &Value) -> Result<Arc<TaskState>, String> 
             session: None,
             chat,
             effort,
-            speed,
+            variant_opts,
             aborted,
             steer: &mut steer,
             procs,

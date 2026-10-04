@@ -263,16 +263,33 @@ impl Provider {
         tools: &[Value],
         model: &str,
         effort: Option<&str>,
-        speed: Option<&str>,
+        provider_opts: Option<&Value>,
         aborted: &Arc<AtomicBool>,
         mut emit: impl FnMut(ProviderEvent),
     ) -> Result<(), ProviderError> {
         match self {
             Self::Anthropic { key } => anthropic_chat(
-                key, system, messages, tools, model, effort, speed, aborted, &mut emit,
+                key,
+                system,
+                messages,
+                tools,
+                model,
+                effort,
+                provider_opts,
+                aborted,
+                &mut emit,
             ),
             Self::OpenAi { key, base_url } => openai_chat(
-                key, base_url, system, messages, tools, model, effort, speed, aborted, &mut emit,
+                key,
+                base_url,
+                system,
+                messages,
+                tools,
+                model,
+                effort,
+                provider_opts,
+                aborted,
+                &mut emit,
             ),
             Self::Mock { script, turn } => {
                 let t = script.get(*turn).cloned();
@@ -300,7 +317,7 @@ fn anthropic_chat(
     tools: &[Value],
     model: &str,
     effort: Option<&str>,
-    speed: Option<&str>,
+    provider_opts: Option<&Value>,
     aborted: &Arc<AtomicBool>,
     emit: &mut dyn FnMut(ProviderEvent),
 ) -> Result<(), ProviderError> {
@@ -320,11 +337,14 @@ fn anthropic_chat(
     if let Some(b) = budget {
         body["thinking"] = json!({"type": "enabled", "budget_tokens": b});
     }
-    // Fast mode (research preview): same weights, faster serving. Anthropic
-    // has no ultra tier — clamp it to fast.
-    let fast = matches!(speed, Some("fast") | Some("ultra"));
-    if fast {
-        body["speed"] = json!("fast");
+    // Model-variant options: Anthropic understands `speed` — "fast"
+    // enables fast mode (same weights, ~2.5× output, premium pricing,
+    // requires the beta header); other values pass through as-is.
+    let fast = provider_opts
+        .and_then(|o| o.get("speed"))
+        .is_some_and(|v| v.as_str() == Some("fast"));
+    if let Some(v) = provider_opts.and_then(|o| o.get("speed")) {
+        body["speed"] = v.clone();
     }
 
     let key = key.to_string();
@@ -484,7 +504,7 @@ fn openai_chat(
     tools: &[Value],
     model: &str,
     effort: Option<&str>,
-    speed: Option<&str>,
+    provider_opts: Option<&Value>,
     aborted: &Arc<AtomicBool>,
     emit: &mut dyn FnMut(ProviderEvent),
 ) -> Result<(), ProviderError> {
@@ -505,16 +525,12 @@ fn openai_chat(
     if let Some(e) = effort {
         body["reasoning_effort"] = json!(e);
     }
-    // Service tier: OpenAI renamed Priority to Fast mode — "fast" is the
-    // canonical value ("priority" remains an alias). There is no tier
-    // faster than Fast, so ultra clamps to fast. Off api.openai.com we
-    // send "priority", the more widely understood alias.
-    if matches!(speed, Some("fast") | Some("ultra")) {
-        body["service_tier"] = json!(if base_url.starts_with("https://api.openai.com") {
-            "fast"
-        } else {
-            "priority"
-        });
+    // Model-variant options: OpenAI-compatible endpoints understand
+    // `service_tier` — passed through verbatim (e.g. "fast" = Fast mode,
+    // "priority" = the older alias; unsupported values are the provider's
+    // problem, as in opencode).
+    if let Some(v) = provider_opts.and_then(|o| o.get("service_tier")) {
+        body["service_tier"] = v.clone();
     }
 
     let url = format!("{base_url}/chat/completions");
