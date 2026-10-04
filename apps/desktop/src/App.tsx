@@ -884,7 +884,7 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className={artSrc ? "app has-art" : "app"}>
       {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
         <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
