@@ -7,7 +7,7 @@ import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Card, CardContent, CardFooter, CardHeader } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelRight } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -70,6 +70,9 @@ export default function App() {
   const [modelOpts, setModelOpts] = useState<string[]>([]);
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [dlog, setDlog] = useState<{ id: number; head: string; text: string; pending?: boolean; status?: boolean }[]>([]);
+  const dlogId = useRef(0);
   const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
   // In-app updates: checked once on launch, downloaded in the background,
   // then surfaced as a restart row in Settings → About.
@@ -255,6 +258,7 @@ export default function App() {
         // A fresh ready = respawned sidecar (project switch) or first boot —
         // reset the transcript so the new session starts clean.
         setItems([]);
+        setDlog([]);
         setApprovals([]);
         setSessionInfo({ id: null, tokens: 0 });
         setChatMode(false);
@@ -337,9 +341,15 @@ export default function App() {
         }
         break;
       }
-      case "status":
-        setStatus(String(ev.message));
+      case "status": {
+        const msg = String(ev.message);
+        setStatus(msg);
+        setDlog((prev) => [
+          ...prev.slice(-199),
+          { id: ++dlogId.current, head: "status", text: msg, status: true },
+        ]);
         break;
+      }
       case "think":
         appendThink(String(ev.text));
         break;
@@ -395,13 +405,19 @@ export default function App() {
       case "plan":
         push({ k: "plan", plan: ev.plan as Plan });
         break;
-      case "tool_start":
+      case "tool_start": {
+        const head = `${String(ev.tool)} ${toolArg((ev.input as Record<string, unknown>) ?? {})}`;
         push({
           k: "tool", tool: String(ev.tool),
           arg: toolArg((ev.input as Record<string, unknown>) ?? {}),
           pending: true, startedAt: Date.now(),
         });
+        setDlog((prev) => [
+          ...prev.slice(-199),
+          { id: ++dlogId.current, head, text: "", pending: true },
+        ]);
         break;
+      }
       case "tool_delta": {
         // Live partial output from a running tool (e.g. run_command).
         const delta = String(ev.text);
@@ -412,6 +428,16 @@ export default function App() {
             if (it.k === "tool" && it.pending && it.tool === ev.tool) {
               next[i] = { ...it, out: (it.out ?? "") + delta };
               return next;
+            }
+          }
+          return next;
+        });
+        setDlog((prev) => {
+          const next = [...prev];
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].pending && !next[i].status) {
+              next[i] = { ...next[i], text: next[i].text + delta };
+              break;
             }
           }
           return next;
@@ -427,6 +453,16 @@ export default function App() {
             if (it.k === "tool" && it.pending && it.tool === ev.tool) {
               next[i] = { ...it, pending: false, out: res.content, isError: res.isError, diff: res.diff };
               return next;
+            }
+          }
+          return next;
+        });
+        setDlog((prev) => {
+          const next = [...prev];
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].pending && !next[i].status) {
+              next[i] = { ...next[i], pending: false, text: res.content ?? "" };
+              break;
             }
           }
           return next;
@@ -803,6 +839,9 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (ready) setPalOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "`") {
+        e.preventDefault();
+        setDetailsOpen((v) => !v);
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
       }
@@ -962,6 +1001,17 @@ export default function App() {
           <Logo className="logo-mark" />
         </div>
         <span className="spacer" />
+        {ready && (
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Details — raw tool I/O and status log (⌘`)"
+            data-active={detailsOpen || undefined}
+            onClick={() => setDetailsOpen((v) => !v)}
+          >
+            <PanelRight size={15} />
+          </Button>
+        )}
         {ready && !IS_MAC && (
           <div className="hact">
             <Button variant="ghost" size="icon" title="Minimize" onClick={() => void win.minimize()}>
@@ -1547,6 +1597,25 @@ export default function App() {
         </div>
       </div>
       </div>
+      {detailsOpen && (
+        <aside className="drail">
+          <div className="drail-head">
+            <span className="drail-title">Details</span>
+            <Button variant="ghost" size="icon" title="Close details" onClick={() => setDetailsOpen(false)}>
+              <X size={13} />
+            </Button>
+          </div>
+          <ScrollArea className="drail-body">
+            {dlog.length === 0 && <div className="drail-empty">Tool output and status log appear here.</div>}
+            {dlog.map((e) => (
+              <div key={e.id} className={`drail-entry${e.status ? " status" : ""}`}>
+                <div className="drail-line">{e.head}</div>
+                {e.text && <pre className="drail-out">{e.text}</pre>}
+              </div>
+            ))}
+          </ScrollArea>
+        </aside>
+      )}
     </div>
   );
 }
