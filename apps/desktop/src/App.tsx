@@ -144,11 +144,6 @@ export default function App() {
   }, []);
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark" | "system" | null>(null);
   const shownTheme = previewTheme ?? theme;
-  const dark = shownTheme === "system" ? sysDark : shownTheme === "dark";
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("theme", theme);
-  }, [dark, theme]);
   const [artDir, setArtDir] = useState(() => localStorage.getItem("artDir") ?? "");
   const [artSrc, setArtSrc] = useState<string | null>(null);
   useEffect(() => {
@@ -159,6 +154,11 @@ export default function App() {
       .then((r) => setArtSrc(r.dataUrl))
       .catch(() => {});
   }, [artDir]);
+  const dark = artSrc != null || (shownTheme === "system" ? sysDark : shownTheme === "dark");
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    localStorage.setItem("theme", theme);
+  }, [dark, theme]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1066,11 +1066,12 @@ export default function App() {
                   <div className="setgroup-title">Appearance</div>
                   <div className="setlist">
                     <div className="setrow static">
-                      <span className="setlabel">Theme<span className="setdesc">Follow the OS, or force light or dark — hover to preview</span></span>
+                      <span className="setlabel">Theme<span className="setdesc">{artSrc ? "Dark while art is set — the backdrop is the theme" : "Follow the OS, or force light or dark — hover to preview"}</span></span>
                       <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
                         {(["system", "light", "dark"] as const).map((t) => (
                           <button
                             key={t}
+                            disabled={artSrc != null}
                             className={`modeseg-btn${theme === t ? " cur" : ""}`}
                             onMouseEnter={() => setPreviewTheme(t)}
                             onClick={() => { setTheme(t); setPreviewTheme(null); }}

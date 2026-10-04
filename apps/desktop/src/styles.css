@@ -189,6 +189,8 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .eff-pill:hover { color: var(--text); border-color: var(--faint); }
 .eff-pill.cur { color: var(--text); font-weight: 600; background: var(--surface); border-color: var(--text); box-shadow: var(--shadow-sm); }
+.eff-pill:disabled { opacity: 0.45; cursor: default; }
+.eff-pill:disabled:hover { color: var(--dim); border-color: var(--border); }
 .theme-opts { display: flex; gap: 5px; }
 .theme-opts .eff-pill { padding: 3px 10px; font-size: 10.5px; }
 /* Frameless window: header is the drag surface (via data-tauri-drag-region) */
@@ -786,11 +788,19 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   pointer-events: none;
 }
 .art-bg::after {
+  /* Chrome scrim only where UI must stay readable: hairline under the header,
+     and a soft gradient behind the composer/statusline. The art itself is untouched. */
   content: "";
   position: absolute;
   inset: 0;
-  background: var(--bg);
-  opacity: 0.82;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.3) 0,
+    rgba(0, 0, 0, 0.3) 41px,
+    transparent 41px,
+    transparent 78%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
 }
 .hero-mark { width: 44px; height: auto; color: var(--faint); margin-bottom: 6px; }
 .hero-title {
