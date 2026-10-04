@@ -7,7 +7,7 @@ import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Card, CardContent, CardFooter, CardHeader } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -79,6 +79,11 @@ export default function App() {
       .catch(() => {});
   }, []);
   const [sessionInfo, setSessionInfo] = useState<{ id: string | null; tokens: number }>({ id: null, tokens: 0 });
+  // Backlog of prompts typed while a run was active — each becomes its own
+  // session once the current run finishes. Persisted per project.
+  const [queue, setQueue] = useState<string[]>([]);
+  const queueRef = useRef<string[]>([]);
+  const lastDone = useRef<string | null>(null);
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
   const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project">("welcome");
@@ -459,6 +464,7 @@ export default function App() {
             return next;
           });
         }
+        lastDone.current = r.status;
         push({
           k: "done", status: r.status, summary: r.summary ?? "",
           filesChanged: r.filesChanged ?? [],
@@ -467,14 +473,26 @@ export default function App() {
         });
         break;
       }
-      case "idle":
+      case "idle": {
         if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
         stopRate();
         setRunning(false);
         setStatus(null);
+        // Auto-start the queued backlog as fresh sessions — but not after a
+        // cancellation: esc means stop, not advance.
+        if (lastDone.current === "completed" && queueRef.current.length > 0) {
+          const [next, ...rest] = queueRef.current;
+          setQueue(rest);
+          setTimeout(() => {
+            cmd("/new");
+            push({ k: "note", text: `queued: ${next}` });
+            setTimeout(() => void send({ type: "submit", text: next }), 120);
+          }, 120);
+        }
         break;
+      }
       case "usage":
         break;
     }
@@ -517,6 +535,25 @@ export default function App() {
     const el = scrollRef.current;
     if (el && stickBottom.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [items, approvals, status]);
+
+  // Queue persistence: one localStorage key per project, loaded on project
+  // switch; queueRef mirrors state so the idle handler can read it synchronously.
+  const queueKey = ready ? `dxxp_queue:${ready.project.name}` : null;
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+  useEffect(() => {
+    if (queueKey) {
+      const saved = JSON.parse(localStorage.getItem(queueKey) ?? "[]") as string[];
+      setQueue(saved);
+      queueRef.current = saved;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueKey]);
+  useEffect(() => {
+    if (queueKey) localStorage.setItem(queueKey, JSON.stringify(queue));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueKey, queue]);
 
   // Ask the CLI for @mention completions whenever the fragment changes.
   useEffect(() => {
@@ -564,6 +601,16 @@ export default function App() {
     }
     if (text === "/settings") {
       setSettingsOpen(true);
+      return;
+    }
+    if (running && !text.startsWith("/")) {
+      // Typed during a run → backlog, not an in-session steer. /steer is the
+      // escape hatch for the old inject-mid-run behavior.
+      setQueue((q) => [...q, text]);
+      return;
+    }
+    if (running && text.startsWith("/steer")) {
+      void send({ type: "submit", text: text.slice(6).trim() });
       return;
     }
     void send({ type: "submit", text });
@@ -670,11 +717,23 @@ export default function App() {
     return groups;
   })();
   const palRows = sessionGroups.flatMap(([, g]) => g);
+  // Queued backlog shows above session history — picking one loads it into the
+  // composer for editing and drops it from the queue.
+  const palQueueRows = queue
+    .map((text, i) => ({ text, i }))
+    .filter((r) => !palQuery || r.text.toLowerCase().includes(palQuery.trim().toLowerCase()));
   const palPick = (idx: number) => {
     setPalOpen(false);
     if (idx === 0) cmd("/new");
-    else {
-      const s = palRows[idx - 1];
+    else if (idx <= palQueueRows.length) {
+      const r = palQueueRows[idx - 1];
+      if (r) {
+        setQueue((q) => q.filter((_, j) => j !== r.i));
+        setInput(r.text);
+        taRef.current?.focus();
+      }
+    } else {
+      const s = palRows[idx - 1 - palQueueRows.length];
       if (s) void send({ type: "resume", id: s.id });
     }
   };
@@ -694,7 +753,7 @@ export default function App() {
                 onChange={(e) => { setPalQuery(e.target.value); setPalIdx(0); }}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setPalOpen(false);
-                  else if (e.key === "ArrowDown") { e.preventDefault(); setPalIdx((i) => Math.min(i + 1, palRows.length)); }
+                  else if (e.key === "ArrowDown") { e.preventDefault(); setPalIdx((i) => Math.min(i + 1, palRows.length + palQueueRows.length)); }
                   else if (e.key === "ArrowUp") { e.preventDefault(); setPalIdx((i) => Math.max(i - 1, 0)); }
                   else if (e.key === "Enter") { e.preventDefault(); palPick(palIdx); }
                 }}
@@ -712,6 +771,28 @@ export default function App() {
                 <Plus size={13} />
                 <span>New session</span>
               </Button>
+              {palQueueRows.length > 0 && (
+                <div>
+                  <div className="pal-group-label">Queued</div>
+                  {palQueueRows.map((r, k) => {
+                    const idx = k + 1;
+                    return (
+                      <Button
+                        key={`q-${r.i}`}
+                        variant="ghost"
+                        data-active={palIdx === idx || undefined}
+                        title={r.text}
+                        className="pal-row"
+                        onMouseEnter={() => setPalIdx(idx)}
+                        onClick={() => palPick(idx)}
+                      >
+                        <ListEnd size={13} />
+                        <span className="truncate">{r.text}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
               {sessionGroups.length === 0 && <p className="pal-empty">{palQuery ? "No matches." : "No sessions in this project yet."}</p>}
               {(() => {
                 let row = 0;
@@ -719,7 +800,7 @@ export default function App() {
                   <div key={label}>
                     <div className="pal-group-label">{label}</div>
                     {group.map((s) => {
-                      const idx = ++row;
+                      const idx = ++row + palQueueRows.length;
                       return (
                         <Button
                           key={s.id}
@@ -1163,6 +1244,23 @@ export default function App() {
                 <span className="mono pcmd">{f.name}</span>
                 <span className="pdesc">{f.desc}</span>
               </button>
+            ))}
+          </div>
+        )}
+        {queue.length > 0 && (
+          <div className="queuelist">
+            {queue.map((text, i) => (
+              <div className="queuerow" key={`${i}-${text.slice(0, 12)}`}>
+                <span className="qlabel mono">{i === 0 ? "next" : `+${i}`}</span>
+                <span className="qtext truncate">{text}</span>
+                <button
+                  className="qdrop"
+                  title="Drop from queue"
+                  onClick={() => setQueue((q) => q.filter((_, j) => j !== i))}
+                >
+                  <X size={11} />
+                </button>
+              </div>
             ))}
           </div>
         )}
