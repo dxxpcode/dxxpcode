@@ -55,3 +55,9 @@ SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 
 - Mock `delayMs` creates an observable interrupt window, but Escape may not cancel a pre-turn sleep — a delayed mock turn can run to completion despite focused Esc presses.
 - Webview clicks via xdotool intermittently miss buttons: retry with real-screen coordinates (crop → 2× → divide back) rather than assuming the click landed.
 - Relaunching the app into a fresh `DXXPCODE_HOME` re-shows onboarding — use "Skip for now"/"Just explore" to keep the mock env instead of re-walking the wizard.
+
+### Worker / parallel-task testing notes
+- Worktree workers spawn their own `--app` sidecar rooted at `.dxxpcode/trees/w<N>` — use a `DXXPCODE_BIN` wrapper script that picks the mock script by `$(pwd)` (worktree→worker script, main→slow script).
+- Worker sidecars run `--yes` (always-approve) so no `approvalMode` config seeding is needed for worker tests; they cannot answer approval prompts by design.
+- `.qdrop`/`.wact` row-action icons are `opacity:0` until `:hover` — temporarily set `opacity:1` in styles.css (vite HMR picks it up) for reliable clicking, then revert.
+- Composer row action icons sit at the far-right edge of the window (~x3100 at 3200px width), not adjacent to the row text.

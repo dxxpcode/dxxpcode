@@ -546,6 +546,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .queuerow:hover .qdrop { opacity: 1; }
 .queuerow .qdrop:hover { color: var(--text); }
+.workerrow .wstatus { max-width: 40%; color: var(--faint); }
+.queuerow .wact {
+  flex-shrink: 0; font-family: var(--font-mono); font-size: 11px;
+  color: var(--dim); background: none; border: none; cursor: pointer;
+  padding: 2px 4px; border-radius: 4px;
+}
+.queuerow .wact:hover { color: var(--text); background: var(--surface2); }
 .inputbox {
   display: flex; flex-direction: column; gap: 8px;
   background: transparent;
