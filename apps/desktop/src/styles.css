@@ -789,18 +789,41 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 }
 .art-bg::after {
   /* Chrome scrim only where UI must stay readable: hairline under the header,
-     and a soft gradient behind the composer/statusline. The art itself is untouched. */
+     a soft gradient behind the composer/statusline, and a radial pool behind
+     the hero/transcript so text survives light artwork. Art stays full-bleed
+     at the edges. */
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.3) 0,
-    rgba(0, 0, 0, 0.3) 41px,
-    transparent 41px,
-    transparent 78%,
-    rgba(0, 0, 0, 0.4) 100%
-  );
+  background:
+    radial-gradient(ellipse 105% 85% at 50% 42%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.28) 60%, transparent 82%),
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.35) 0,
+      rgba(0, 0, 0, 0.35) 41px,
+      transparent 41px,
+      transparent 68%,
+      rgba(0, 0, 0, 0.55) 100%
+    );
+}
+/* When art is the backdrop, small chrome text gets a shadow and the faint/dim
+   grays lift toward white so they read over any image luminance. */
+.app.has-art {
+  --faint: rgba(255, 255, 255, 0.55);
+  --dim: rgba(255, 255, 255, 0.8);
+}
+.app.has-art .hero,
+.app.has-art .transcript,
+.app.has-art .statusline,
+.app.has-art .composer {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.75), 0 0 4px rgba(0, 0, 0, 0.5);
+}
+.app.has-art .hero-mark,
+.app.has-art .logo-mark,
+.app.has-art .hero-proj svg,
+.app.has-art .sendhint,
+.app.has-art .prompt-glyph {
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.65));
 }
 .hero-mark { width: 44px; height: auto; color: var(--faint); margin-bottom: 6px; }
 .hero-title {
