@@ -13,6 +13,22 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, TOOL_FAMILY, TOOL_ICONS, toolArg } from "./types";
+import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
+import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
+import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
+import artWanderer from "./assets/art/wanderer_friedrich.jpg";
+import artWaterLilies from "./assets/art/waterlilies_monet.jpg";
+import artRedFuji from "./assets/art/red-fuji_hokusai.jpg";
+
+// Curated built-in art backdrops — all public domain.
+const ART_PIECES = [
+  { id: "starry-night", title: "Starry Night", artist: "Vincent van Gogh", src: artStarryNight },
+  { id: "great-wave", title: "The Great Wave off Kanagawa", artist: "Katsushika Hokusai", src: artGreatWave },
+  { id: "ohashi-rain", title: "Sudden Shower over Shin-Ōhashi Bridge", artist: "Utagawa Hiroshige", src: artOhashiRain },
+  { id: "wanderer", title: "Wanderer above the Sea of Fog", artist: "Caspar David Friedrich", src: artWanderer },
+  { id: "water-lilies", title: "Water Lilies", artist: "Claude Monet", src: artWaterLilies },
+  { id: "red-fuji", title: "Fine Wind, Clear Morning", artist: "Katsushika Hokusai", src: artRedFuji },
+];
 
 marked.setOptions({ breaks: true, gfm: true });
 const md = (t: string) => ({ __html: marked.parse(t, { async: false }) });
@@ -144,16 +160,29 @@ export default function App() {
   }, []);
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark" | "system" | null>(null);
   const shownTheme = previewTheme ?? theme;
+  const [artPiece, setArtPiece] = useState(() => localStorage.getItem("artPiece") ?? "");
   const [artDir, setArtDir] = useState(() => localStorage.getItem("artDir") ?? "");
   const [artSrc, setArtSrc] = useState<string | null>(null);
   useEffect(() => {
+    const piece = ART_PIECES.find((p) => p.id === artPiece);
+    localStorage.setItem("artPiece", piece ? artPiece : "");
     localStorage.setItem("artDir", artDir);
+    if (piece) {
+      setArtSrc(piece.src);
+      return;
+    }
     setArtSrc(null);
     if (!artDir) return;
     invoke<{ dataUrl: string }>("art_image", { dir: artDir })
       .then((r) => setArtSrc(r.dataUrl))
       .catch(() => {});
-  }, [artDir]);
+  }, [artPiece, artDir]);
+  const artLabel = artPiece
+    ? (ART_PIECES.find((p) => p.id === artPiece)?.title ?? artPiece)
+    : artDir
+      ? (artDir.split("/").filter(Boolean).pop() ?? "Folder")
+      : "";
+  const artDirLabel = artDir.split("/").filter(Boolean).pop() ?? "";
   const dark = artSrc != null || (shownTheme === "system" ? sysDark : shownTheme === "dark");
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -1081,14 +1110,30 @@ export default function App() {
                         ))}
                       </span>
                     </div>
+                    <div className="setrow static artsect">
+                      <span className="setlabel">Art<span className="setdesc">Pick a backdrop — or use your own image folder</span></span>
+                    </div>
+                    <div className="artgrid">
+                      {ART_PIECES.map((p) => (
+                        <button
+                          key={p.id}
+                          className={`artthumb${artPiece === p.id ? " cur" : ""}`}
+                          title={`${p.title} — ${p.artist}`}
+                          onClick={() => setArtPiece(artPiece === p.id ? "" : p.id)}
+                        >
+                          <img src={p.src} alt={p.title} />
+                          <span className="artthumb-name">{p.title}</span>
+                        </button>
+                      ))}
+                    </div>
                     <SetRow
-                      label="Art"
-                      desc="Use an image folder as the window backdrop"
-                      value={artDir ? (artDir.split("/").filter(Boolean).pop() ?? "") : "None"}
-                      onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) setArtDir(dir); })}
+                      label="Custom folder"
+                      desc="Use your own image folder as the backdrop"
+                      value={artDirLabel || "None"}
+                      onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } })}
                     />
-                    {artDir && (
-                      <SetAction label="Clear art" desc="Stop showing artwork as the backdrop" onClick={() => setArtDir("")} />
+                    {artLabel && (
+                      <SetAction label="Clear art" desc="Stop showing artwork as the backdrop" onClick={() => { setArtPiece(""); setArtDir(""); }} />
                     )}
                   </div>
                 </div>
