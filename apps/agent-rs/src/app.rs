@@ -27,6 +27,7 @@ const COMMAND_LIST: &[(&str, &str)] = &[
     ("/settings", "approval mode, provider, model, effort"),
     ("/approval", "approval mode — ask, always, or smart (Jev)"),
     ("/effort", "reasoning effort for the next task"),
+    ("/speed", "serving speed tier — standard, fast, or ultra"),
     (
         "/setup",
         "guided setup — provider, effort, optional Jev key",
@@ -55,7 +56,24 @@ const KNOWN_MODELS: &[(&str, &[&str])] = &[
         "anthropic",
         &["claude-opus-5-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
     ),
-    ("openai", &["gpt-6", "gpt-5", "gpt-4o"]),
+    (
+        "openai",
+        &["gpt-6", "gpt-5.6-sol", "gpt-5", "gpt-5-mini", "gpt-4o"],
+    ),
+];
+
+/// Popular OpenAI-compatible endpoint models — offered when a custom
+/// `openaiBaseUrl` is set (OpenRouter, Groq, DeepSeek, Mistral, xAI, …).
+const COMPAT_EXTRA_MODELS: &[&str] = &[
+    "grok-4",
+    "grok-code-fast-1",
+    "gemini-3-pro",
+    "gemini-3-flash",
+    "deepseek-v3.2",
+    "deepseek-r1",
+    "qwen3-coder",
+    "kimi-k2.5",
+    "mistral-large-3",
 ];
 
 fn emit(v: Value) {
@@ -130,6 +148,7 @@ pub struct AppDeps {
     pub provider: Provider,
     pub model: String,
     pub effort: Option<String>,
+    pub speed: Option<String>,
     pub project: ProjectInfo,
     pub root: String,
     pub session: Option<SessionRecord>,
@@ -146,6 +165,7 @@ pub struct Shared {
     pub provider_name: Mutex<String>,
     pub model: Mutex<String>,
     pub effort: Mutex<Option<String>>,
+    pub speed: Mutex<Option<String>>,
     pub auto_approve: AtomicBool,
     pub smart_mode: AtomicBool,
     pub mode: Mutex<String>,
@@ -176,6 +196,7 @@ impl Shared {
             "provider": *self.provider_name.lock().unwrap(),
             "model": *self.model.lock().unwrap(),
             "effort": if self.effort_auto() { "auto (Jev)".to_string() } else { self.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into()) },
+            "speed": self.speed.lock().unwrap().clone().unwrap_or_else(|| "standard".into()),
             "mode": *self.mode.lock().unwrap(),
         }));
     }
@@ -307,8 +328,7 @@ fn open_model_menu(sh: &Arc<Shared>) {
         .map(|(_, m)| m.iter().map(|s| s.to_string()).collect())
         .unwrap_or_default();
     if name == "openai" && load_config().openai_base_url.is_some() {
-        fallback.push("grok-4".into());
-        fallback.push("gemini-3-pro".into());
+        fallback.extend(COMPAT_EXTRA_MODELS.iter().map(|s| s.to_string()));
     }
     let mut list = sh
         .provider
@@ -391,8 +411,7 @@ fn model_options(sh: &Arc<Shared>) -> Vec<String> {
         .map(|(_, m)| m.iter().map(|s| s.to_string()).collect())
         .unwrap_or_default();
     if name == "openai" && load_config().openai_base_url.is_some() {
-        fallback.push("grok-4".into());
-        fallback.push("gemini-3-pro".into());
+        fallback.extend(COMPAT_EXTRA_MODELS.iter().map(|s| s.to_string()));
     }
     let mut list = sh
         .provider
@@ -493,6 +512,66 @@ fn set_effort(sh: &Arc<Shared>, next: &str) {
         save_config(&cfg);
         emit_note(format!("reasoning effort: {next} (saved)"));
     }
+    sh.emit_state();
+}
+
+const SPEED_TIERS: &[&str] = &["standard", "fast", "ultra"];
+
+fn open_speed_menu(sh: &Arc<Shared>) {
+    let provider = sh.provider_name.lock().unwrap().clone();
+    let descs = match provider.as_str() {
+        "anthropic" => [
+            "provider default speed and pricing",
+            "premium serving — up to ~2.5× output tokens/s (research preview)",
+            "no Anthropic ultra tier — clamps to fast",
+        ],
+        "openai" => [
+            "provider default speed and pricing",
+            "Fast mode — ~2.5× output speed, premium pricing",
+            "clamps to Fast mode (~2.5×) — OpenAI's fastest serving tier",
+        ],
+        _ => [
+            "provider default speed and pricing",
+            "fast serving where the provider supports it",
+            "fastest available — clamps to the provider's fastest tier",
+        ],
+    };
+    let cur = sh
+        .speed
+        .lock()
+        .unwrap()
+        .clone()
+        .unwrap_or_else(|| "standard".into());
+    let current = SPEED_TIERS.iter().position(|o| *o == cur).unwrap_or(0);
+    let Some(i) = sh.menu(
+        "Speed tier — applies to the next task",
+        labeled_options(SPEED_TIERS, Some(&descs)),
+        Some(current),
+    ) else {
+        return;
+    };
+    set_speed(sh, SPEED_TIERS[i]);
+}
+
+fn set_speed(sh: &Arc<Shared>, next: &str) {
+    if !SPEED_TIERS.contains(&next) {
+        emit_note(format!("unknown speed tier: {next}"));
+        return;
+    }
+    *sh.speed.lock().unwrap() = if next == "standard" {
+        None
+    } else {
+        Some(next.to_string())
+    };
+    let mut cfg = load_config();
+    cfg.speed = sh.speed.lock().unwrap().clone();
+    save_config(&cfg);
+    let note = if next == "ultra" {
+        "speed: ultra (saved) — clamps to fast".to_string()
+    } else {
+        format!("speed: {next} (saved)")
+    };
+    emit_note(note);
     sh.emit_state();
 }
 
@@ -597,26 +676,57 @@ fn switch_provider(sh: &Arc<Shared>, name: &str) {
     }
 }
 
+/// Popular providers offered in "Connect a provider" — (label, desc,
+/// OpenAI-compatible base URL; None = Anthropic-native or asks for a URL).
+const PROVIDER_PRESETS: &[(&str, &str, Option<&str>)] = &[
+    ("Anthropic", "Claude models", None),
+    (
+        "OpenRouter",
+        "one key — Claude, GPT, Gemini, Llama",
+        Some("https://openrouter.ai/api/v1"),
+    ),
+    ("OpenAI", "GPT models", Some("https://api.openai.com/v1")),
+    (
+        "Gemini",
+        "Google AI Studio key",
+        Some("https://generativelanguage.googleapis.com/v1beta/openai"),
+    ),
+    (
+        "Groq",
+        "fast open models — Llama, GPT-OSS",
+        Some("https://api.groq.com/openai/v1"),
+    ),
+    (
+        "DeepSeek",
+        "DeepSeek-V3 / R1",
+        Some("https://api.deepseek.com/v1"),
+    ),
+    ("xAI", "Grok models", Some("https://api.x.ai/v1")),
+    (
+        "Mistral",
+        "Mistral models",
+        Some("https://api.mistral.ai/v1"),
+    ),
+    (
+        "Other OpenAI-compatible",
+        "any endpoint that speaks /chat/completions",
+        None,
+    ),
+];
+
 fn connect_provider(sh: &Arc<Shared>) -> bool {
     let Some(which) = sh.menu(
         "Connect a provider",
-        vec![
-            json!({"label": "Anthropic", "desc": "Claude models"}),
-            json!({"label": "OpenRouter", "desc": "one key — Claude, GPT, Gemini, Llama"}),
-            json!({"label": "OpenAI-compatible", "desc": "OpenAI, Gemini, local endpoints"}),
-        ],
+        PROVIDER_PRESETS
+            .iter()
+            .map(|(l, d, _)| json!({"label": l, "desc": d}))
+            .collect(),
         None,
     ) else {
         return false;
     };
-    let Some(key) = sh.prompt(
-        match which {
-            0 => "Anthropic API key:",
-            1 => "OpenRouter API key:",
-            _ => "OpenAI-compatible API key:",
-        },
-        true,
-    ) else {
+    let (label, _, preset_url) = PROVIDER_PRESETS[which];
+    let Some(key) = sh.prompt(&format!("{label} API key:"), true) else {
         return false;
     };
     let key = key.trim().to_string();
@@ -624,14 +734,14 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
         return false;
     }
     let mut base_url = None;
-    if which == 1 {
-        base_url = Some("https://openrouter.ai/api/v1".to_string());
-    } else if which == 2 {
-        if let Some(b) = sh.prompt("Base URL (blank = api.openai.com):", false) {
-            let b = b.trim();
-            if !b.is_empty() {
-                base_url = Some(b.to_string());
-            }
+    if which == 0 {
+        // Anthropic-native provider.
+    } else if let Some(b) = preset_url {
+        base_url = Some(b.to_string());
+    } else if let Some(b) = sh.prompt("Base URL (blank = api.openai.com):", false) {
+        let b = b.trim();
+        if !b.is_empty() {
+            base_url = Some(b.to_string());
         }
     }
     let mut cfg = load_config();
@@ -646,14 +756,7 @@ fn connect_provider(sh: &Arc<Shared>) -> bool {
     save_config(&cfg);
     let name = if which == 0 { "anthropic" } else { "openai" };
     switch_provider(sh, name);
-    emit_note(format!(
-        "{} key saved",
-        match which {
-            0 => "Anthropic",
-            1 => "OpenRouter",
-            _ => "OpenAI-compatible",
-        }
-    ));
+    emit_note(format!("{label} key saved"));
     true
 }
 
@@ -847,7 +950,13 @@ fn open_provider_menu(sh: &Arc<Shared>) {
 }
 
 fn open_settings_menu(sh: &Arc<Shared>) {
-    let entries = ["Approval mode", "Provider", "Model", "Reasoning effort"];
+    let entries = [
+        "Approval mode",
+        "Provider",
+        "Model",
+        "Reasoning effort",
+        "Speed",
+    ];
     let Some(i) = sh.menu("Settings", labeled_options(&entries, None), None) else {
         return;
     };
@@ -856,6 +965,7 @@ fn open_settings_menu(sh: &Arc<Shared>) {
         1 => open_provider_menu(sh),
         2 => open_model_menu(sh),
         3 => open_effort_menu(sh),
+        4 => open_speed_menu(sh),
         _ => {}
     }
 }
@@ -1066,6 +1176,15 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
         {
             Some(level) => set_effort(sh, level),
             None => open_effort_menu(sh),
+        },
+        "/speed" => match raw
+            .trim()
+            .get("/speed".len()..)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(tier) => set_speed(sh, tier),
+            None => open_speed_menu(sh),
         },
         "/provider" | "/providers" => open_provider_menu(sh),
         "/setup" => run_onboarding(sh),
@@ -1386,6 +1505,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         session: session_for_run,
         chat,
         effort,
+        speed: sh.speed.lock().unwrap().clone(),
         aborted: Arc::clone(&sh.aborted),
         steer: &mut steer,
         procs: Arc::clone(&sh.procs),
@@ -1464,6 +1584,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         provider_name: Mutex::new(provider_label.clone()),
         model: Mutex::new(deps.model.clone()),
         effort: Mutex::new(deps.effort.clone()),
+        speed: Mutex::new(deps.speed.clone()),
         auto_approve: AtomicBool::new(deps.auto_approve),
         smart_mode: AtomicBool::new(deps.smart_approve_mode),
         mode: Mutex::new(deps.mode.clone()),
@@ -1499,6 +1620,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         "provider": provider_label,
         "model": deps.model,
         "effort": deps.effort,
+        "speed": deps.speed,
         "mode": deps.mode,
         "commands": COMMAND_LIST.iter().map(|(n, d)| json!({"name": n, "desc": d})).collect::<Vec<_>>(),
         "needsSetup": needs_setup,

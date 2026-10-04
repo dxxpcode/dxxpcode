@@ -33,6 +33,7 @@ fn main() {
     let mut provider_flag: Option<String> = None;
     let mut model_flag: Option<String> = None;
     let mut effort_flag: Option<String> = None;
+    let mut speed_flag: Option<String> = None;
     let mut max_iterations: Option<u32> = None;
     let mut task_prompt: Option<String> = None;
     let mut i = 0;
@@ -64,6 +65,10 @@ fn main() {
                 i += 1;
                 effort_flag = argv.get(i).cloned();
             }
+            "--speed" => {
+                i += 1;
+                speed_flag = argv.get(i).cloned();
+            }
             "--max-iterations" => {
                 i += 1;
                 max_iterations = argv
@@ -78,6 +83,8 @@ fn main() {
                     model_flag = Some(v.to_string());
                 } else if let Some(v) = a.strip_prefix("--effort=") {
                     effort_flag = Some(v.to_string());
+                } else if let Some(v) = a.strip_prefix("--speed=") {
+                    speed_flag = Some(v.to_string());
                 }
             }
         }
@@ -141,6 +148,17 @@ fn main() {
             })
         })
         .or_else(|| cfg.effort.clone());
+    let env_speed = std::env::var("DXXPCODE_SPEED").ok();
+    let speed = speed_flag
+        .or_else(|| env_speed.filter(|e| ["standard", "fast", "ultra"].contains(&e.as_str())))
+        .or_else(|| cfg.speed.clone())
+        .filter(|s| s != "standard")
+        .filter(|s| {
+            ["fast", "ultra"].contains(&s.as_str()) || {
+                eprintln!("unknown speed tier: {s} (standard, fast, or ultra)");
+                false
+            }
+        });
     let auto_approve = yes || cfg.approval_mode.as_deref() == Some("auto");
     let smart_mode = !yes && cfg.approval_mode.as_deref() == Some("smart");
     let mode = if plan {
@@ -165,6 +183,7 @@ fn main() {
         provider,
         model,
         effort,
+        speed,
         project,
         root,
         session,
@@ -217,6 +236,7 @@ fn run_task_once(root: &str, task: String) {
         session: None,
         chat: false,
         effort: cfg.effort.clone(),
+        speed: cfg.speed.clone().filter(|s| s != "standard"),
         aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         steer: &mut steer,
         procs,

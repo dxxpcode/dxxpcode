@@ -263,15 +263,16 @@ impl Provider {
         tools: &[Value],
         model: &str,
         effort: Option<&str>,
+        speed: Option<&str>,
         aborted: &Arc<AtomicBool>,
         mut emit: impl FnMut(ProviderEvent),
     ) -> Result<(), ProviderError> {
         match self {
             Self::Anthropic { key } => anthropic_chat(
-                key, system, messages, tools, model, effort, aborted, &mut emit,
+                key, system, messages, tools, model, effort, speed, aborted, &mut emit,
             ),
             Self::OpenAi { key, base_url } => openai_chat(
-                key, base_url, system, messages, tools, model, effort, aborted, &mut emit,
+                key, base_url, system, messages, tools, model, effort, speed, aborted, &mut emit,
             ),
             Self::Mock { script, turn } => {
                 let t = script.get(*turn).cloned();
@@ -299,6 +300,7 @@ fn anthropic_chat(
     tools: &[Value],
     model: &str,
     effort: Option<&str>,
+    speed: Option<&str>,
     aborted: &Arc<AtomicBool>,
     emit: &mut dyn FnMut(ProviderEvent),
 ) -> Result<(), ProviderError> {
@@ -318,6 +320,12 @@ fn anthropic_chat(
     if let Some(b) = budget {
         body["thinking"] = json!({"type": "enabled", "budget_tokens": b});
     }
+    // Fast mode (research preview): same weights, faster serving. Anthropic
+    // has no ultra tier — clamp it to fast.
+    let fast = matches!(speed, Some("fast") | Some("ultra"));
+    if fast {
+        body["speed"] = json!("fast");
+    }
 
     let key = key.to_string();
     let body = body.to_string();
@@ -325,11 +333,14 @@ fn anthropic_chat(
         "Anthropic",
         aborted,
         move || {
-            with_timeouts(agent().post("https://api.anthropic.com/v1/messages"))
+            let mut req = with_timeouts(agent().post("https://api.anthropic.com/v1/messages"))
                 .header("content-type", "application/json")
                 .header("x-api-key", &key)
-                .header("anthropic-version", "2023-06-01")
-                .send(body.clone())
+                .header("anthropic-version", "2023-06-01");
+            if fast {
+                req = req.header("anthropic-beta", "fast-mode-2026-02-01");
+            }
+            req.send(body.clone())
         },
         |n| {
             emit(ProviderEvent::Status(format!(
@@ -473,6 +484,7 @@ fn openai_chat(
     tools: &[Value],
     model: &str,
     effort: Option<&str>,
+    speed: Option<&str>,
     aborted: &Arc<AtomicBool>,
     emit: &mut dyn FnMut(ProviderEvent),
 ) -> Result<(), ProviderError> {
@@ -492,6 +504,17 @@ fn openai_chat(
     });
     if let Some(e) = effort {
         body["reasoning_effort"] = json!(e);
+    }
+    // Service tier: OpenAI renamed Priority to Fast mode — "fast" is the
+    // canonical value ("priority" remains an alias). There is no tier
+    // faster than Fast, so ultra clamps to fast. Off api.openai.com we
+    // send "priority", the more widely understood alias.
+    if matches!(speed, Some("fast") | Some("ultra")) {
+        body["service_tier"] = json!(if base_url.starts_with("https://api.openai.com") {
+            "fast"
+        } else {
+            "priority"
+        });
     }
 
     let url = format!("{base_url}/chat/completions");
