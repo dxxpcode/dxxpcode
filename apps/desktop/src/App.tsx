@@ -149,6 +149,16 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
   }, [dark, theme]);
+  const [artDir, setArtDir] = useState(() => localStorage.getItem("artDir") ?? "");
+  const [artSrc, setArtSrc] = useState<string | null>(null);
+  useEffect(() => {
+    localStorage.setItem("artDir", artDir);
+    setArtSrc(null);
+    if (!artDir) return;
+    invoke<{ dataUrl: string }>("art_image", { dir: artDir })
+      .then((r) => setArtSrc(r.dataUrl))
+      .catch(() => {});
+  }, [artDir]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -875,6 +885,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
         <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
           <div className="sesspal-dialog">
@@ -1064,6 +1075,14 @@ export default function App() {
                         ))}
                       </span>
                     </div>
+                    <SetAction
+                      label={artDir ? `Art — ${artDir.split("/").filter(Boolean).pop()}` : "Art…"}
+                      desc={artDir ? "Showing a random image from this folder as the window backdrop" : "Use an image folder as the window backdrop"}
+                      onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) setArtDir(dir); })}
+                    />
+                    {artDir && (
+                      <SetAction label="Clear art" desc="Stop showing artwork as the backdrop" onClick={() => setArtDir("")} />
+                    )}
                   </div>
                 </div>
               )}
