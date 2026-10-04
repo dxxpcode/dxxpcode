@@ -207,6 +207,9 @@ fn spawn_worker(app: &tauri::AppHandle, id: u32, cwd: std::path::PathBuf) -> Res
     let program = cli_binary(app);
     let mut cmd = CommandBuilder::new(program);
     cmd.arg("--app");
+    // Workers are fire-and-forget: nobody is watching to approve diffs or
+    // tools, so they run with always-approve rather than stalling forever.
+    cmd.arg("--yes");
     cmd.cwd(cwd);
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
@@ -291,6 +294,22 @@ fn git(root: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 
+/// Untrimmed variant — `git diff` output must keep its trailing newline or
+/// `git apply` rejects it as a corrupt patch.
+fn git_raw(root: &str, args: &[&str]) -> Result<String, String> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if out.status.success() {
+        Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
 /// `git worktree add .dxxpcode/trees/<name> -b dxxp/<name>` — returns
 /// {dir, branch}; errors when `root` isn't inside a git work tree.
 #[tauri::command]
@@ -308,8 +327,8 @@ fn worktree_create(root: String, name: String) -> Result<serde_json::Value, Stri
 fn worktree_merge(root: String, dir: String, branch: String) -> Result<String, String> {
     // `add -A` then `diff --cached` so brand-new files appear in the patch.
     git(&dir, &["add", "-A"])?;
-    let patch = git(&dir, &["diff", "--cached", "HEAD"])?;
-    if patch.is_empty() {
+    let patch = git_raw(&dir, &["diff", "--cached", "HEAD"])?;
+    if patch.trim().is_empty() {
         // Nothing to apply — still clean up.
         let _ = git(&root, &["worktree", "remove", "--force", &dir]);
         let _ = git(&root, &["branch", "-D", &branch]);
