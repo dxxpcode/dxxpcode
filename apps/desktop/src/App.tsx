@@ -1074,12 +1074,12 @@ export default function App() {
                       </span>
                     </div>
                     <SetAction
-                      label={artDir ? `Character art — ${artDir.split("/").filter(Boolean).pop()}` : "Character art…"}
-                      desc={artDir ? "Showing a random image from this folder on the hero" : "Show artwork from a folder on the hero"}
+                      label={artDir ? `Art — ${artDir.split("/").filter(Boolean).pop()}` : "Art…"}
+                      desc={artDir ? "Showing a random image from this folder as the window backdrop" : "Use an image folder as the window backdrop"}
                       onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) setArtDir(dir); })}
                     />
                     {artDir && (
-                      <SetAction label="Clear character art" desc="Stop showing artwork on the hero" onClick={() => setArtDir("")} />
+                      <SetAction label="Clear art" desc="Stop showing artwork as the backdrop" onClick={() => setArtDir("")} />
                     )}
                   </div>
                 </div>
