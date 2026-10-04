@@ -118,7 +118,7 @@ function LicenseGate({ children }: { children: ReactNode }) {
     () => sessionStorage.getItem("dxxp_download_unlocked") === "1",
   );
   const [key, setKey] = useState("");
-  const [state, setState] = useState<"idle" | "checking" | "invalid">("idle");
+  const [state, setState] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [price, setPrice] = useState<number | null>(null);
   const [ended, setEnded] = useState(false);
 
@@ -142,8 +142,9 @@ function LicenseGate({ children }: { children: ReactNode }) {
       });
       const data = (await res.json().catch(() => null)) as { valid?: boolean } | null;
       if (res.ok && data?.valid) {
+        setState("valid");
         sessionStorage.setItem("dxxp_download_unlocked", "1");
-        setUnlocked(true);
+        setTimeout(() => setUnlocked(true), 350);
         return;
       }
     } catch {
@@ -168,16 +169,26 @@ function LicenseGate({ children }: { children: ReactNode }) {
           spellCheck={false}
           className="min-w-0 flex-1 bg-transparent pl-4 font-mono text-[13px] placeholder:text-muted-foreground/50 focus:outline-none"
         />
+        <span
+          aria-live="polite"
+          className="mx-2 flex h-4 w-4 shrink-0 items-center justify-center font-mono text-[13px]"
+        >
+          {state === "checking" ? (
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/50 border-t-foreground" />
+          ) : state === "valid" ? (
+            <span className="text-green-600 dark:text-green-500">✓</span>
+          ) : state === "invalid" ? (
+            <span className="text-destructive">×</span>
+          ) : (
+            <span className="text-muted-foreground/40">·</span>
+          )}
+        </span>
         <button
           onClick={submit}
           disabled={!ready}
           className="mr-1 flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-40"
         >
-          {state === "checking" ? (
-            <span className="h-3.5 w-3.5 animate-spin rounded-full border border-background/40 border-t-transparent" />
-          ) : (
-            "Download"
-          )}
+          Download
         </button>
       </div>
       <p className="font-mono text-[11.5px] text-muted-foreground/70">
