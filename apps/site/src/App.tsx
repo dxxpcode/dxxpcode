@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, Moon, Sun } from "lucide-react";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
@@ -111,6 +111,81 @@ function DownloadButtons() {
   );
 }
 
+// Soft download gate: a valid dxxp-live-… key reveals the download buttons.
+// Client-side only by design — it filters the honest, not the motivated.
+function LicenseGate({ children }: { children: ReactNode }) {
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem("dxxp_download_unlocked") === "1",
+  );
+  const [key, setKey] = useState("");
+  const [state, setState] = useState<"idle" | "checking" | "invalid">("idle");
+
+  if (unlocked) return children;
+
+  const submit = async () => {
+    setState("checking");
+    try {
+      const res = await fetch(`/api/license?key=${encodeURIComponent(key.trim())}`, {
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => null)) as { valid?: boolean } | null;
+      if (res.ok && data?.valid) {
+        sessionStorage.setItem("dxxp_download_unlocked", "1");
+        setUnlocked(true);
+        return;
+      }
+    } catch {
+      // fall through to invalid
+    }
+    setState("invalid");
+  };
+
+  const ready = key.trim().startsWith("dxxp-live-") && state !== "checking";
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <input
+          value={key}
+          onChange={(e) => {
+            setKey(e.target.value);
+            setState("idle");
+          }}
+          onKeyDown={(e) => e.key === "Enter" && ready && submit()}
+          placeholder="dxxp-live-…"
+          autoComplete="off"
+          spellCheck={false}
+          className="h-11 w-56 rounded-full border border-border bg-transparent px-4 font-mono text-[13px] placeholder:text-muted-foreground/50 focus:border-foreground/40 focus:outline-none"
+        />
+        <button
+          onClick={submit}
+          disabled={!ready}
+          className="h-11 rounded-full bg-foreground px-5 text-[14px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-40"
+        >
+          {state === "checking" ? "Checking…" : "Download"}
+        </button>
+      </div>
+      <p className="text-[12px] text-muted-foreground">
+        {state === "invalid" ? (
+          <>
+            That key isn't valid —{" "}
+            <a href="/pricing" className="text-foreground underline-offset-4 hover:underline">
+              get one
+            </a>
+            .
+          </>
+        ) : (
+          <>
+            Downloads need a lifetime license —{" "}
+            <a href="/pricing" className={quiet}>
+              Pricing →
+            </a>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
 function Header({ dark, setDark }: { dark: boolean; setDark: (d: boolean) => void }) {
   return (
     <header className="grid h-16 grid-cols-3 items-center px-6">
@@ -176,7 +251,9 @@ export default function App() {
         </h1>
 
         <div className="mt-7">
-          <DownloadButtons />
+          <LicenseGate>
+            <DownloadButtons />
+          </LicenseGate>
         </div>
       </main>
     </div>
