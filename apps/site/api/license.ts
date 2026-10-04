@@ -1,4 +1,4 @@
-import { cmd, toHash, upstashReady } from "./pricing-lib";
+import { cmd, toHash, upstashReady } from "./pricing-lib.js";
 
 // GET /api/license?key=… → { valid, tier_id, price_paid_cents } — dormant until
 // the app starts validating keys (option B); cheap to ship now.

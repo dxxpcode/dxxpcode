@@ -1,4 +1,4 @@
-import { activeTier, getTiers, upstashReady } from "./pricing-lib";
+import { activeTier, getTiers, upstashReady } from "./pricing-lib.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 
