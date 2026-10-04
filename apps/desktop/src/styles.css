@@ -50,7 +50,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 
 .app { display: flex; flex-direction: row; height: 100%; position: relative; }
-.main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; z-index: 1; }
 
 /* Session palette — ⌘K command-style session switcher */
 .sesspal {
@@ -776,13 +776,21 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   padding: 24px;
   animation: fadein 0.3s var(--ease);
 }
-.hero-art {
-  max-width: min(300px, 60%);
-  max-height: 200px;
-  object-fit: contain;
-  border-radius: 12px;
-  margin-bottom: 14px;
-  opacity: 0.96;
+/* user-supplied character art — full-window backdrop */
+.art-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+.art-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  opacity: 0.82;
 }
 .hero-mark { width: 44px; height: auto; color: var(--faint); margin-bottom: 6px; }
 .hero-title {

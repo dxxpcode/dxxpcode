@@ -883,6 +883,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
         <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
           <div className="sesspal-dialog">
@@ -1257,7 +1258,6 @@ export default function App() {
         )}
         {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
           <div className="hero">
-            {artSrc && <img className="hero-art" src={artSrc} alt="" />}
             <Logo className="hero-mark" />
             <div className="hero-title">What should we build in
               <button className="hero-proj" title="Change project" onClick={openProject}>
