@@ -32,6 +32,8 @@ pub enum ProviderEvent {
         stop_reason: String,
         usage: Option<Usage>,
     },
+    /// Non-token stream status (e.g. retry notices) surfaced to the UI.
+    Status(String),
 }
 
 #[derive(Debug)]
@@ -78,6 +80,7 @@ fn send_retry(
     provider: &str,
     aborted: &Arc<AtomicBool>,
     make: impl FnMut() -> Result<ureq::http::Response<ureq::Body>, ureq::Error> + Send + Clone + 'static,
+    mut on_retry: impl FnMut(u32),
 ) -> Result<ureq::http::Response<ureq::Body>, ProviderError> {
     let mut delay_ms = 1000u64;
     let mut last: Option<ureq::Error> = None;
@@ -117,6 +120,7 @@ fn send_retry(
                     return Err(post_error(e, provider));
                 }
                 last = Some(e);
+                on_retry(attempt + 1);
                 for _ in 0..(delay_ms / 100) {
                     if aborted.load(Ordering::Relaxed) {
                         return Err(ProviderError("aborted".into(), None));
@@ -317,13 +321,22 @@ fn anthropic_chat(
 
     let key = key.to_string();
     let body = body.to_string();
-    let mut resp = send_retry("Anthropic", aborted, move || {
-        with_timeouts(agent().post("https://api.anthropic.com/v1/messages"))
-            .header("content-type", "application/json")
-            .header("x-api-key", &key)
-            .header("anthropic-version", "2023-06-01")
-            .send(body.clone())
-    })?;
+    let mut resp = send_retry(
+        "Anthropic",
+        aborted,
+        move || {
+            with_timeouts(agent().post("https://api.anthropic.com/v1/messages"))
+                .header("content-type", "application/json")
+                .header("x-api-key", &key)
+                .header("anthropic-version", "2023-06-01")
+                .send(body.clone())
+        },
+        |n| {
+            emit(ProviderEvent::Status(format!(
+                "Retrying ({n}/{MAX_ATTEMPTS}) — Anthropic is slow to respond…"
+            )));
+        },
+    )?;
 
     let mut usage = Usage::default();
     let mut tool_blocks: BTreeMap<u64, (String, String, String)> = BTreeMap::new();
@@ -484,12 +497,21 @@ fn openai_chat(
     let url = format!("{base_url}/chat/completions");
     let auth = format!("Bearer {key}");
     let body = body.to_string();
-    let mut resp = send_retry("OpenAI", aborted, move || {
-        with_timeouts(agent().post(&url))
-            .header("content-type", "application/json")
-            .header("authorization", &auth)
-            .send(body.clone())
-    })?;
+    let mut resp = send_retry(
+        "OpenAI",
+        aborted,
+        move || {
+            with_timeouts(agent().post(&url))
+                .header("content-type", "application/json")
+                .header("authorization", &auth)
+                .send(body.clone())
+        },
+        |n| {
+            emit(ProviderEvent::Status(format!(
+                "Retrying ({n}/{MAX_ATTEMPTS}) — OpenAI is slow to respond…"
+            )));
+        },
+    )?;
 
     let mut usage: Option<Usage> = None;
     let mut stop_reason = String::from("stop");
@@ -872,10 +894,15 @@ mod tests {
     fn send_retry_gives_up_after_max() {
         let n = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let n2 = Arc::clone(&n);
-        let err = send_retry("OpenAI", &flag(), move || {
-            n2.fetch_add(1, Ordering::Relaxed);
-            Err(ureq::Error::StatusCode(503))
-        })
+        let err = send_retry(
+            "OpenAI",
+            &flag(),
+            move || {
+                n2.fetch_add(1, Ordering::Relaxed);
+                Err(ureq::Error::StatusCode(503))
+            },
+            |_| {},
+        )
         .unwrap_err();
         assert_eq!(n.load(Ordering::Relaxed), MAX_ATTEMPTS as usize);
         assert!(err.to_string().contains("503"));
@@ -885,10 +912,15 @@ mod tests {
     fn send_retry_no_retry_on_4xx() {
         let n = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let n2 = Arc::clone(&n);
-        let _ = send_retry("OpenAI", &flag(), move || {
-            n2.fetch_add(1, Ordering::Relaxed);
-            Err(ureq::Error::StatusCode(401))
-        });
+        let _ = send_retry(
+            "OpenAI",
+            &flag(),
+            move || {
+                n2.fetch_add(1, Ordering::Relaxed);
+                Err(ureq::Error::StatusCode(401))
+            },
+            |_| {},
+        );
         assert_eq!(n.load(Ordering::Relaxed), 1);
     }
 }

@@ -780,7 +780,7 @@ fn stream_turn(
                     n += 1;
                     (*emit_cell.lock().unwrap())(json!({
                         "type": "status",
-                        "message": format!("Still working — no output for {}s", 15 * n),
+                        "message": format!("Waiting on model — no output for {}s…", 15 * n),
                     }));
                 }
             }
@@ -797,6 +797,9 @@ fn stream_turn(
                 }
                 ProviderEvent::ToolUse { id, name, input } => tool_calls.push((id, name, input)),
                 ProviderEvent::Done { usage: u, .. } => usage = u,
+                ProviderEvent::Status(m) => {
+                    (*emit_cell.lock().unwrap())(json!({"type": "status", "message": m}));
+                }
             }
         });
         wd_stop.store(true, std::sync::atomic::Ordering::Relaxed);
