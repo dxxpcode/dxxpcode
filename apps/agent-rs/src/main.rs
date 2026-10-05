@@ -3,6 +3,7 @@
 
 mod agent;
 mod app;
+mod browser;
 mod config;
 mod errors;
 mod perm;

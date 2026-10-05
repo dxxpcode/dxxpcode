@@ -61,3 +61,8 @@ SIGINT during a `run_command` sets an abort flag → run ends `cancelled`, exit 
 - Worker sidecars run `--yes` (always-approve) so no `approvalMode` config seeding is needed for worker tests; they cannot answer approval prompts by design.
 - `.qdrop`/`.wact` row-action icons are `opacity:0` until `:hover` — temporarily set `opacity:1` in styles.css (vite HMR picks it up) for reliable clicking, then revert.
 - Composer row action icons sit at the far-right edge of the window (~x3100 at 3200px width), not adjacent to the row text.
+
+### Real-provider runs (NVIDIA nemotron ultra)
+- Recipe: `provider: "openai"`, `openaiBaseUrl: "https://integrate.api.nvidia.com/v1"`, model `nvidia/nemotron-3-ultra-550b-a55b`, key from the `DXXPCODE_EVAL_API_KEY` secret into config's `openaiApiKey`.
+- Expect empty-completion flakes: most submits may end `Incomplete` — retry, don't conclude failure. Every submit also resets to plan phase, so nudge "call propose_plan (trivial) first" or turns die on `Denied: not available while planning`.
+- Images in tool results: OpenAI tool-role messages cannot carry `image_url` parts — the provider layer emits them as a following `user` message. If a run 400-bricks after an image tool result, check that path first (`/new` clears the poisoned history).
