@@ -37,6 +37,7 @@ const COMMAND_LIST: &[(&str, &str)] = &[
     ),
     ("/providers", "switch between configured providers"),
     ("/undo", "restore files from the last checkpoint"),
+    ("/tools", "custom tools — list, enable, disable, remove"),
     ("/license", "save or show your lifetime license key"),
     (
         "/compact",
@@ -1254,6 +1255,62 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
                 }
                 None => "nothing to undo".into(),
             });
+        }
+        "/tools" => {
+            let sub = raw.split_whitespace().nth(1).unwrap_or("");
+            let target = raw.split_whitespace().nth(2).unwrap_or("");
+            let specs = tools::custom_tools(&deps.root);
+            match sub {
+                "enable" | "disable" => {
+                    let Some(spec) = specs.iter().find(|s| s.name == target) else {
+                        emit_note(format!("no custom tool named \"{target}\""));
+                        return;
+                    };
+                    match tools::set_custom_enabled(&spec.path, sub == "enable") {
+                        Ok(()) => emit_note(format!(
+                            "{} {} — {}",
+                            if sub == "enable" {
+                                "enabled"
+                            } else {
+                                "disabled"
+                            },
+                            spec.name,
+                            spec.command
+                        )),
+                        Err(e) => emit_note(format!("couldn't update {}: {e}", spec.name)),
+                    }
+                }
+                "remove" => {
+                    let Some(spec) = specs.iter().find(|s| s.name == target) else {
+                        emit_note(format!("no custom tool named \"{target}\""));
+                        return;
+                    };
+                    match std::fs::remove_file(&spec.path) {
+                        Ok(()) => emit_note(format!("removed {}", spec.name)),
+                        Err(e) => emit_note(format!("couldn't remove {}: {e}", spec.name)),
+                    }
+                }
+                _ => {
+                    if specs.is_empty() {
+                        emit_note("no custom tools — drop a .toml in ~/.dxxpcode/tools/ or .dxxpcode/tools/");
+                        return;
+                    }
+                    let mut text = String::from("Custom tools\n\n");
+                    for s in &specs {
+                        text.push_str(&format!(
+                            "{} {}  {}\n    {}\n",
+                            if s.enabled { "●" } else { "○" },
+                            s.name,
+                            if s.enabled { "enabled" } else { "disabled" },
+                            s.path.display()
+                        ));
+                    }
+                    text.push_str(
+                        "\n/tools enable <name> · /tools disable <name> · /tools remove <name>",
+                    );
+                    emit_note(text);
+                }
+            }
         }
         "/compact" => {
             let mut s = sh.session.lock().unwrap();
