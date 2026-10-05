@@ -659,6 +659,9 @@ fn to_openai_messages(m: &crate::config::Message) -> Vec<Value> {
     let mut texts = vec![];
     let mut tool_calls = vec![];
     let mut tool_results = vec![];
+    // OpenAI tool-role messages can't carry image parts — collect them into a
+    // following user message instead (image_url is only valid in user content).
+    let mut image_parts = vec![];
     for b in &m.content {
         match b.get("type").and_then(|t| t.as_str()) {
             Some("tool_use") => tool_calls.push(json!({
@@ -666,23 +669,17 @@ fn to_openai_messages(m: &crate::config::Message) -> Vec<Value> {
                 "function": {"name": b["name"], "arguments": b["input"].to_string()},
             })),
             Some("tool_result") => {
-                let content: Value = match b.get("images").and_then(|v| v.as_array()) {
-                    Some(imgs) if !imgs.is_empty() => {
-                        let mut parts = vec![
-                            json!({"type": "text", "text": b["content"].as_str().unwrap_or("")}),
-                        ];
-                        for i in imgs {
-                            parts.push(json!({
-                                "type": "image_url",
-                                "image_url": {"url": format!("data:{};base64,{}", i["mediaType"].as_str().unwrap_or("image/png"), i["data"].as_str().unwrap_or(""))},
-                            }));
-                        }
-                        json!(parts)
+                if let Some(imgs) = b.get("images").and_then(|v| v.as_array()) {
+                    for i in imgs {
+                        image_parts.push(json!({
+                            "type": "image_url",
+                            "image_url": {"url": format!("data:{};base64,{}", i["mediaType"].as_str().unwrap_or("image/png"), i["data"].as_str().unwrap_or(""))},
+                        }));
                     }
-                    _ => json!(b["content"].as_str().unwrap_or("")),
-                };
+                }
                 tool_results.push(json!({
-                    "role": "tool", "tool_call_id": b["toolUseId"], "content": content,
+                    "role": "tool", "tool_call_id": b["toolUseId"],
+                    "content": b["content"].as_str().unwrap_or(""),
                 }));
             }
             _ => {
@@ -698,6 +695,9 @@ fn to_openai_messages(m: &crate::config::Message) -> Vec<Value> {
             out.push(json!({"role": m.role, "content": texts.join("")}));
         }
         out.extend(tool_results);
+        if !image_parts.is_empty() {
+            out.push(json!({"role": "user", "content": image_parts}));
+        }
         return out;
     }
     let joined = texts.join("");
