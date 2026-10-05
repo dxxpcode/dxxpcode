@@ -10,6 +10,21 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    version: "0.2.2",
+    date: "2026-10-04",
+    items: [
+      "New app icon — black XX mark on a white squircle",
+      "Built-in art gallery — six public-domain backdrops in Settings → Appearance, plus your own image folder",
+      "Art backdrop — a chosen artwork fills the window; scrim and text shadows keep text readable over light images",
+      "Parallel tasks — run sessions side-by-side in git worktrees, merge patches back",
+      "Task queue — type while a task runs to queue the next one",
+      "Speed tiers — /speed picks between config-defined model service tiers",
+      "Loop efficiency — read cache, tool budget, and a thin-completion gate for the agent",
+      "Honest waiting — retries and stalls surface in the statusline; esc interrupts pre-token latency",
+      "Download gate — lifetime license key unlocks installers, with email delivery and key recovery",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-09-27",
     items: [
