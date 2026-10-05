@@ -1698,7 +1698,10 @@ fn expand_custom(spec: &CustomSpec, input: &Value) -> Result<String, String> {
 /// through the normal command rules; `permission = "ask"` forces approval.
 pub fn perm_custom(spec: &CustomSpec, input: &Value, _root: &str) -> Decision {
     if spec.ask {
-        return perm_approval(input, "");
+        return Decision {
+            level: Level::Approval,
+            reason: format!("custom tool \"{}\" asks permission", spec.name),
+        };
     }
     match expand_custom(spec, input) {
         Ok(cmd) => evaluate_command(&cmd),
