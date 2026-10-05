@@ -4,6 +4,13 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-10-05
+
+- Agent: `browse` tool — headless-Chrome CDP driver (navigate, snapshot, click, type, wait, console, screenshot, evaluate) with accessibility-ref grounding and tiered browse permissions
+- Agent: custom tools — shell-backed tools declared as `.toml` files in `~/.dxxpcode/tools/` or `.dxxpcode/tools/`; `/tools` lists, enables, disables, removes; `permission = "ask"` per tool
+- Agent: OpenAI-compat fix — tool-result images now sent as a following user message (tool-role messages can't carry image parts)
+- Desktop: tool-result images render inline for vision-capable providers
+
 ## [0.2.2] — 2026-10-04
 
 - Desktop: new app icon — black XX mark on a white squircle, full iconset (.icns/.ico/png)
