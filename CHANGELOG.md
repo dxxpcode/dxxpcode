@@ -4,6 +4,19 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-10-04
+
+- Desktop: new app icon — black XX mark on a white squircle, full iconset (.icns/.ico/png)
+- Desktop: built-in art gallery in Settings → Appearance — six public-domain backdrops + custom folder
+- Desktop: Art backdrop — pick an image folder as the full-window background; art forces dark theme, scrim + text shadows keep text readable over light images
+- Desktop: parallel tasks via git worktrees — run sessions side-by-side, merge patches back
+- Desktop: task queue — typing during a run queues the next session
+- Agent: `/speed` — config-defined model service tiers
+- Agent: loop efficiency — read cache, tool budget, thin-completion gate
+- Agent: honest waiting — retries and named stalls surface in the statusline; esc interrupts pre-token latency
+- Site: premium download gate — lifetime license key unlocks installers, email delivery + key recovery
+- Desktop: onboarding "See it work" step — suggested first task
+
 ## [0.2.1] — 2026-09-27
 
 - Desktop: in-app updates via tauri-plugin-updater — background check + download, "Update ready — restart" in Settings
