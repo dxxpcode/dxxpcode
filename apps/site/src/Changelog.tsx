@@ -10,6 +10,16 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    version: "0.2.3",
+    date: "2026-10-05",
+    items: [
+      "Browse tool — the agent drives a headless Chrome: navigate, snapshot, click, type, wait, console, screenshot",
+      "Custom tools — declare your own shell-backed tools as .toml files; /tools lists, enables, disables, removes them",
+      "Custom tools start disabled — the file is the review surface; enable after you read it",
+      "OpenAI-compat fix — tool-result images sent as a following user message (tool-role can't carry images)",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-10-04",
     items: [
