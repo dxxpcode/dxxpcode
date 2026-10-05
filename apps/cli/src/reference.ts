@@ -36,6 +36,7 @@ export const DOCS_MD = `# install
 - \`/settings\` — Settings + Session tabs (approval mode, provider, model, effort)
 - \`/model\` · \`/providers\` · \`/effort\` — pickers
 - \`/undo\` — restore files from the last checkpoint
+- \`/tools\` — custom tools: \`/tools enable <name>\` · \`disable\` · \`remove\`; drop a \`.toml\` in \`~/.dxxpcode/tools/\` (or \`.dxxpcode/tools/\` per project) with \`name\`, \`description\`, \`command\` (\`{arg}\` placeholders under \`[args]\`), \`permission = "auto"|"ask"\`; new tools start disabled until enabled
 - \`/compact\` — compress old tool output; \`/settings\` → Approval mode \`smart\` = Jev-decided approvals; effort \`auto (Jev)\` = Jev picks effort per task; \`/clear\` clears the transcript; \`/new\` starts a new session
 - \`/review\` — diff of uncommitted changes; \`/provider\` — connect a key
 - \`/changelog\` · \`/docs\` — this reference; \`/help\` · \`/exit\`

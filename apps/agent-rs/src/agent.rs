@@ -733,7 +733,10 @@ fn exec_streaming(
                 std::thread::sleep(Duration::from_millis(80));
             }
         });
-        let r = (tool.execute)(input, ctx);
+        let r = match tools::custom_spec(&ctx.root, name) {
+            Some(spec) => tools::exec_custom(&spec, input, ctx),
+            None => (tool.execute)(input, ctx),
+        };
         stop.store(true, std::sync::atomic::Ordering::Relaxed);
         let _ = drainer.join();
         r
@@ -764,9 +767,10 @@ fn stream_turn(
     effort: Option<&str>,
     provider_opts: Option<&Value>,
     aborted: &Arc<AtomicBool>,
+    project_root: &str,
     emit: &mut Emit<'_>,
 ) -> Result<(Vec<(String, String, Value)>, Option<Usage>), ProviderError> {
-    let all = tools::registry();
+    let all = tools::registry(project_root);
     let tool_defs: Vec<Value> = tools::tools_for_phase(&all, phase)
         .iter()
         .map(|t| json!({"name": t.name, "description": t.description, "inputSchema": t.schema}))
@@ -871,7 +875,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     }
     emit(json!({"type": "status", "message": "Inspecting project…"}));
 
-    let tools = tools::registry();
+    let tools = tools::registry(&opts.project_root);
     let supports_images = opts.provider.supports_images();
     let ctx = Ctx {
         root: opts.project_root.clone(),
@@ -985,6 +989,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             opts.effort.as_deref(),
             opts.variant_opts.as_ref(),
             &opts.aborted,
+            &opts.project_root,
             emit,
         ) {
             Ok(t) => t,
@@ -1173,6 +1178,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             opts.effort.as_deref(),
             opts.variant_opts.as_ref(),
             &opts.aborted,
+            &opts.project_root,
             emit,
         ) {
             Ok(t) => t,
@@ -1416,7 +1422,10 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 }
                 continue;
             }
-            let decision = (tool.permission)(input, &ctx.root);
+            let decision = match tools::custom_spec(&ctx.root, name) {
+                Some(spec) => tools::perm_custom(&spec, input, &ctx.root),
+                None => (tool.permission)(input, &ctx.root),
+            };
             if decision.level == Level::Restricted {
                 session.tool_calls.push(recorded(name, input, true, true));
                 emit(json!({"type": "denied", "tool": name, "reason": decision.reason}));
