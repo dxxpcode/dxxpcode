@@ -16,6 +16,7 @@ libc = "0.2"
 sha1 = "0.10"
 rand = "0.8"
 chrono = "0.4"
+tungstenite = "0.26"
 
 [profile.release]
 strip = true

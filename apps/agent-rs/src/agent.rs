@@ -499,6 +499,20 @@ fn tool_result_block(id: &str, content: &str, is_error: bool) -> Value {
     json!({"type": "tool_result", "toolUseId": id, "content": content, "isError": is_error})
 }
 
+/// Tool result with optional image blocks — providers that can't view images
+/// keep only the text in `tool_result_block` (the images' path is in it).
+fn tool_result_block_rich(id: &str, r: &tools::ToolResult, images: bool) -> Value {
+    let mut b = tool_result_block(id, &r.content, r.is_error);
+    if images && !r.images.is_empty() {
+        b["images"] = json!(r
+            .images
+            .iter()
+            .map(|i| json!({"mediaType": i.media_type, "data": i.data_base64}))
+            .collect::<Vec<_>>());
+    }
+    b
+}
+
 fn tool_use_block(id: &str, name: &str, input: &Value) -> Value {
     json!({"type": "tool_use", "id": id, "name": name, "input": input})
 }
@@ -858,11 +872,13 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     emit(json!({"type": "status", "message": "Inspecting project…"}));
 
     let tools = tools::registry();
+    let supports_images = opts.provider.supports_images();
     let ctx = Ctx {
         root: opts.project_root.clone(),
         aborted: Arc::clone(&opts.aborted),
         procs: Arc::clone(&opts.procs),
         live_out: Arc::new(Mutex::new(None)),
+        browser: Arc::new(Mutex::new(None)),
     };
 
     let mut session = opts.session.take().unwrap_or_else(|| SessionRecord {
@@ -1196,6 +1212,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                         is_error: !ok,
                         changed_file: None,
                         diff: None,
+                        images: vec![],
                     };
                     emit(
                         json!({"type": "tool_end", "tool": "run_command", "result": tool_result_json(&vres)}),
@@ -1495,7 +1512,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             }));
             persist(&mut session);
             emit(json!({"type": "tool_end", "tool": name, "result": tool_result_json(&result)}));
-            results.push(tool_result_block(id, &result.content, result.is_error));
+            results.push(tool_result_block_rich(id, &result, supports_images));
         }
         if !results.is_empty() {
             session.messages.push(Message {

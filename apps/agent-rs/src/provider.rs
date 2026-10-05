@@ -197,6 +197,11 @@ impl Provider {
         }
     }
 
+    /// Whether this provider accepts image blocks in tool results.
+    pub fn supports_images(&self) -> bool {
+        matches!(self, Self::Anthropic { .. } | Self::OpenAi { .. })
+    }
+
     pub fn list_models(&self) -> Result<Vec<String>, ProviderError> {
         match self {
             Self::Anthropic { key } => {
@@ -484,12 +489,23 @@ fn to_anthropic_message(m: &crate::config::Message) -> Value {
             Some("tool_use") => json!({
                 "type": "tool_use", "id": b["id"], "name": b["name"], "input": b["input"],
             }),
-            Some("tool_result") => json!({
-                "type": "tool_result",
-                "tool_use_id": b["toolUseId"],
-                "content": [{"type": "text", "text": b["content"].as_str().unwrap_or("")}],
-                "is_error": b.get("isError").and_then(|v| v.as_bool()).unwrap_or(false),
-            }),
+            Some("tool_result") => {
+                let mut content = vec![json!({"type": "text", "text": b["content"].as_str().unwrap_or("")})];
+                if let Some(imgs) = b.get("images").and_then(|v| v.as_array()) {
+                    for i in imgs {
+                        content.push(json!({
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": i["mediaType"], "data": i["data"]},
+                        }));
+                    }
+                }
+                json!({
+                    "type": "tool_result",
+                    "tool_use_id": b["toolUseId"],
+                    "content": content,
+                    "is_error": b.get("isError").and_then(|v| v.as_bool()).unwrap_or(false),
+                })
+            }
             _ => json!({"type": "text", "text": b["text"].as_str().unwrap_or("")}),
         })
         .collect();
@@ -649,9 +665,26 @@ fn to_openai_messages(m: &crate::config::Message) -> Vec<Value> {
                 "id": b["id"], "type": "function",
                 "function": {"name": b["name"], "arguments": b["input"].to_string()},
             })),
-            Some("tool_result") => tool_results.push(json!({
-                "role": "tool", "tool_call_id": b["toolUseId"], "content": b["content"].as_str().unwrap_or(""),
-            })),
+            Some("tool_result") => {
+                let content: Value = match b.get("images").and_then(|v| v.as_array()) {
+                    Some(imgs) if !imgs.is_empty() => {
+                        let mut parts = vec![
+                            json!({"type": "text", "text": b["content"].as_str().unwrap_or("")}),
+                        ];
+                        for i in imgs {
+                            parts.push(json!({
+                                "type": "image_url",
+                                "image_url": {"url": format!("data:{};base64,{}", i["mediaType"].as_str().unwrap_or("image/png"), i["data"].as_str().unwrap_or(""))},
+                            }));
+                        }
+                        json!(parts)
+                    }
+                    _ => json!(b["content"].as_str().unwrap_or("")),
+                };
+                tool_results.push(json!({
+                    "role": "tool", "tool_call_id": b["toolUseId"], "content": content,
+                }));
+            }
             _ => {
                 if let Some(t) = b.get("text").and_then(|v| v.as_str()) {
                     texts.push(t.to_string());
