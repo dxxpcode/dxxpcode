@@ -1942,11 +1942,11 @@ export default function App() {
 function ItemView({ item, toolCount }: { item: Item; toolCount?: number }) {
   switch (item.k) {
     case "user":
-      return <div className="usermsg row"><span className="chev">❯</span>{item.text}</div>;
+      return <div className="usermsg row">{item.text}</div>;
     case "text":
       return (
-        <div className="text row">
-          <span dangerouslySetInnerHTML={md(item.text)} />
+        <div className="reply row">
+          <div className="reply-body text" dangerouslySetInnerHTML={md(item.text)} />
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
       );
@@ -1970,51 +1970,53 @@ function ItemView({ item, toolCount }: { item: Item; toolCount?: number }) {
       return <ToolRow item={item} />;
     case "plan":
       return (
-        <div className="card plan row">
-          <div className="card-title">Plan</div>
-          <div className="card-body">
-            {item.plan.summary && <div style={{ marginBottom: 6, color: "var(--dim)" }}>{item.plan.summary}</div>}
-            {item.plan.steps.map((s, i) => (
-              <div className="plan-step" key={i}><span className="n">{i + 1}</span><span>{s}</span></div>
-            ))}
+        <section className="reply reply-section plan row">
+          <h2 className="reply-title">Plan</h2>
+          <div className="reply-body">
+            {item.plan.summary && <p className="reply-intro">{item.plan.summary}</p>}
+            <ol className="plan-steps">
+              {item.plan.steps.map((s, i) => (
+                <li className="plan-step" key={i}>{s}</li>
+              ))}
+            </ol>
           </div>
-        </div>
+        </section>
       );
     case "todos":
       return (
-        <div className="card todos row">
-          <div className="card-title">Tasks</div>
-          <div className="card-body">
+        <section className="reply reply-section todos row">
+          <h2 className="reply-title">Tasks</h2>
+          <ul className="todo-list reply-body">
             {item.items.map((t, i) => (
-              <div className={`todo-item ${t.status === "completed" ? "done" : t.status === "in_progress" ? "active" : ""}`} key={i}>
+              <li className={`todo-item ${t.status === "completed" ? "done" : t.status === "in_progress" ? "active" : ""}`} key={i}>
                 <span className="mark">{t.status === "completed" ? "✓" : t.status === "in_progress" ? "▶" : "○"}</span>
                 <span className="lbl">{t.status === "in_progress" && t.activeForm ? t.activeForm : t.content}</span>
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       );
     case "table":
       return (
-        <div className="card row">
-          <div className="card-title">{item.title}</div>
-          <div className="card-body">
+        <section className="reply reply-section row">
+          {item.title && <h2 className="reply-title">{item.title}</h2>}
+          <div className="reply-table reply-body">
             <table className="kv">
               <tbody>
                 {item.rows.map(([k, v], i) => (
-                  <tr key={i}><td className="k">{k}</td><td className="v mono">{v}</td></tr>
+                  <tr key={i}><th scope="row" className="k">{k}</th><td className="v mono">{v}</td></tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       );
     case "markdown":
       return (
-        <div className="card row">
-          <div className="card-title">{item.title}</div>
-          <div className="card-body text" dangerouslySetInnerHTML={md(item.text)} />
-        </div>
+        <section className="reply reply-section row">
+          {item.title && <h2 className="reply-title">{item.title}</h2>}
+          <div className="reply-body text" dangerouslySetInnerHTML={md(item.text)} />
+        </section>
       );
     case "diffcard":
       return (
