@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
+import { composerAction } from "./lib/composer-layout";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -224,6 +225,12 @@ export default function App() {
   }, [projectExpanded]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const textarea = taRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
+  }, [input, windowWidth]);
 
   const push = (item: Item) => {
     if (textBuf.current && flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
@@ -781,9 +788,15 @@ export default function App() {
     taRef.current?.focus();
   };
 
+  const submitAction = composerAction(
+    input, running, files.length > 0 && atFrag !== null,
+    palette.length > 0 && !input.trim().includes(" ") && palette[Math.min(cmdSel, palette.length - 1)]?.name !== input.trim(),
+  );
+  const submitLabel = submitAction === "queue" ? "Queue task" : submitAction === "complete" ? "Complete suggestion" : "Send";
+
   const submit = () => {
     const text = input.trim();
-    if (!text) return;
+    if (!ready || !text) return;
     if (files.length > 0 && atFrag !== null) {
       // File palette open — Enter completes the selected mention.
       completeMention(files[Math.min(cmdSel, files.length - 1)].name);
@@ -813,7 +826,7 @@ export default function App() {
       setSettingsOpen(true);
       return;
     }
-    if (running && !text.startsWith("/")) {
+    if (submitAction === "queue") {
       // Typed during a run → backlog, not an in-session steer. /steer is the
       // escape hatch for the old inject-mid-run behavior.
       setQueue((q) => [...q, text]);
@@ -847,6 +860,10 @@ export default function App() {
   useEffect(() => {
     if (settingsOpen && settingsTab === "providers") void send({ type: "command", name: "/models" });
   }, [settingsOpen, settingsTab]);
+  useEffect(() => {
+    setModelOpts([]);
+    if (ready && !ready.needsSetup) void send({ type: "command", name: "/models" });
+  }, [ready?.provider, ready?.needsSetup]);
 
   const openProject = () => {
     void invoke<string | null>("pick_folder").then((dir) => {
@@ -1681,24 +1698,22 @@ export default function App() {
       </div>
 
       <div className="statusline">
-        <span className="statusline-act">
-          {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
-          {queue.length > 0 && <span className="queuecount">+{queue.length} queued</span>}
-        </span>
         {ready && (
           <span className="statusline-ctx">
-            <button className="inctx" title="Change project" onClick={openProject}>
+            <button className="inctx" aria-label={`Change project: ${ready.project.name}`} title={`Change project: ${ready.project.name}`} onClick={openProject}>
+              <Folder size={12} />
               <span className="inctx-name">{ready.project.name}</span>
               {ready.project.git && (
-                <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+                <span className="branch mono" title={ready.project.git.branch}>{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
               )}
               <ChevronDown size={11} />
             </button>
-            <span className="statusline-model">
-              {ready.model} · {ready.effort ?? "default"}{ready.variant ? ` · ${ready.variant}` : ""}
-            </span>
           </span>
         )}
+        <span className="statusline-act">
+          {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}</>}
+          {queue.length > 0 && <span className="queuecount">{queue.length} queued</span>}
+        </span>
       </div>
 
       {menu && (
@@ -1836,27 +1851,17 @@ export default function App() {
           </div>
         )}
         <div className="inputbox">
-          <div className="inputrow">
-          <span className="prompt-glyph">❯</span>
-          <div className="ghost-wrap">
-            {input && (
-              <div className="ghost-mirror" aria-hidden="true">
-                <span className="ghost-src">{input}</span>
-                <span className="ghost-hint"> · / commands · @ files</span>
-              </div>
-            )}
-            <textarea
+          <textarea
             ref={taRef}
-            rows={1}
+            rows={2}
             autoFocus
+            aria-label={chatMode ? "Codebase question" : "Task prompt"}
+            aria-describedby="composer-hints"
             placeholder={chatMode ? "Ask about this codebase…" : "Ask dxxpcode anything…"}
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
-            }}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
               const rows = palette.length > 0 ? palette.length : files.length;
               if (rows > 0 && e.key === "ArrowDown") {
                 e.preventDefault();
@@ -1878,26 +1883,38 @@ export default function App() {
                 } else if (running) void send({ type: "cancel" });
               }
             }}
-            />
-          </div>
-          {input.trim() && (
-            <button
-              className="sendhint"
-              title="Send"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                submit();
-              }}
-            >→</button>
-          )}
-          </div>
-          {ready && (
-            <div className={`subline${running ? " dim" : ""}`}>
-              <span className="subline-hint">
-                {running ? "esc to interrupt" : "⏎ send · ⇧⏎ newline"}
-              </span>
+          />
+          <div className="composer-toolbar">
+            <div className="composer-controls">
+              {ready && (
+                <>
+                  <SetSelect
+                    compact label="Model" value={ready.model}
+                    options={modelOpts.length ? modelOpts : [ready.model]} extra={["custom…"]}
+                    disabled={running || onboarding}
+                    onOpen={() => void send({ type: "command", name: "/models" })}
+                    onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
+                  />
+                  <SetSelect
+                    compact label="Reasoning effort" value={ready.effort ?? "default"}
+                    options={EFFORT_LEVELS} disabled={running || onboarding}
+                    onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                  />
+                  {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
+                </>
+              )}
             </div>
-          )}
+            <div className="composer-actions">
+              {running && <Button variant="ghost" size="icon" className="composer-stop" aria-label="Stop task" title="Stop task (Esc)" onClick={() => void send({ type: "cancel" })}><Square size={13} /></Button>}
+              <Button size="icon" className="composer-submit" aria-label={submitLabel} title={submitLabel} disabled={!ready || !input.trim()} onClick={() => { submit(); taRef.current?.focus(); }}>
+                {submitAction === "queue" ? <ListEnd size={16} /> : submitAction === "complete" ? <CornerDownLeft size={16} /> : <ArrowUp size={17} />}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="composer-hints" id="composer-hints">
+          <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
+          <span><kbd>↵</kbd> {submitAction === "queue" ? "queue" : submitAction === "complete" ? "complete" : "send"} · <kbd>⇧↵</kbd> newline{running && <> · <kbd>Esc</kbd> stop</>}</span>
         </div>
       </div>
       </div>
@@ -2036,36 +2053,61 @@ const Chevron = (
   <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
 );
 
-function SetSelect({ label, desc, value, options, extra, onChange }: { label: string; desc?: string; value: string; options: string[]; extra?: string[]; onChange: (v: string) => void }) {
-  const opts = [...options, ...(extra ?? [])];
+function SetSelect({ label, desc, value, options, extra, onChange, compact = false, disabled = false, onOpen }: { label: string; desc?: string; value: string; options: string[]; extra?: string[]; onChange: (v: string) => void; compact?: boolean; disabled?: boolean; onOpen?: () => void }) {
+  const opts = Array.from(new Set([...options, value, ...(extra ?? [])]));
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const id = useId();
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const openMenu = () => {
+    if (disabled) return;
+    setActive(Math.max(0, opts.indexOf(value)));
+    setOpen(true);
+    onOpen?.();
+  };
+  const closeMenu = () => { setOpen(false); triggerRef.current?.focus(); };
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
   }, [open]);
+  useEffect(() => {
+    if (open) optionRefs.current[Math.min(active, opts.length - 1)]?.focus();
+  }, [open, active, opts.length]);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   return (
-    <div className="setrow static" ref={ref}>
-      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
+    <div className={compact ? "composer-select" : "setrow static"} ref={ref}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); closeMenu(); }
+        else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+          e.preventDefault();
+          if (!open) openMenu();
+          else setActive((i) => e.key === "Home" ? 0 : e.key === "End" ? opts.length - 1 : (i + (e.key === "ArrowDown" ? 1 : -1) + opts.length) % opts.length);
+        }
+      }}>
+      {!compact && <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>}
       <div className="setdd">
-        <button type="button" className="setdd-btn" onClick={() => setOpen((o) => !o)}>
+        <button ref={triggerRef} type="button" className="setdd-btn" aria-label={`${label}: ${value}`} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? id : undefined} title={`${label}: ${value}`} disabled={disabled} onClick={() => open ? closeMenu() : openMenu()}>
           <span className="setdd-val">{value}</span>
           <ChevronDown size={11} className="setdd-caret" />
         </button>
         {open && (
-          <div className="setdd-menu" role="listbox">
-            {opts.map((o) => (
+          <div className="setdd-menu" id={id} role="listbox" aria-label={label}>
+            {opts.map((o, i) => (
               <button
                 key={o}
+                ref={(el) => { optionRefs.current[i] = el; }}
                 type="button"
                 role="option"
+                tabIndex={i === active ? 0 : -1}
                 aria-selected={o === value}
                 className={`setdd-item${o === value ? " cur" : ""}`}
-                onClick={() => { setOpen(false); onChange(o); }}
+                onFocus={() => setActive(i)}
+                onClick={() => { closeMenu(); onChange(o); }}
               >
                 <span className="setdd-check">{o === value ? "✓" : ""}</span>
                 {o}

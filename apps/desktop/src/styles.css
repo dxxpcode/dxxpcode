@@ -328,16 +328,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .inctx:hover { color: var(--text); }
 .inctx-name { font-size: 11.5px; color: inherit; }
 .inctx .branch { font-size: 10px; color: var(--faint); }
-.subline {
-  display: flex; align-items: center; justify-content: flex-end; gap: 14px;
-  padding-top: 6px;
-  font-size: 10px;
-  opacity: 0;
-  transition: opacity 0.2s var(--ease);
-}
-.inputbox:hover .subline, .inputbox:focus-within .subline { opacity: 1; }
-.subline.dim { opacity: 0.35; }
-.subline-hint { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
 .eff-pill {
   padding: 5px 4px; border-radius: 6px; border: 1px solid var(--border);
   background: var(--surface2); cursor: pointer; font-family: inherit;
@@ -686,17 +676,17 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 /* ---------- status + composer ---------- */
 .statusline {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 4px 24px; color: var(--dim);
-  font-family: var(--font-mono); font-size: 10px;
-  min-height: 24px;
+  padding: 4px 22px; color: var(--dim);
+  font-size: 11.5px; min-height: 28px;
 }
-.statusline-act { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; }
-.statusline-ctx { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-.statusline-ctx .inctx { align-self: auto; margin: 0; }
-.statusline-ctx .inctx-name { font-size: 10px; }
-.statusline-ctx .branch { font-size: 9px; }
-.statusline-model { color: var(--faint); }
-.queuecount { color: var(--faint); }
+.statusline-act { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-left: auto; }
+.statusline-ctx { display: inline-flex; min-width: 0; max-width: 60%; }
+.statusline-ctx .inctx { align-self: auto; margin: 0; gap: 6px; min-width: 0; font-family: inherit; border: none; }
+.statusline-ctx .inctx-name, .statusline-ctx .branch { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusline-ctx .inctx-name { font-size: 11.5px; }
+.statusline-ctx .branch { font-size: 11px; max-width: 40%; }
+.statusline-ctx svg, .queuecount, .statusline .pulse { flex-shrink: 0; }
+.queuecount { color: var(--faint); white-space: nowrap; }
 .pulse {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--text);
@@ -704,16 +694,17 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 @keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.9; } }
 .statusline .statustext {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   background: linear-gradient(90deg, var(--dim) 35%, var(--text) 50%, var(--dim) 65%);
   background-size: 250% 100%;
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
   animation: thinkshine 1.6s linear infinite;
 }
-.statusline .tokrate { color: var(--faint); font-variant-numeric: tabular-nums; }
+.statusline .tokrate { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .statusline .statustext { font-family: inherit; }
 
-.composer { padding: 10px 20px 18px; }
+.composer { padding: 6px 20px 14px; }
 .queuelist { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
 .queuerow {
   display: flex; align-items: center; gap: 8px;
@@ -727,7 +718,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   background: none; border: none; cursor: pointer; padding: 2px;
   opacity: 0; transition: opacity 0.12s var(--ease);
 }
-.queuerow:hover .qdrop { opacity: 1; }
+.queuerow:hover .qdrop, .queuerow:focus-within .qdrop { opacity: 1; }
 .queuerow .qdrop:hover { color: var(--text); }
 .workerrow .wstatus { max-width: 40%; color: var(--faint); }
 .queuerow .wact {
@@ -737,45 +728,54 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .queuerow .wact:hover { color: var(--text); background: var(--surface2); }
 .inputbox {
-  display: flex; flex-direction: column; gap: 8px;
-  background: transparent;
-  border-bottom: 1px solid var(--border);
-  padding: 2px 0 8px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 14px 10px;
   transition: border-color 0.15s var(--ease);
 }
 .inputbox:focus-within {
-  border-color: var(--faint);
+  border-color: var(--border-strong);
 }
-.prompt-glyph {
-  color: var(--faint); font-size: 12px; line-height: 1.5;
-  align-self: flex-start; padding-top: 3px; flex-shrink: 0;
-  transition: color 0.15s var(--ease);
-}
-.inputbox:focus-within .prompt-glyph { color: var(--dim); }
 .inputbox textarea {
-  flex: 1; resize: none; border: none; outline: none; background: none;
+  width: 100%; min-height: 44px; padding: 0; resize: none;
+  border: none; outline: none; background: none;
   color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
-  max-height: 140px;
+  max-height: 140px; overflow-y: auto;
 }
 .inputbox textarea::placeholder { color: var(--faint); }
-.ghost-wrap { position: relative; display: flex; }
-.ghost-mirror {
-  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
-  font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
-  white-space: pre-wrap; overflow-wrap: break-word;
+.composer-toolbar {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.ghost-src { color: transparent; }
-.ghost-hint { color: var(--faint); animation: fadein 0.15s var(--ease); }
-.inputrow { display: flex; align-items: flex-end; gap: 10px; }
-.inputrow .ghost-wrap { flex: 1; min-width: 0; }
-.sendhint {
-  border: none; background: none; padding: 2px 6px;
-  color: var(--dim); font-size: 15px; line-height: 1.5;
-  cursor: pointer;
-  animation: fadein 0.15s var(--ease);
-  transition: color 0.15s var(--ease), transform 0.15s var(--ease);
+.composer-controls { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.composer-select { min-width: 0; }
+.composer-select:first-child { max-width: 240px; }
+.composer-select .setdd { position: static; }
+.composer-select .setdd-btn { max-width: 100%; min-height: 30px; font-size: 12px; }
+.composer-select .setdd-menu {
+  top: auto; bottom: calc(100% + 8px); left: 0; right: auto;
+  width: min(320px, 100%); min-width: 0; border-radius: var(--radius-sm);
 }
-.sendhint:hover { color: var(--text); transform: translateX(1px); }
+.composer-select .setdd-item { overflow-wrap: anywhere; }
+.composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
+.composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
+.composer-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.composer-submit, .composer-stop { width: 32px; height: 32px; border-radius: var(--radius-sm); }
+.composer-submit:disabled { opacity: 0.3; }
+.composer-hints {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px;
+  padding: 8px 2px 0; font-size: 11px; line-height: 1.5; color: var(--faint);
+}
+.composer-hints kbd { font: inherit; color: var(--dim); }
+.composer button:focus-visible, .statusline button:focus-visible {
+  outline: 1px solid var(--border-strong); outline-offset: 2px; box-shadow: none;
+}
+@media (max-width: 720px) {
+  .statusline { flex-wrap: wrap; gap: 4px 12px; }
+  .statusline-ctx { max-width: 100%; }
+  .statusline-act { max-width: 100%; }
+  .composer-controls { flex-wrap: wrap; gap: 0 10px; }
+}
 /* ---------- command palette ---------- */
 .palette {
   margin-bottom: 10px;
@@ -1058,11 +1058,11 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 }
 .app.has-art .hero-mark,
 .app.has-art .logo-mark,
-.app.has-art .hero-proj svg,
-.app.has-art .sendhint,
-.app.has-art .prompt-glyph {
+.app.has-art .hero-proj svg {
   filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.65));
 }
+.app.has-art .inputbox { background: rgb(0 0 0 / 0.55); border-color: rgb(255 255 255 / 0.2); text-shadow: none; }
+.app.has-art .inputbox:focus-within { border-color: rgb(255 255 255 / 0.4); }
 .hero-mark { width: 44px; height: auto; color: var(--faint); margin-bottom: 6px; animation: heromark 0.7s var(--ease) backwards; }
 @keyframes heromark { from { opacity: 0; } to { opacity: 1; } }
 .hero-title {
@@ -1401,6 +1401,7 @@ html[data-theme="dark"] {
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 html[data-theme="dark"] .app:not(.has-art) .rail { background: var(--bg); }
+html[data-theme="dark"] .app:not(.has-art) .inputbox { background: var(--bg); }
 html[data-theme="dark"] ::selection { background: rgba(96, 165, 250, 0.3); }
 html[data-theme="dark"] .usermsg .chev { color: rgba(0, 0, 0, 0.45); }
 html[data-theme="dark"] .diff .add mark.chg { background: rgba(74, 222, 128, 0.22); }
