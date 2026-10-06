@@ -1780,13 +1780,42 @@ const Chevron = (
 
 function SetSelect({ label, desc, value, options, extra, onChange }: { label: string; desc?: string; value: string; options: string[]; extra?: string[]; onChange: (v: string) => void }) {
   const opts = [...options, ...(extra ?? [])];
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+  }, [open]);
   return (
-    <div className="setrow static">
+    <div className="setrow static" ref={ref}>
       <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
-      <select className="setsel" value={opts.includes(value) ? value : ""} onChange={(e) => onChange(e.target.value)}>
-        {!opts.includes(value) && <option value="" disabled>{value}</option>}
-        {opts.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      <div className="setdd">
+        <button type="button" className="setdd-btn" onClick={() => setOpen((o) => !o)}>
+          <span className="setdd-val">{value}</span>
+          <ChevronDown size={11} className="setdd-caret" />
+        </button>
+        {open && (
+          <div className="setdd-menu" role="listbox">
+            {opts.map((o) => (
+              <button
+                key={o}
+                type="button"
+                role="option"
+                aria-selected={o === value}
+                className={`setdd-item${o === value ? " cur" : ""}`}
+                onClick={() => { setOpen(false); onChange(o); }}
+              >
+                <span className="setdd-check">{o === value ? "✓" : ""}</span>
+                {o}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
