@@ -153,6 +153,7 @@ export default function App() {
   const [palIdx, setPalIdx] = useState(0);
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
   const [railQuery, setRailQuery] = useState("");
+  const [railTab, setRailTab] = useState<"sessions" | "tasks">("sessions");
   const [bootGone, setBootGone] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
@@ -1035,7 +1036,6 @@ export default function App() {
       )}
       {ready && !onboarding && railOpen && (
         <aside className="rail">
-          {IS_MAC && <div className="rail-macpad" data-tauri-drag-region />}
           <div className="rail-head">
             <button className="rail-proj" title="Change project" onClick={openProject}>
               <span className="truncate">{ready.project.name}</span>
@@ -1045,19 +1045,30 @@ export default function App() {
               <Plus size={13} />
               <span>New session</span>
             </button>
-            <div className="rail-search">
-              <Search size={12} />
-              <input
-                type="text"
-                placeholder="Search sessions…"
-                value={railQuery}
-                onChange={(e) => setRailQuery(e.target.value)}
-                spellCheck={false}
-              />
-            </div>
+            <span className="modeseg rail-seg">
+              <button className={`modeseg-btn${railTab === "sessions" ? " cur" : ""}`} onClick={() => setRailTab("sessions")}>Sessions</button>
+              <button className={`modeseg-btn${railTab === "tasks" ? " cur" : ""}`} onClick={() => setRailTab("tasks")}>Tasks</button>
+            </span>
           </div>
+          {railTab === "sessions" && (
+            <div className="rail-tools">
+              <div className="rail-search">
+                <Search size={12} />
+                <input
+                  type="text"
+                  placeholder="Search sessions…"
+                  value={railQuery}
+                  onChange={(e) => setRailQuery(e.target.value)}
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+          )}
           <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
-            {queue.length > 0 && (
+            {railTab === "tasks" && queue.length === 0 && !wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
+              <p className="pal-empty">No running tasks.</p>
+            )}
+            {railTab === "tasks" && queue.length > 0 && (
               <div>
                 <div className="pal-group-label">Queued</div>
                 {queue.map((text, i) => (
@@ -1074,7 +1085,7 @@ export default function App() {
                 ))}
               </div>
             )}
-            {wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
+            {railTab === "tasks" && wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
               <div>
                 <div className="pal-group-label">Parallel tasks</div>
                 {wtasks
@@ -1105,8 +1116,8 @@ export default function App() {
                   ))}
               </div>
             )}
-            {railGroups.length === 0 && <p className="pal-empty">{railQuery ? "No matches." : "No sessions in this project yet."}</p>}
-            {railGroups.map(([label, group]) => (
+            {railTab === "sessions" && railGroups.length === 0 && <p className="pal-empty">{railQuery ? "No matches." : "No sessions in this project yet."}</p>}
+            {railTab === "sessions" && railGroups.map(([label, group]) => (
               <div key={label}>
                 <div className="pal-group-label">{label}</div>
                 {group.map((s) => {
