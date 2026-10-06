@@ -1279,15 +1279,15 @@ export default function App() {
               <>
                 <div className="ob-title">{OB_PROVIDERS.find((p) => p.id === obProvider)?.name ?? "Provider"} API key</div>
                 <p className="ob-desc">Stored on this machine — validated before it's saved.</p>
-                <div className="ob-keywrap">
+                <div className={`ob-keywrap${obError ? " err" : ""}`}>
                   <input
                     className="ob-input ob-key mono"
                     id="ob-key"
                     type="password"
                     autoFocus
-                    placeholder=" "
+                    placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "API key"}
                     value={obKey}
-                    onChange={(e) => { setObKey(e.target.value); setObError(null); }}
+                    onChange={(e) => { setObKey(e.target.value.trim()); setObError(null); }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && obKey.trim() && !obBusy) {
                         setObBusy(true);
@@ -1295,9 +1295,6 @@ export default function App() {
                       }
                     }}
                   />
-                  <label className="ob-keylabel" htmlFor="ob-key">
-                    {{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "API key"}
-                  </label>
                   {obBusy && <span className="ob-spinner" />}
                 </div>
                 {obProvider === "custom" && (

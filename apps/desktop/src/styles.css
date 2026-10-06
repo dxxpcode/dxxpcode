@@ -1037,27 +1037,22 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .ob-prov-desc { font-size: 11px; color: var(--ob-faint); text-align: right; }
 .ob-prov.demo { border-style: dashed; background: rgba(10, 10, 14, 0.35); }
 .ob-keywrap { position: relative; margin-bottom: 8px; }
-.ob-key { padding: 14px 42px 14px 16px; font-size: 14px; letter-spacing: 0.02em; margin-bottom: 0; }
-.ob-keylabel {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ob-faint);
-  font-size: 13px;
-  font-family: inherit;
-  pointer-events: none;
-  transition: all 0.15s var(--ease);
+.ob-key {
+  padding: 17px 46px 17px 18px;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  margin-bottom: 0;
+  border-radius: 10px;
+  text-align: left;
 }
-.ob-key:focus ~ .ob-keylabel,
-.ob-key:not(:placeholder-shown) ~ .ob-keylabel {
-  top: -7px;
-  transform: none;
-  font-size: 10px;
-  color: var(--ob-dim);
-  background: var(--ob-glass);
-  padding: 0 6px;
-  border-radius: 4px;
+.ob-keywrap.err .ob-key {
+  border-color: rgba(252, 165, 165, 0.7);
+  animation: obshake 0.3s var(--ease);
+}
+@keyframes obshake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
 }
 .ob-spinner {
   position: absolute;
@@ -1090,7 +1085,6 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .ob-more:hover { color: var(--ob-text); }
 .ob-more-chev { display: inline-block; transition: transform 0.2s var(--ease); font-size: 13px; }
 .ob-more-chev.up { transform: rotate(180deg); }
-.ob-key { padding: 14px 16px; font-size: 14px; text-align: center; letter-spacing: 0.02em; }
 .ob-input {
   width: 100%;
   box-sizing: border-box;
