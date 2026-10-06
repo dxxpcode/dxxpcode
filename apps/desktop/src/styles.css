@@ -1100,7 +1100,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   outline: none;
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
-.ob-input:focus { border-color: var(--ob-line-strong); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12); }
+.ob-input:focus { border-color: var(--ob-line-strong); }
 .ob-input::placeholder { color: var(--ob-faint); }
 .ob-error {
   font-size: 12px;
