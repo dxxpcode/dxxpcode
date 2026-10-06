@@ -1003,7 +1003,7 @@ export default function App() {
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
-          <Logo className="logo-mark" />
+          {!onboarding && <Logo className="logo-mark" />}
         </div>
         <span className="spacer" />
         {ready && !IS_MAC && (
