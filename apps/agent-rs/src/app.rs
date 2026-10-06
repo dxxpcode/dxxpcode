@@ -185,6 +185,7 @@ impl Shared {
             "effort": if self.effort_auto() { "auto (Jev)".to_string() } else { self.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into()) },
             "variant": self.variant.lock().unwrap().clone().unwrap_or_else(|| "default".into()),
             "variants": variant_names(),
+            "providers": available_providers(self),
             "mode": *self.mode.lock().unwrap(),
         }));
     }
@@ -907,15 +908,21 @@ fn run_onboarding(sh: &Arc<Shared>) {
     emit_note("you're all set — ask dxxpcode anything");
 }
 
-fn open_provider_menu(sh: &Arc<Shared>) {
+/// Providers usable right now — env var or saved key in config.json, plus
+/// mock when it's in play. Current provider always first.
+fn available_providers(sh: &Shared) -> Vec<String> {
     let cfg = load_config();
     let cur = sh.provider_name.lock().unwrap().clone();
-    let mut avail: Vec<String> = vec![];
+    let mut opts = vec![cur.clone()];
     if std::env::var("ANTHROPIC_API_KEY").is_ok() || cfg.anthropic_api_key.is_some() {
-        avail.push("anthropic".into());
+        if !opts.iter().any(|p| p == "anthropic") {
+            opts.push("anthropic".into());
+        }
     }
     if std::env::var("OPENAI_API_KEY").is_ok() || cfg.openai_api_key.is_some() {
-        avail.push("openai".into());
+        if !opts.iter().any(|p| p == "openai") {
+            opts.push("openai".into());
+        }
     }
     if std::env::var("DXXPCODE_PROVIDER")
         .map(|v| v == "mock")
@@ -923,14 +930,16 @@ fn open_provider_menu(sh: &Arc<Shared>) {
         || std::env::var("DXXPCODE_MOCK_SCRIPT").is_ok()
         || cur == "mock"
     {
-        avail.push("mock".into());
-    }
-    let mut opts = vec![cur.clone()];
-    for a in avail {
-        if !opts.contains(&a) {
-            opts.push(a);
+        if !opts.iter().any(|p| p == "mock") {
+            opts.push("mock".into());
         }
     }
+    opts
+}
+
+fn open_provider_menu(sh: &Arc<Shared>) {
+    let cur = sh.provider_name.lock().unwrap().clone();
+    let opts = available_providers(sh);
     let menu_opts: Vec<Value> = opts
         .iter()
         .map(|p| json!({"label": p}))
@@ -1192,7 +1201,15 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             Some(name) => set_variant(sh, name),
             None => open_variant_menu(sh),
         },
-        "/provider" | "/providers" => open_provider_menu(sh),
+        "/provider" | "/providers" => match raw
+            .trim()
+            .get("/provider".len()..)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(name) => switch_provider(sh, name),
+            None => open_provider_menu(sh),
+        },
         "/setup" => run_onboarding(sh),
         "/undo" => {
             let out = {
@@ -1684,6 +1701,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         "effort": deps.effort,
         "variant": deps.variant,
         "variants": variant_names(),
+        "providers": available_providers(&sh),
         "mode": deps.mode,
         "commands": COMMAND_LIST.iter().map(|(n, d)| json!({"name": n, "desc": d})).collect::<Vec<_>>(),
         "needsSetup": needs_setup,
