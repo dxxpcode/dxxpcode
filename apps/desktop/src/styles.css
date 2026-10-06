@@ -196,7 +196,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .theme-opts .eff-pill { padding: 3px 10px; font-size: 10.5px; }
 /* Frameless window: header is the drag surface (via data-tauri-drag-region) */
 .header { user-select: none; }
-.header.mac { padding-left: 84px; } /* room for traffic lights */
+.header.mac { padding-left: 20px; } /* frameless window — no traffic lights */
 /* Right zone: action rail */
 .hact { display: flex; align-items: center; gap: 4px; }
 .win-close:hover { color: #e5484d !important; background: rgba(229,72,77,.1) !important; }
