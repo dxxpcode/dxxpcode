@@ -41,18 +41,6 @@ function closePartialMd(t: string): string {
   return t;
 }
 
-// Streaming text: render everything but the newest fragment statically, and
-// wrap the tail in an .ease span so only the freshly arrived words fade/slide
-// in (re-mounting the tail is fine — it's the part that's animating anyway).
-function mdStream(t: string) {
-  const closed = closePartialMd(t);
-  const cut = Math.max(0, closed.length - 28);
-  const sp = closed.indexOf(" ", cut);
-  const tail = sp > 0 ? closed.slice(sp + 1) : closed.slice(cut);
-  const head = closed.slice(0, closed.length - tail.length);
-  return { __html: `${marked.parse(head, { async: false })}<span class="ease">${marked.parseInline(tail, { async: false })}</span>` };
-}
-
 const EFFORT_LEVELS = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
@@ -233,7 +221,7 @@ export default function App() {
   }, [input, windowWidth]);
 
   const push = (item: Item) => {
-    if (textBuf.current && flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+    flushText();
     closeThink();
     // Reasoning that directly precedes a tool call anchors to that tool's row.
     if (item.k === "tool") {
@@ -254,11 +242,11 @@ export default function App() {
   const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
   const atFrag = palette.length === 0 && atMatch ? atMatch[1].split("#")[0] : null;
   const files = atFrag !== null ? fileSugs.items : [];
-  // Batch streamed deltas: buffer and flush once per frame-ish so React
-  // re-renders ~30x/sec max instead of once per NDJSON chunk.
+  // Replies arrive as whole blocks, not a token stream: `appendText` just
+  // accumulates into textBuf; the block is pushed when the next event lands
+  // (push/done/idle). Think still streams dim inside its own row.
   const textBuf = useRef("");
   const thinkBuf = useRef("");
-  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live token rate: count streamed chars, report ~tok/s while streaming.
   const [tokRate, setTokRate] = useState(0);
@@ -308,7 +296,6 @@ export default function App() {
     });
   }, [flushThink]);
   const flushText = useCallback(() => {
-    flushTimer.current = null;
     const t = textBuf.current;
     textBuf.current = "";
     if (!t) return;
@@ -318,10 +305,12 @@ export default function App() {
       return [...prev, { k: "text", text: t }];
     });
   }, []);
+  // No per-token render: the reply accumulates and arrives as a whole block
+  // when the next event lands — `push`/done/idle flush it. Structured
+  // conversation, not a terminal stream.
   const appendText = (t: string) => {
     textBuf.current += t;
     countStream(t.length);
-    if (!flushTimer.current) flushTimer.current = setTimeout(flushText, 32);
   };
 
   const handle = useCallback((ev: Ev) => {
@@ -565,7 +554,7 @@ export default function App() {
         };
         if (r.status === "cancelled") {
           // Mark a text stream cut short by esc.
-          if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+          flushText();
           setItems((prev) => {
             const next = [...prev];
             for (let i = next.length - 1; i >= 0; i--) {
@@ -589,7 +578,7 @@ export default function App() {
         break;
       }
       case "idle": {
-        if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+        flushText();
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
         stopRate();
@@ -1643,7 +1632,7 @@ export default function App() {
           Array.isArray(seg) ? (
             <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
           ) : (
-            <ItemView key={seg.idx} item={seg.item} streaming={running && seg.idx === items.length - 1} />
+            <ItemView key={seg.idx} item={seg.item} />
           ),
         )}
         {approvals.map((a) => (
@@ -1922,15 +1911,14 @@ export default function App() {
   );
 }
 
-function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
+function ItemView({ item }: { item: Item }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row"><span className="chev">❯</span>{item.text}</div>;
     case "text":
       return (
         <div className="text row">
-          <span dangerouslySetInnerHTML={streaming ? mdStream(item.text) : md(item.text)} />
-          {streaming && <span className="caret" aria-hidden />}
+          <span dangerouslySetInnerHTML={md(item.text)} />
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
       );
@@ -2171,7 +2159,7 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
     const it = seg[0];
     return (
       <div className="tgroup">
-        <ItemView item={it.item} streaming={running && it.idx === lastIdx} />
+        <ItemView item={it.item} />
       </div>
     );
   }
@@ -2186,7 +2174,7 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
       {open && (
         <div className="tg-body">
           {seg.map((it) => (
-            <ItemView key={it.idx} item={it.item} streaming={running && it.idx === lastIdx} />
+            <ItemView key={it.idx} item={it.item} />
           ))}
         </div>
       )}
