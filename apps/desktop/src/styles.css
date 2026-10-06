@@ -947,6 +947,23 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   height: calc(100% + 48px);
   object-fit: cover;
   filter: brightness(0.55) blur(3px) saturate(0.9);
+  /* the painting breathes once — a slow push-in that settles and stays */
+  animation: obbreathe 9s cubic-bezier(.16,.6,.3,1) 0.1s both;
+}
+@keyframes obbreathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.055); }
+}
+/* closing: the veil + stage fade out while the art sharpens into the app's
+   real backdrop beneath — one continuous handoff, no cut */
+.onboarding.leaving {
+  opacity: 0;
+  transition: opacity 0.6s ease 0.05s;
+  pointer-events: none;
+}
+.onboarding.leaving .ob-art {
+  filter: brightness(0.62) blur(0px) saturate(1);
+  transition: filter 0.6s ease;
 }
 .ob-veil {
   position: absolute;
@@ -984,7 +1001,8 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   to { opacity: 1; transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .onboarding, .ob-stage, .ob-stage > *, .ob-providers > *, .ob-keywrap.err .ob-key { animation: none !important; }
+  .onboarding, .ob-stage, .ob-stage > *, .ob-providers > *, .ob-keywrap.err .ob-key, .ob-art { animation: none !important; }
+  .onboarding.leaving, .onboarding.leaving .ob-art { transition: none !important; }
 }
 .ob-mark {
   display: block;

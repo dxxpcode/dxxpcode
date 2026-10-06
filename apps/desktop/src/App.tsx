@@ -114,6 +114,13 @@ export default function App() {
   const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project" | "first">("welcome");
   const [obDir, setObDir] = useState<"fwd" | "back">("fwd");
   const OB_ORDER: Record<string, number> = { welcome: 0, pick: 1, key: 2, project: 3, first: 4 };
+  const [obLeaving, setObLeaving] = useState(false);
+  // Fades the whole onboarding surface while the art behind sharpens into the
+  // app's real backdrop — one continuous handoff instead of a cut.
+  const closeOnboarding = () => {
+    setObLeaving(true);
+    window.setTimeout(() => { setOnboarding(false); setObLeaving(false); }, 650);
+  };
   const goStep = (s: "welcome" | "pick" | "key" | "project" | "first") => {
     setObDir(OB_ORDER[s] >= OB_ORDER[obStep] ? "fwd" : "back");
     setObStep(s);
@@ -1202,11 +1209,11 @@ export default function App() {
         </div>
       )}
       {onboarding && !settingsOpen && !docView && (
-        <div className="onboarding">
+        <div className={`onboarding${obLeaving ? " leaving" : ""}`}>
           <img className="ob-art" src={artSrc ?? artWanderer} alt="" />
           <div className="ob-veil" />
           {obStep === "welcome" && (
-            <button className="ob-skip" onClick={() => setOnboarding(false)}>skip</button>
+            <button className="ob-skip" onClick={closeOnboarding}>skip</button>
           )}
           {obStep !== "welcome" && (
             <button className="ob-back" onClick={() => goStep(obStep === "key" ? "pick" : obStep === "pick" ? "welcome" : "pick")} aria-label="Back">
@@ -1277,13 +1284,13 @@ export default function App() {
                   <button
                     className="btn primary"
                     onClick={() => {
-                      setOnboarding(false);
+                      closeOnboarding();
                       void send({ type: "submit", text: "Create a file named DXXPCODE.md in this project containing a one-sentence summary of what this project does." });
                     }}
                   >
                     Run first task
                   </button>
-                  <button className="btn ghost" onClick={() => setOnboarding(false)}>Not now</button>
+                  <button className="btn ghost" onClick={closeOnboarding}>Not now</button>
                 </div>
                 <p className="ob-hint">You'll approve the change before anything lands</p>
               </>
