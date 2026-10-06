@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -13,6 +14,8 @@ import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } fr
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
+import { ONBOARDING_PHASES, ONBOARDING_PROVIDERS, onboardingBack, onboardingPhase, onboardingSetup } from "./lib/onboarding-layout";
+import type { OnboardingStep } from "./lib/onboarding-layout";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -99,41 +102,35 @@ export default function App() {
   const wbuf = useRef<Record<number, string>>({});
   const wPending = useRef<Record<number, string>>({});
   const rootRef = useRef<string>("");
+  const [projectPath, setProjectPath] = useState("");
   const [onboarding, setOnboarding] = useState(false);
-  // Onboarding wizard: welcome → pick a provider → enter + validate the key.
-  const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project" | "first">("welcome");
-  const [obDir, setObDir] = useState<"fwd" | "back">("fwd");
-  const OB_ORDER: Record<string, number> = { welcome: 0, pick: 1, key: 2, project: 3, first: 4 };
-  const goStep = (s: "welcome" | "pick" | "key" | "project" | "first") => {
-    setObDir(OB_ORDER[s] >= OB_ORDER[obStep] ? "fwd" : "back");
-    setObStep(s);
-  };
+  const [obStep, setObStep] = useState<OnboardingStep>("welcome");
+  const obTitleRef = useRef<HTMLHeadingElement>(null);
   const [obProvider, setObProvider] = useState<string>("anthropic");
-  const OB_BASE: Record<string, string | undefined> = {
-    openrouter: "https://openrouter.ai/api/v1",
-    gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
-    groq: "https://api.groq.com/openai/v1",
-    deepseek: "https://api.deepseek.com/v1",
-    xai: "https://api.x.ai/v1",
-    mistral: "https://api.mistral.ai/v1",
-  };
-  const OB_PROVIDERS: { id: string; name: string; desc: string }[] = [
-    { id: "anthropic", name: "Anthropic", desc: "Claude models" },
-    { id: "openrouter", name: "OpenRouter", desc: "one key — Claude, GPT, Gemini, Llama" },
-    { id: "openai", name: "OpenAI", desc: "GPT models" },
-    { id: "gemini", name: "Gemini", desc: "Google AI Studio key" },
-    { id: "groq", name: "Groq", desc: "fast open models — Llama, GPT-OSS" },
-    { id: "deepseek", name: "DeepSeek", desc: "DeepSeek-V3 / R1" },
-    { id: "xai", name: "xAI", desc: "Grok models" },
-    { id: "mistral", name: "Mistral", desc: "Mistral models" },
-    { id: "custom", name: "Other endpoint", desc: "any OpenAI-compatible API" },
-  ];
   const OB_MAIN = ["anthropic", "openai"];
   const [obMore, setObMore] = useState(false);
   const [obKey, setObKey] = useState("");
   const [obBase, setObBase] = useState("");
   const [obBusy, setObBusy] = useState(false);
   const [obError, setObError] = useState<string | null>(null);
+  const [obHelpError, setObHelpError] = useState<string | null>(null);
+  const obPhase = onboardingPhase(obStep);
+  const obSelected = ONBOARDING_PROVIDERS.find((p) => p.id === obProvider);
+  const chooseObProvider = (id: string) => {
+    setObProvider(id);
+    setObStep("key");
+    setObError(null);
+    setObHelpError(null);
+  };
+  const submitObKey = () => {
+    if (!obKey.trim() || obBusy) return;
+    setObBusy(true);
+    setObError(null);
+    void send(onboardingSetup(obProvider, obKey, obBase));
+  };
+  useEffect(() => {
+    if (onboarding && obStep !== "key") obTitleRef.current?.focus();
+  }, [onboarding, obStep]);
   // Set when we respawn the sidecar for a project switch; the next ready
   // event then finishes onboarding instead of re-showing it.
   const projectSwitchPending = useRef(false);
@@ -677,9 +674,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queueKey, queue]);
 
-  // Project root for worktrees — the sidecar's cwd.
+  // Project root for worktrees and onboarding — the sidecar's cwd.
   useEffect(() => {
-    if (ready) void invoke<string>("session_cwd").then((r) => { rootRef.current = r; });
+    if (!ready) return;
+    let active = true;
+    setProjectPath("");
+    void invoke<string>("session_cwd").then((r) => {
+      if (active) {
+        rootRef.current = r;
+        setProjectPath(r);
+      }
+    }).catch(() => { if (active) setProjectPath("Project path unavailable"); });
+    return () => { active = false; };
   }, [ready]);
 
   // Worker sidecar events: NDJSON lines on `worker-out` tagged by worker id.
@@ -1484,146 +1490,174 @@ export default function App() {
         </div>
       )}
       {onboarding && !settingsOpen && !docView && (
-        <div className="onboarding">
-          <img className="ob-art" src={artSrc ?? artWanderer} alt="" />
-          <div className="ob-veil" />
-          {obStep === "welcome" && (
-            <button className="ob-skip" onClick={() => setOnboarding(false)}>skip</button>
-          )}
-          {obStep !== "welcome" && (
-            <button className="ob-back" onClick={() => goStep(obStep === "key" ? "pick" : obStep === "pick" ? "welcome" : "pick")} aria-label="Back">
-              ‹
-            </button>
-          )}
-          <div className={`ob-stage ${obDir}`} key={obStep}>
-            {obStep === "welcome" && (
-              <>
-                <Logo className="ob-mark" />
-                <div className="ob-title">The AI coding agent on your desktop.</div>
-                <p className="ob-desc">Local. Private. Yours.</p>
-                <div className="setbtns">
-                  <button className="btn primary" onClick={() => goStep("pick")}>Get started</button>
-                </div>
-                <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
-              </>
-            )}
-            {obStep === "pick" && (
-              <>
-                <div className="ob-title">Connect a provider.</div>
-                <div className="ob-seg">
-                  {OB_PROVIDERS.filter((p) => OB_MAIN.includes(p.id)).map((p) => (
-                    <button key={p.id} className="ob-seg-opt" onClick={() => { setObProvider(p.id); goStep("key"); setObError(null); }}>
-                      {p.name}
-                    </button>
-                  ))}
-                  <button className="ob-seg-opt" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
-                    Just explore
-                  </button>
-                </div>
-                <button className="ob-more" onClick={() => setObMore((m) => !m)}>
-                  {obMore ? "Fewer providers" : "More providers"}
-                  <span className={`ob-more-chev${obMore ? " up" : ""}`}>⌄</span>
-                </button>
-                {obMore && (
-                  <div className="ob-providers">
-                    {OB_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
-                      <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); goStep("key"); setObError(null); }}>
-                        <span className="ob-prov-name">{p.name}</span>
-                        <span className="ob-prov-desc">{p.desc}</span>
+        <section className="onboarding" aria-labelledby="ob-title">
+          <div className="ob-frame">
+            <header className="ob-header">
+              <div className="ob-brand"><Logo className="ob-mark" /><span>Set up DxxpCode</span></div>
+              <span className="ob-step-label">{obStep === "first" ? "Setup complete · Optional task" : `Step ${obPhase + 1} of ${ONBOARDING_PHASES.length}`}</span>
+            </header>
+            <ol className="ob-progress" aria-label="Setup progress">
+              {ONBOARDING_PHASES.map((phase, i) => (
+                <li key={phase} aria-current={i === obPhase ? "step" : undefined} data-state={i < obPhase ? "complete" : i === obPhase ? "current" : "upcoming"}>
+                  <span className="ob-phase-number" aria-hidden="true">{i < obPhase ? <Check size={12} /> : i + 1}</span>
+                  <span>{phase}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="ob-content" key={obStep}>
+              <h1 className="ob-title" id="ob-title" ref={obTitleRef} tabIndex={-1}>
+                {{
+                  welcome: "Your coding agent, on your desktop.",
+                  pick: "Connect a provider.",
+                  key: `${obSelected?.name ?? "Provider"} API key`,
+                  project: "Choose your project.",
+                  first: "Try your first task.",
+                }[obStep]}
+              </h1>
+              <p className="ob-desc">
+                {{
+                  welcome: "Local. Private. Yours.",
+                  pick: "Choose the model provider you want to work with.",
+                  key: "Enter your provider’s API key to continue.",
+                  project: "Choose the folder the agent will work in.",
+                  first: ready?.provider === "mock" ? "Optional. Try a scripted reply in demo mode." : "Optional. Start with a small task in this project.",
+                }[obStep]}
+              </p>
+              {obStep === "welcome" && (
+                <p className="ob-hint">Connect your own provider, choose a project, and start coding. You can re-run setup anytime with /setup or Settings → Run setup.</p>
+              )}
+              {obStep === "pick" && (
+                <>
+                  <div className="ob-providers" aria-label="Providers">
+                    {ONBOARDING_PROVIDERS.filter((p) => OB_MAIN.includes(p.id)).map((p) => (
+                      <button key={p.id} className="ob-prov" disabled={obBusy} onClick={() => chooseObProvider(p.id)}>
+                        <span className="ob-prov-copy"><span className="ob-prov-name">{p.name}</span><span className="ob-prov-desc">{p.desc}</span></span>
+                        <ArrowRight size={16} aria-hidden="true" />
                       </button>
                     ))}
                   </div>
-                )}
-              </>
-            )}
-            {obStep === "project" && (
-              <>
-                <div className="ob-title">Open a project.</div>
-                <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
-                <div className="setbtns">
-                  <button className="btn primary" onClick={() => goStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
-                  <button className="btn ghost" onClick={openProject}>Choose folder…</button>
+                  <button className="ob-more" disabled={obBusy} aria-expanded={obMore} aria-controls="ob-other-providers" onClick={() => setObMore((m) => !m)}>
+                    {obMore ? "Fewer providers" : "More providers"}<ChevronDown size={14} className={obMore ? "up" : ""} aria-hidden="true" />
+                  </button>
+                  {obMore && (
+                    <div className="ob-providers ob-other-providers" id="ob-other-providers">
+                      {ONBOARDING_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
+                        <button key={p.id} className="ob-prov" disabled={obBusy} onClick={() => chooseObProvider(p.id)}>
+                          <span className="ob-prov-copy"><span className="ob-prov-name">{p.name}</span><span className="ob-prov-desc">{p.desc}</span></span>
+                          <ArrowRight size={16} aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="ob-demo">
+                    <button className="ob-more" disabled={obBusy} onClick={() => { setObBusy(true); setObError(null); void send(onboardingSetup("mock")); }}>
+                      {obBusy ? "Opening demo…" : "Explore demo mode"}<ArrowRight size={14} aria-hidden="true" />
+                    </button>
+                    <p className="ob-hint">No API key required. Scripted replies only; no files are read or changed.</p>
+                  </div>
+                </>
+              )}
+              {obStep === "key" && (
+                <form id="ob-key-form" aria-busy={obBusy} onSubmit={(e) => { e.preventDefault(); submitObKey(); }}>
+                  <div className="ob-field">
+                    <div className="ob-field-heading">
+                      <label htmlFor="ob-key">API key</label>
+                      {obSelected?.keyUrl && (
+                        <a className="ob-help-link" href={obSelected.keyUrl} target="_blank" rel="noreferrer" onClick={(e) => {
+                          e.preventDefault();
+                          setObHelpError(null);
+                          void openUrl(obSelected.keyUrl!).catch(() => setObHelpError(`Open your browser and visit ${obSelected.keyUrl}`));
+                        }}>Get an API key<ExternalLink size={12} aria-hidden="true" /></a>
+                      )}
+                    </div>
+                    <div className="ob-keywrap">
+                      <input
+                        className="ob-input mono"
+                        id="ob-key"
+                        type="password"
+                        autoFocus
+                        autoComplete="off"
+                        spellCheck={false}
+                        disabled={obBusy}
+                        aria-invalid={Boolean(obError)}
+                        aria-describedby={obError ? "ob-key-hint ob-error" : "ob-key-hint"}
+                        placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "Paste your API key"}
+                        value={obKey}
+                        onChange={(e) => { setObKey(e.target.value.trim()); setObError(null); }}
+                      />
+                    </div>
+                    <p className="ob-hint" id="ob-key-hint">Stored on this machine. Validated with your provider before it’s saved.</p>
+                  </div>
+                  {obHelpError && <p className="ob-error" role="alert">{obHelpError}</p>}
+                  {obProvider === "custom" && (
+                    <div className="ob-field">
+                      <label htmlFor="ob-base">Base URL</label>
+                      <input
+                        className="ob-input mono"
+                        id="ob-base"
+                        type="url"
+                        autoComplete="off"
+                        spellCheck={false}
+                        disabled={obBusy}
+                        aria-describedby="ob-base-hint"
+                        placeholder="https://api.openai.com/v1"
+                        value={obBase}
+                        onChange={(e) => setObBase(e.target.value)}
+                      />
+                      <p className="ob-hint" id="ob-base-hint">Your OpenAI-compatible endpoint. Leave blank to use api.openai.com.</p>
+                    </div>
+                  )}
+                  {obBusy && <p className="ob-validation" role="status">Validating your API key…</p>}
+                </form>
+              )}
+              {(obStep === "project" || obStep === "first") && (
+                <div className="ob-project">
+                  <Folder size={18} aria-hidden="true" />
+                  <div className="ob-project-copy">
+                    <div className="ob-project-name">{ready?.project.name ?? "Current project"}</div>
+                    <div className="ob-project-path mono">{projectPath || "Loading project path…"}</div>
+                  </div>
                 </div>
-                <p className="ob-hint">Switch anytime with Settings → Open a project</p>
-              </>
-            )}
-            {obStep === "first" && (
-              <>
-                <div className="ob-title">See it work.</div>
-                <p className="ob-desc">One prompt, before you touch a real project.</p>
+              )}
+              {obStep === "project" && (
+                <>
+                  <button className="ob-more" onClick={openProject}>Choose another folder<ArrowRight size={14} aria-hidden="true" /></button>
+                  <p className="ob-hint">You can switch projects anytime in Settings.</p>
+                </>
+              )}
+              {obStep === "first" && (
                 <div className="ob-panel">
-                  <div className="ob-panel-title">Write a summary file</div>
-                  <div className="ob-panel-sub">The agent reads the project, proposes a plan, and asks before it writes anything.</div>
+                  <div className="ob-panel-title">{ready?.provider === "mock" ? "Example task" : "Write a summary file"}</div>
+                  <p className="ob-panel-sub">Create <code>DXXPCODE.md</code> with a one-sentence summary of the project above.</p>
+                  <p className="ob-hint">{ready?.provider === "mock" ? "Demo mode only returns scripted replies. This example will not read or change your project." : "The agent will read this project and use your existing approval settings for any changes."}</p>
                 </div>
-                <div className="setbtns">
-                  <button
-                    className="btn primary"
-                    onClick={() => {
+              )}
+              {obError && <p className="ob-error" id="ob-error" role="alert">{obError}</p>}
+            </div>
+            <footer className="ob-footer">
+              {obStep === "welcome" ? (
+                <button className="btn ghost ob-skip" onClick={() => setOnboarding(false)}>Skip for now</button>
+              ) : (
+                <button className="btn ghost ob-back" disabled={obBusy} onClick={() => { setObStep(onboardingBack(obStep)); setObError(null); setObHelpError(null); }}><ArrowLeft size={14} aria-hidden="true" />Back</button>
+              )}
+              <div className="ob-footer-actions">
+                {obStep === "welcome" && <button className="btn primary" onClick={() => setObStep("pick")}>Get started<ArrowRight size={14} aria-hidden="true" /></button>}
+                {obStep === "pick" && <span className="ob-footer-hint">Choose a provider above</span>}
+                {obStep === "key" && <button className="btn primary ob-continue" type="submit" form="ob-key-form" disabled={!obKey.trim() || obBusy}>{obBusy ? "Validating…" : "Continue"}<ArrowRight size={14} aria-hidden="true" /></button>}
+                {obStep === "project" && <button className="btn primary" onClick={() => setObStep("first")}>Use this project<ArrowRight size={14} aria-hidden="true" /></button>}
+                {obStep === "first" && (
+                  <>
+                    <button className="btn ghost" onClick={() => setOnboarding(false)}>Not now</button>
+                    <button className="btn primary" onClick={() => {
                       setOnboarding(false);
                       void send({ type: "submit", text: "Create a file named DXXPCODE.md in this project containing a one-sentence summary of what this project does." });
-                    }}
-                  >
-                    Run first task
-                  </button>
-                  <button className="btn ghost" onClick={() => setOnboarding(false)}>Not now</button>
-                </div>
-                <p className="ob-hint">You'll approve the change before anything lands</p>
-              </>
-            )}
-            {obStep === "key" && (
-              <>
-                <div className="ob-title">{OB_PROVIDERS.find((p) => p.id === obProvider)?.name ?? "Provider"} API key</div>
-                <p className="ob-desc">Stored on this machine — validated before it's saved.</p>
-                <div className={`ob-keywrap${obError ? " err" : ""}`}>
-                  <input
-                    className="ob-input ob-key mono"
-                    id="ob-key"
-                    type="password"
-                    autoFocus
-                    placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "API key"}
-                    value={obKey}
-                    onChange={(e) => { setObKey(e.target.value.trim()); setObError(null); }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && obKey.trim() && !obBusy) {
-                        setObBusy(true);
-                        void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
-                      }
-                    }}
-                  />
-                  {obBusy && <span className="ob-spinner" />}
-                </div>
-                {obProvider === "custom" && (
-                  <input
-                    className="ob-input mono"
-                    type="text"
-                    placeholder="Base URL — blank for api.openai.com"
-                    value={obBase}
-                    onChange={(e) => setObBase(e.target.value)}
-                  />
+                    }}>{ready?.provider === "mock" ? "Try demo prompt" : "Run first task"}<ArrowRight size={14} aria-hidden="true" /></button>
+                  </>
                 )}
-                {obError && <p className="ob-error">{obError}</p>}
-                <div className="setbtns">
-                  <button
-                    className="btn primary ob-continue"
-                    disabled={!obKey.trim() || obBusy}
-                    onClick={() => {
-                      setObBusy(true);
-                      void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
-                    }}
-                  >
-                    {obBusy ? "Validating" : "Continue"}<span className="ob-arrow">→</span>
-                  </button>
-                </div>
-              </>
-            )}
+              </div>
+            </footer>
           </div>
-          <div className="ob-progress">
-            <div
-              className="ob-progress-fill"
-              style={{ width: `${(({ welcome: 1, pick: 2, key: 2, project: 3, first: 3 })[obStep] / 3) * 100}%` }}
-            />
-          </div>
-        </div>
+        </section>
       )}
       <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { visibility: "hidden" } : undefined}>
         {(!ready || !bootGone) && (

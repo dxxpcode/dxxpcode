@@ -8,6 +8,19 @@
     "core:event:default",
     "dialog:default",
     "updater:default",
-    "process:default"
+    "process:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://platform.claude.com/settings/keys" },
+        { "url": "https://openrouter.ai/settings/keys" },
+        { "url": "https://platform.openai.com/api-keys" },
+        { "url": "https://aistudio.google.com/apikey" },
+        { "url": "https://console.groq.com/keys" },
+        { "url": "https://platform.deepseek.com/api_keys" },
+        { "url": "https://console.x.ai/team/default/api-keys" },
+        { "url": "https://console.mistral.ai/api-keys" }
+      ]
+    }
   ]
 }
