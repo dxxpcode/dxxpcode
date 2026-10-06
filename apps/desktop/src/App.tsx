@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
@@ -16,6 +18,8 @@ import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, ses
 import { composerAction } from "./lib/composer-layout";
 import { ONBOARDING_PHASES, ONBOARDING_PROVIDERS, onboardingBack, onboardingPhase, onboardingSetup } from "./lib/onboarding-layout";
 import type { OnboardingStep } from "./lib/onboarding-layout";
+import { APPROVAL_OPTIONS, SETTINGS_TABS, settingsApprovalValue, settingsMenuPlacement } from "./lib/settings-layout";
+import type { SettingsTab } from "./lib/settings-layout";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -77,7 +81,8 @@ export default function App() {
   const [modelOpts, setModelOpts] = useState<string[]>([]);
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
+  const settingsSection = SETTINGS_TABS.find((tab) => tab.id === settingsTab)!;
   // In-app updates: checked once on launch, downloaded in the background,
   // then surfaced as a restart row in Settings → About.
   const [update, setUpdate] = useState<{ version: string; status: "downloading" | "ready" } | null>(null);
@@ -161,6 +166,9 @@ export default function App() {
     return () => mq.removeEventListener("change", on);
   }, []);
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark" | "system" | null>(null);
+  useEffect(() => {
+    if (!settingsOpen) setPreviewTheme(null);
+  }, [settingsOpen]);
   const shownTheme = previewTheme ?? theme;
   const [artPiece, setArtPiece] = useState(() => localStorage.getItem("artPiece") ?? "");
   const [artDir, setArtDir] = useState(() => localStorage.getItem("artDir") ?? "");
@@ -175,16 +183,17 @@ export default function App() {
     }
     setArtSrc(null);
     if (!artDir) return;
+    let active = true;
     invoke<{ dataUrl: string }>("art_image", { dir: artDir })
-      .then((r) => setArtSrc(r.dataUrl))
+      .then((r) => { if (active) setArtSrc(r.dataUrl); })
       .catch(() => {});
+    return () => { active = false; };
   }, [artPiece, artDir]);
   const artLabel = artPiece
     ? (ART_PIECES.find((p) => p.id === artPiece)?.title ?? artPiece)
     : artDir
       ? (artDir.split("/").filter(Boolean).pop() ?? "Folder")
       : "";
-  const artDirLabel = artDir.split("/").filter(Boolean).pop() ?? "";
   const dark = artSrc != null || (shownTheme === "system" ? sysDark : shownTheme === "dark");
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -907,6 +916,11 @@ export default function App() {
   // ⌘K/Ctrl+K toggles the session palette; Esc closes it from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      if (settingsOpen && (e.metaKey || e.ctrlKey) && ["k", "b"].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (ready) setPalOpen((v) => !v);
@@ -922,7 +936,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ready, palOpen]);
+  }, [ready, palOpen, settingsOpen]);
 
   // Boot hand-off: when ready lands, the boot mark fades/scales out over
   // ~300ms while the hero fades in, then unmounts.
@@ -1315,41 +1329,58 @@ export default function App() {
       </header>
 
       {settingsOpen && ready && (
-        <div className="settings" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
-          <div className="settings-dialog">
-            <nav className="settings-nav">
+        <SettingsDialog onClose={() => { setSettingsOpen(false); setPreviewTheme(null); }}>
+            <nav className="settings-nav" aria-label="Settings categories">
               <div className="settings-nav-title">Settings</div>
-              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => {
-                const Icon = { general: SlidersHorizontal, providers: Cpu, appearance: Palette, session: History, about: Info }[tab];
+              {SETTINGS_TABS.map((tab) => {
+                const Icon = { general: SlidersHorizontal, providers: Cpu, appearance: Palette, session: History, about: Info }[tab.id];
                 return (
                   <Button
-                    key={tab}
-                    variant={settingsTab === tab ? "secondary" : "ghost"}
+                    key={tab.id}
+                    variant="ghost"
                     size="sm"
                     className="settings-navitem"
-                    data-active={settingsTab === tab}
-                    onClick={() => setSettingsTab(tab)}
+                    data-active={settingsTab === tab.id}
+                    aria-current={settingsTab === tab.id ? "page" : undefined}
+                    onClick={() => { setSettingsTab(tab.id); setPreviewTheme(null); }}
                   >
                     <Icon size={14} />
-                    {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
+                    {tab.label}
                   </Button>
                 );
               })}
             </nav>
-            <ScrollArea className="settings-pane">
-              {settingsTab === "general" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">General</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" onClick={openProject} />
-                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
-                  </div>
+            <div className="settings-main">
+              <header className="settings-header">
+                <div>
+                  <h2 id="settings-title">{settingsSection.label}</h2>
+                  <p>{settingsSection.desc}</p>
                 </div>
+                <Button variant="ghost" size="icon" className="settings-close" aria-label="Close settings" title="Close settings (Esc)" onClick={() => { setSettingsOpen(false); setPreviewTheme(null); }}>
+                  <X size={16} />
+                </Button>
+              </header>
+            <ScrollArea className="settings-pane" key={settingsTab} role="region" aria-labelledby="settings-title">
+              {settingsTab === "general" && (
+                <>
+                <section className="setgroup" aria-labelledby="settings-project">
+                  <h3 className="setgroup-title" id="settings-project">Current project</h3>
+                  <div className="setlist">
+                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval">{ready.project.name}</span></div>
+                    {projectPath && <p className="setpath mono">{projectPath}</p>}
+                    <SetAction label="Open another project" action="Choose folder" onClick={openProject} />
+                  </div>
+                </section>
+                <section className="setgroup" aria-labelledby="settings-setup">
+                  <h3 className="setgroup-title" id="settings-setup">Setup</h3>
+                  <SetAction label="Provider setup" action="Run setup" onClick={() => cmd("/setup")} />
+                </section>
+                </>
               )}
               {settingsTab === "providers" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Providers & Models</div>
+                <>
+                <section className="setgroup" aria-labelledby="settings-model">
+                  <h3 className="setgroup-title" id="settings-model">Connection & model</h3>
                   <div className="setlist">
                     <SetSelect
                       label="Provider"
@@ -1377,103 +1408,136 @@ export default function App() {
                       options={["default", ...(ready.variants ?? [])]}
                       onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
                     />
+                  </div>
+                </section>
+                <section className="setgroup" aria-labelledby="settings-approval">
+                  <h3 className="setgroup-title" id="settings-approval">Approvals</h3>
                     <div className="setrow static">
                       <span className="setlabel">Approval mode</span>
-                      <span className="modeseg">
-                        {(["ask", "always-approve", "smart (Jev)"] as const).map((m) => (
+                      <span className="modeseg" role="group" aria-label="Approval mode" aria-describedby="settings-approval-desc">
+                        {APPROVAL_OPTIONS.map((m) => (
                           <button
-                            key={m}
-                            className={`modeseg-btn${(ready.mode === "smart" ? "smart (Jev)" : ready.mode) === m ? " cur" : ""}`}
-                            onClick={() => void send({ type: "command", name: `/approval ${m}` })}
+                            key={m.value}
+                            type="button"
+                            aria-pressed={settingsApprovalValue(ready.mode) === m.value}
+                            className={`modeseg-btn${settingsApprovalValue(ready.mode) === m.value ? " cur" : ""}`}
+                            onClick={() => void send({ type: "command", name: `/approval ${m.value}` })}
                           >
-                            {m}
+                            {m.label}
                           </button>
                         ))}
                       </span>
                     </div>
-                  </div>
-                </div>
+                    <p className="sethint" id="settings-approval-desc">{APPROVAL_OPTIONS.find((m) => m.value === settingsApprovalValue(ready.mode))?.desc}</p>
+                </section>
+                </>
               )}
               {settingsTab === "appearance" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Appearance</div>
-                  <div className="setlist">
+                <>
+                <section className="setgroup" aria-labelledby="settings-theme">
+                  <h3 className="setgroup-title" id="settings-theme">Theme</h3>
                     <div className="setrow static">
-                      <span className="setlabel">Theme{artSrc ? <span className="setdesc">Dark while art is set</span> : null}</span>
-                      <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
+                      <span className="setlabel">Color scheme</span>
+                      <span className="modeseg" role="group" aria-label="Color scheme" aria-describedby={artSrc ? "settings-art-desc" : undefined} onMouseLeave={() => setPreviewTheme(null)}>
                         {(["system", "light", "dark"] as const).map((t) => (
                           <button
                             key={t}
+                            type="button"
                             disabled={artSrc != null}
+                            aria-pressed={theme === t}
                             className={`modeseg-btn${theme === t ? " cur" : ""}`}
                             onMouseEnter={() => setPreviewTheme(t)}
                             onClick={() => { setTheme(t); setPreviewTheme(null); }}
                           >
-                            {t}
+                            {t[0].toUpperCase() + t.slice(1)}
                           </button>
                         ))}
                       </span>
                     </div>
-                    <div className="setrow static artsect">
-                      <span className="setlabel">Art</span>
-                    </div>
-                    <div className="artgrid">
+                </section>
+                <section className="setgroup" aria-labelledby="settings-art">
+                  <h3 className="setgroup-title" id="settings-art">Background artwork</h3>
+                  <p className="sethint" id="settings-art-desc">Artwork replaces the theme and uses dark interface controls. Choose None to use your color scheme.</p>
+                    <div className="artgrid" role="group" aria-label="Background artwork">
+                      <button type="button" className={`artthumb${!artPiece && !artDir ? " cur" : ""}`} aria-pressed={!artPiece && !artDir} onClick={() => { setArtPiece(""); setArtDir(""); setPreviewTheme(null); }}>
+                        <span className="artthumb-image artthumb-none"><Minus size={18} /></span>
+                        <span className="artthumb-name">None</span>
+                      </button>
                       {ART_PIECES.map((p) => (
                         <button
                           key={p.id}
+                          type="button"
                           className={`artthumb${artPiece === p.id ? " cur" : ""}`}
                           title={`${p.title} — ${p.artist}`}
-                          onClick={() => setArtPiece(artPiece === p.id ? "" : p.id)}
+                          aria-pressed={artPiece === p.id}
+                          onClick={() => { setArtPiece(artPiece === p.id ? "" : p.id); setPreviewTheme(null); }}
                         >
-                          <img src={p.src} alt={p.title} />
+                          <span className="artthumb-image"><img src={p.src} alt="" /></span>
                           <span className="artthumb-name">{p.title}</span>
                         </button>
                       ))}
                     </div>
-                    <SetRow
+                    <SetAction
                       label="Custom folder"
-                      value={artDirLabel || "None"}
+                      desc={artDir || undefined}
+                      action="Choose folder"
                       onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } })}
                     />
                     {artLabel && (
-                      <SetAction label="Clear art" onClick={() => { setArtPiece(""); setArtDir(""); }} />
+                      <SetAction label="Selected artwork" desc={artLabel} action="Clear art" onClick={() => { setArtPiece(""); setArtDir(""); setPreviewTheme(null); }} />
                     )}
-                  </div>
-                </div>
+                </section>
+                </>
               )}
               {settingsTab === "session" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Session</div>
+                <>
+                <section className="setgroup" aria-labelledby="settings-context">
+                  <h3 className="setgroup-title" id="settings-context">Current session</h3>
                   <div className="setlist">
                     <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
                     <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
-                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
                   </div>
-                </div>
+                </section>
+                <section className="setgroup" aria-labelledby="settings-maintenance">
+                  <h3 className="setgroup-title" id="settings-maintenance">Session actions</h3>
+                  <div className="setlist">
+                    <SetAction label="Resume a session" action="Browse sessions" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
+                    <SetAction label="Compact context" action="Compact" onClick={() => cmd("/compact")} />
+                    <SetAction label="Undo last checkpoint" action="Undo" onClick={() => cmd("/undo")} />
+                    <SetAction label="Start new session" action="New session" onClick={() => cmd("/new")} />
+                  </div>
+                </section>
+                </>
               )}
               {settingsTab === "about" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">About</div>
+                <>
+                <section className="setgroup" aria-labelledby="settings-version">
+                  <h3 className="setgroup-title" id="settings-version">Version & updates</h3>
                   <div className="setlist">
                     <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
                     {update?.status === "downloading" && (
                       <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
                     )}
                     {update?.status === "ready" && (
-                      <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
+                      <SetAction label="Update ready" desc={`v${update.version}`} action="Restart to update" onClick={() => void relaunch()} />
                     )}
-                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
                   </div>
-                </div>
+                </section>
+                <section className="setgroup" aria-labelledby="settings-resources">
+                  <h3 className="setgroup-title" id="settings-resources">Resources</h3>
+                  <div className="setlist">
+                    <SetAction label="Documentation" action="Open docs" onClick={() => cmd("/docs")} />
+                    <SetAction label="Changelog" action="View changes" onClick={() => cmd("/changelog")} />
+                  </div>
+                </section>
+                <section className="setgroup" aria-label="Application actions">
+                  <SetAction label="Quit DxxpCode" action="Quit" onClick={() => cmd("/exit")} danger />
+                </section>
+                </>
               )}
             </ScrollArea>
-          </div>
-        </div>
+            </div>
+        </SettingsDialog>
       )}
       {docView && (
         <div className="docviewer" onClick={(e) => { if (e.target === e.currentTarget) setDocView(null); }}>
@@ -2108,6 +2172,30 @@ const Chevron = (
   <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
 );
 
+function SettingsDialog({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useLayoutEffect(() => {
+    const dialog = ref.current!;
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.showModal();
+    dialog.querySelector<HTMLButtonElement>(".settings-close")?.focus();
+    return () => {
+      dialog.close();
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
+  return (
+    <dialog ref={ref} className="settings-dialog" aria-label="Settings" onCancel={(e) => { e.preventDefault(); onClose(); }}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) onClose();
+      }}>
+      {children}
+    </dialog>
+  );
+}
+
 function SetSelect({ label, desc, value, options, extra, onChange, compact = false, disabled = false, onOpen }: { label: string; desc?: string; value: string; options: string[]; extra?: string[]; onChange: (v: string) => void; compact?: boolean; disabled?: boolean; onOpen?: () => void }) {
   const opts = Array.from(new Set([...options, value, ...(extra ?? [])]));
   const [open, setOpen] = useState(false);
@@ -2115,7 +2203,9 @@ function SetSelect({ label, desc, value, options, extra, onChange, compact = fal
   const id = useId();
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [placement, setPlacement] = useState<ReturnType<typeof settingsMenuPlacement> | null>(null);
   const openMenu = () => {
     if (disabled) return;
     setActive(Math.max(0, opts.indexOf(value)));
@@ -2125,19 +2215,59 @@ function SetSelect({ label, desc, value, options, extra, onChange, compact = fal
   const closeMenu = () => { setOpen(false); triggerRef.current?.focus(); };
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setOpen(false);
+    };
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
   }, [open]);
+  useLayoutEffect(() => {
+    if (!open || compact) return;
+    const positionMenu = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) setPlacement(settingsMenuPlacement(rect, { width: window.innerWidth, height: window.innerHeight }));
+    };
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+    };
+  }, [open, compact]);
   useEffect(() => {
     if (open) optionRefs.current[Math.min(active, opts.length - 1)]?.focus();
   }, [open, active, opts.length]);
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  const menuNode = open && (
+    <div ref={menuRef} className={`setdd-menu${compact ? "" : " settings-select-menu"}`} style={!compact && placement ? placement : undefined} id={id} role="listbox" aria-label={label}>
+      {opts.map((o, i) => (
+        <button
+          key={o}
+          ref={(el) => { optionRefs.current[i] = el; }}
+          type="button"
+          role="option"
+          tabIndex={i === active ? 0 : -1}
+          aria-selected={o === value}
+          className={`setdd-item${o === value ? " cur" : ""}`}
+          onFocus={() => setActive(i)}
+          onClick={() => { closeMenu(); onChange(o); }}
+        >
+          <span className="setdd-check">{o === value ? "✓" : ""}</span>
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+  const menuHost = !compact ? ref.current?.closest("dialog") : null;
   return (
     <div className={compact ? "composer-select" : "setrow static"} ref={ref}
-      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget) && !menuRef.current?.contains(e.relatedTarget)) setOpen(false);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); closeMenu(); }
+        else if (e.key === "Tab" && open && !compact) closeMenu();
         else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
           e.preventDefault();
           if (!open) openMenu();
@@ -2150,47 +2280,18 @@ function SetSelect({ label, desc, value, options, extra, onChange, compact = fal
           <span className="setdd-val">{value}</span>
           <ChevronDown size={11} className="setdd-caret" />
         </button>
-        {open && (
-          <div className="setdd-menu" id={id} role="listbox" aria-label={label}>
-            {opts.map((o, i) => (
-              <button
-                key={o}
-                ref={(el) => { optionRefs.current[i] = el; }}
-                type="button"
-                role="option"
-                tabIndex={i === active ? 0 : -1}
-                aria-selected={o === value}
-                className={`setdd-item${o === value ? " cur" : ""}`}
-                onFocus={() => setActive(i)}
-                onClick={() => { closeMenu(); onChange(o); }}
-              >
-                <span className="setdd-check">{o === value ? "✓" : ""}</span>
-                {o}
-              </button>
-            ))}
-          </div>
-        )}
+        {menuNode && (menuHost ? createPortal(menuNode, menuHost) : menuNode)}
       </div>
     </div>
   );
 }
 
-function SetRow({ label, desc, value, onClick }: { label: string; desc?: string; value: string; onClick: () => void }) {
+function SetAction({ label, desc, action, onClick, danger }: { label: string; desc?: string; action: string; onClick: () => void; danger?: boolean }) {
   return (
-    <button className="setrow link" onClick={onClick}>
+    <div className="setrow static">
       <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
-      <span className="setval">{value}</span>
-      {Chevron}
-    </button>
-  );
-}
-
-function SetAction({ label, desc, onClick, danger }: { label: string; desc?: string; onClick: () => void; danger?: boolean }) {
-  return (
-    <button className={`setrow link${danger ? " danger" : ""}`} onClick={onClick}>
-      <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
-      {Chevron}
-    </button>
+      <div className="setaction"><Button type="button" variant="outline" className={danger ? "danger" : undefined} onClick={onClick} aria-label={`${action}: ${label}`}>{action}</Button></div>
+    </div>
   );
 }
 
