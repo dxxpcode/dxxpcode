@@ -175,10 +175,15 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .subline {
   display: flex; align-items: center; gap: 14px;
   padding-top: 6px;
+  font-size: 10px;
+  opacity: 0;
   transition: opacity 0.2s var(--ease);
 }
-.subline.dim { opacity: 0.6; }
-.subline-model { font-family: var(--font-mono); font-size: 11.5px; color: var(--faint); }
+.inputbox:hover .subline, .inputbox:focus-within .subline { opacity: 1; }
+.subline.dim { opacity: 0.35; }
+.subline .inctx-name { font-size: 10px; }
+.subline .branch { font-size: 9px; }
+.subline-model { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
 .eff-pill {
   padding: 5px 4px; border-radius: 6px; border: 1px solid var(--border);
   background: var(--surface2); cursor: pointer; font-family: inherit;
@@ -586,13 +591,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .inputrow { display: flex; align-items: flex-end; gap: 10px; }
 .inputrow .ghost-wrap { flex: 1; min-width: 0; }
 .sendhint {
-  border: none; background: none; padding: 2px 4px;
-  color: var(--faint); font-size: 14px; line-height: 1.5;
-  cursor: default;
-  transition: color 0.15s var(--ease);
+  border: none; background: none; padding: 2px 6px;
+  color: var(--dim); font-size: 15px; line-height: 1.5;
+  cursor: pointer;
+  animation: fadein 0.15s var(--ease);
+  transition: color 0.15s var(--ease), transform 0.15s var(--ease);
 }
-.sendhint.ready { color: var(--dim); cursor: pointer; }
-.sendhint.ready:hover { color: var(--text); }
+.sendhint:hover { color: var(--text); transform: translateX(1px); }
 /* ---------- command palette ---------- */
 .palette {
   margin-bottom: 10px;

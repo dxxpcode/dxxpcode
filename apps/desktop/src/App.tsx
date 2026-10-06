@@ -1609,14 +1609,16 @@ export default function App() {
             }}
             />
           </div>
-          <button
-            className={`sendhint${input.trim() ? " ready" : ""}`}
-            title="Send"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              if (input.trim()) submit();
-            }}
-          >⏎</button>
+          {input.trim() && (
+            <button
+              className="sendhint"
+              title="Send"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                submit();
+              }}
+            >→</button>
+          )}
           </div>
           {ready && (
             <div className={`subline${running ? " dim" : ""}`}>
