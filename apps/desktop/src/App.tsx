@@ -11,6 +11,12 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, toolArg } from "./types";
+import {
+  ModelSelectorRoot,
+  ModelSelectorTrigger,
+  ModelSelectorContent,
+  type ModelOption,
+} from "./components/assistant-ui/elements/model-selector";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -534,11 +540,12 @@ export default function App() {
           setItems((prev) => {
             const next = [...prev];
             for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].k === "text") {
-                next[i] = { ...next[i], interrupted: true };
+              const it = next[i];
+              if (it.k === "text") {
+                next[i] = { ...it, interrupted: true };
                 break;
               }
-              if (next[i].k === "user" || next[i].k === "done") break;
+              if (it.k === "user" || it.k === "done") break;
             }
             return next;
           });
@@ -1579,7 +1586,7 @@ export default function App() {
             ref={taRef}
             rows={1}
             autoFocus
-            placeholder={(chatMode ? "Ask about this codebase…" : "Ask dxxpcode anything…") + (ready ? ` · ${ready.model} · ${ready.effort ?? "default"}${ready.variant ? ` · ${ready.variant}` : ""}` : "")}
+            placeholder={chatMode ? "Ask about this codebase…" : "Ask dxxpcode anything…"}
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
@@ -1610,6 +1617,22 @@ export default function App() {
             }}
             />
           </div>
+          {ready && (
+            <ModelSelectorRoot
+              models={(modelOpts.length ? modelOpts : [ready.model]).map<ModelOption>((id) => ({
+                id,
+                name: id,
+                efforts: EFFORT_LEVELS.map((e) => ({ id: e, name: e })),
+              }))}
+              value={ready.model}
+              onValueChange={(v) => void send({ type: "command", name: `/model ${v}` })}
+              effort={ready.effort ?? "default"}
+              onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+            >
+              <ModelSelectorTrigger variant="ghost" size="sm" />
+              <ModelSelectorContent searchable align="end" />
+            </ModelSelectorRoot>
+          )}
           {input.trim() && (
             <button
               className="sendhint"
