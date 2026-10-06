@@ -41,18 +41,6 @@ function closePartialMd(t: string): string {
   return t;
 }
 
-// Streaming text: render everything but the newest fragment statically, and
-// wrap the tail in an .ease span so only the freshly arrived words fade/slide
-// in (re-mounting the tail is fine — it's the part that's animating anyway).
-function mdStream(t: string) {
-  const closed = closePartialMd(t);
-  const cut = Math.max(0, closed.length - 28);
-  const sp = closed.indexOf(" ", cut);
-  const tail = sp > 0 ? closed.slice(sp + 1) : closed.slice(cut);
-  const head = closed.slice(0, closed.length - tail.length);
-  return { __html: `${marked.parse(head, { async: false })}<span class="ease">${marked.parseInline(tail, { async: false })}</span>` };
-}
-
 const EFFORT_LEVELS = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
@@ -233,7 +221,7 @@ export default function App() {
   }, [input, windowWidth]);
 
   const push = (item: Item) => {
-    if (textBuf.current && flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+    flushText();
     closeThink();
     // Reasoning that directly precedes a tool call anchors to that tool's row.
     if (item.k === "tool") {
@@ -248,17 +236,35 @@ export default function App() {
     setItems((prev) => [...prev, item]);
   };
   const commands = ready?.commands ?? [];
+  // Per-turn stats for the Codex-style activity line: tools run since the
+  // last user prompt (for "Worked for Ns · M tools") and the most recent
+  // tool label for the live "Working…" row.
+  const turnTools = new Map<number, number>();
+  {
+    let n = 0;
+    items.forEach((it, i) => {
+      if (it.k === "user") n = 0;
+      else if (it.k === "tool") n++;
+      else if (it.k === "done") turnTools.set(i, n);
+    });
+  }
+  let lastTool: string | null = null;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (it.k === "user") break;
+    if (it.k === "tool") { lastTool = `${TOOL_DISPLAY[it.tool] ?? it.tool}${it.arg ? ` ${it.arg}` : ""}`; break; }
+  }
   const palette = input.startsWith("/")
     ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
     : [];
   const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
   const atFrag = palette.length === 0 && atMatch ? atMatch[1].split("#")[0] : null;
   const files = atFrag !== null ? fileSugs.items : [];
-  // Batch streamed deltas: buffer and flush once per frame-ish so React
-  // re-renders ~30x/sec max instead of once per NDJSON chunk.
+  // Replies arrive as whole blocks, not a token stream: `appendText` just
+  // accumulates into textBuf; the block is pushed when the next event lands
+  // (push/done/idle). Think still streams dim inside its own row.
   const textBuf = useRef("");
   const thinkBuf = useRef("");
-  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live token rate: count streamed chars, report ~tok/s while streaming.
   const [tokRate, setTokRate] = useState(0);
@@ -308,7 +314,6 @@ export default function App() {
     });
   }, [flushThink]);
   const flushText = useCallback(() => {
-    flushTimer.current = null;
     const t = textBuf.current;
     textBuf.current = "";
     if (!t) return;
@@ -318,10 +323,12 @@ export default function App() {
       return [...prev, { k: "text", text: t }];
     });
   }, []);
+  // No per-token render: the reply accumulates and arrives as a whole block
+  // when the next event lands — `push`/done/idle flush it. Structured
+  // conversation, not a terminal stream.
   const appendText = (t: string) => {
     textBuf.current += t;
     countStream(t.length);
-    if (!flushTimer.current) flushTimer.current = setTimeout(flushText, 32);
   };
 
   const handle = useCallback((ev: Ev) => {
@@ -565,7 +572,7 @@ export default function App() {
         };
         if (r.status === "cancelled") {
           // Mark a text stream cut short by esc.
-          if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+          flushText();
           setItems((prev) => {
             const next = [...prev];
             for (let i = next.length - 1; i >= 0; i--) {
@@ -589,7 +596,7 @@ export default function App() {
         break;
       }
       case "idle": {
-        if (flushTimer.current) { clearTimeout(flushTimer.current); flushText(); }
+        flushText();
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
         stopRate();
@@ -1639,12 +1646,22 @@ export default function App() {
             </div>
           </div>
         )}
-        {groupItems(items).map((seg, si) =>
-          Array.isArray(seg) ? (
-            <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
-          ) : (
-            <ItemView key={seg.idx} item={seg.item} streaming={running && seg.idx === items.length - 1} />
-          ),
+        {groupTurns(groupItems(items)).map((turn, ti) => (
+          <div className="turn" key={ti}>
+            {turn.map((seg, si) =>
+              Array.isArray(seg) ? (
+                <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
+              ) : (
+                <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} />
+              ),
+            )}
+          </div>
+        ))}
+        {running && (
+          <div className="workline row">
+            <span className="think-shimmer">Working…</span>
+            {lastTool && <span className="workline-tool">{lastTool}</span>}
+          </div>
         )}
         {approvals.map((a) => (
           a.answered ? (
@@ -1922,15 +1939,14 @@ export default function App() {
   );
 }
 
-function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
+function ItemView({ item, toolCount }: { item: Item; toolCount?: number }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row"><span className="chev">❯</span>{item.text}</div>;
     case "text":
       return (
         <div className="text row">
-          <span dangerouslySetInnerHTML={streaming ? mdStream(item.text) : md(item.text)} />
-          {streaming && <span className="caret" aria-hidden />}
+          <span dangerouslySetInnerHTML={md(item.text)} />
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
       );
@@ -2027,17 +2043,20 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
     case "denied":
       return <div className="note row" style={{ color: "var(--red)" }}>⎿ Denied: {item.reason} ({item.tool})</div>;
     case "done": {
-      const bits = [
+      const ok = item.status === "completed";
+      const cancelled = item.status === "cancelled";
+      const fail = item.status === "error" || item.status === "failed";
+      const meta = [
+        toolCount ? `${toolCount} tool${toolCount === 1 ? "" : "s"}` : null,
         item.filesChanged.length > 0 ? `${item.filesChanged.length} file${item.filesChanged.length === 1 ? "" : "s"}` : null,
-        item.secs != null ? fmtDuration(item.secs) : null,
         item.tokens ? fmtK(item.tokens) + " tok" : null,
       ].filter(Boolean).join(" · ");
+      const label = ok ? "Worked" : cancelled ? "Stopped" : fail ? "Failed" : item.status === "incomplete" ? "Incomplete" : item.status === "max_iterations" ? "Stopped at limit" : item.status;
       return (
-        <div className="done row">
-          <span className={`st ${item.status === "completed" ? "ok" : item.status === "error" ? "err" : "warn"}`}>
-            {item.status === "completed" ? "Completed" : item.status}
-          </span>
-          {bits && <span className="meta">{bits}</span>}
+        <div className={`worked row${ok ? "" : cancelled ? " stop" : fail ? " fail" : " warn"}`}>
+          <span className="worked-dot" />
+          <span className="worked-label">{label}{item.secs != null ? ` for ${fmtDuration(item.secs)}` : ""}</span>
+          {meta && <span className="meta">{meta}</span>}
           {item.filesChanged.length > 0 && (
             <ul>{item.filesChanged.map((f) => <li className="mono" key={f}>{f}</li>)}</ul>
           )}
@@ -2171,7 +2190,7 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
     const it = seg[0];
     return (
       <div className="tgroup">
-        <ItemView item={it.item} streaming={running && it.idx === lastIdx} />
+        <ItemView item={it.item} />
       </div>
     );
   }
@@ -2186,7 +2205,7 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
       {open && (
         <div className="tg-body">
           {seg.map((it) => (
-            <ItemView key={it.idx} item={it.item} streaming={running && it.idx === lastIdx} />
+            <ItemView key={it.idx} item={it.item} />
           ))}
         </div>
       )}
@@ -2241,6 +2260,18 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
 }
 
 type Grouped = { idx: number; item: Item };
+
+// Turn = a user prompt plus everything until the next one — rendered in a
+// `.turn` wrapper so prompts read as separators and whitespace does the
+// grouping, Codex-style.
+function groupTurns(segs: (Grouped | Grouped[])[]): (Grouped | Grouped[])[][] {
+  const turns: (Grouped | Grouped[])[][] = [[]];
+  for (const s of segs) {
+    if (!Array.isArray(s) && s.item.k === "user") turns.push([]);
+    turns[turns.length - 1].push(s);
+  }
+  return turns.filter((t) => t.length > 0);
+}
 
 function groupItems(items: Item[]): (Grouped | Grouped[])[] {
   const segs: (Grouped | Grouped[])[] = [];
