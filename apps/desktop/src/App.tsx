@@ -1215,28 +1215,30 @@ export default function App() {
             {obStep === "pick" && (
               <>
                 <div className="ob-title">Connect a provider.</div>
-                <div className="ob-providers">
+                <div className="ob-seg">
                   {OB_PROVIDERS.filter((p) => OB_MAIN.includes(p.id)).map((p) => (
-                    <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
-                      <span className="ob-prov-name">{p.name}</span>
-                      <span className="ob-prov-desc">{p.desc}</span>
+                    <button key={p.id} className="ob-seg-opt" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                      {p.name}
                     </button>
                   ))}
-                  <button className="ob-prov demo" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
-                    <span className="ob-prov-name">Just explore</span>
-                    <span className="ob-prov-desc">demo mode — no key needed</span>
+                  <button className="ob-seg-opt" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
+                    Just explore
                   </button>
-                  <button className="ob-more" onClick={() => setObMore((m) => !m)}>
-                    {obMore ? "Fewer providers" : "More providers"}
-                    <span className={`ob-more-chev${obMore ? " up" : ""}`}>⌄</span>
-                  </button>
-                  {obMore && OB_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
-                    <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
-                      <span className="ob-prov-name">{p.name}</span>
-                      <span className="ob-prov-desc">{p.desc}</span>
-                    </button>
-                  ))}
                 </div>
+                <button className="ob-more" onClick={() => setObMore((m) => !m)}>
+                  {obMore ? "Fewer providers" : "More providers"}
+                  <span className={`ob-more-chev${obMore ? " up" : ""}`}>⌄</span>
+                </button>
+                {obMore && (
+                  <div className="ob-providers">
+                    {OB_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
+                      <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                        <span className="ob-prov-name">{p.name}</span>
+                        <span className="ob-prov-desc">{p.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
             {obStep === "project" && (
@@ -1277,20 +1279,27 @@ export default function App() {
               <>
                 <div className="ob-title">{OB_PROVIDERS.find((p) => p.id === obProvider)?.name ?? "Provider"} API key</div>
                 <p className="ob-desc">Stored on this machine — validated before it's saved.</p>
-                <input
-                  className="ob-input ob-key mono"
-                  type="password"
-                  autoFocus
-                  placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "sk-…"}
-                  value={obKey}
-                  onChange={(e) => { setObKey(e.target.value); setObError(null); }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && obKey.trim() && !obBusy) {
-                      setObBusy(true);
-                      void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
-                    }
-                  }}
-                />
+                <div className="ob-keywrap">
+                  <input
+                    className="ob-input ob-key mono"
+                    id="ob-key"
+                    type="password"
+                    autoFocus
+                    placeholder=" "
+                    value={obKey}
+                    onChange={(e) => { setObKey(e.target.value); setObError(null); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && obKey.trim() && !obBusy) {
+                        setObBusy(true);
+                        void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
+                      }
+                    }}
+                  />
+                  <label className="ob-keylabel" htmlFor="ob-key">
+                    {{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "API key"}
+                  </label>
+                  {obBusy && <span className="ob-spinner" />}
+                </div>
                 {obProvider === "custom" && (
                   <input
                     className="ob-input mono"
@@ -1303,14 +1312,14 @@ export default function App() {
                 {obError && <p className="ob-error">{obError}</p>}
                 <div className="setbtns">
                   <button
-                    className="btn primary"
+                    className="btn primary ob-continue"
                     disabled={!obKey.trim() || obBusy}
                     onClick={() => {
                       setObBusy(true);
                       void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
                     }}
                   >
-                    {obBusy ? "Validating…" : "Validate & connect"}
+                    {obBusy ? "Validating" : "Continue"}<span className="ob-arrow">→</span>
                   </button>
                 </div>
               </>

@@ -990,6 +990,34 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   max-height: 46vh;
   overflow-y: auto;
 }
+/* unified glass surface — one treatment for every onboarding control */
+.ob-prov, .ob-input, .ob-panel, .ob-seg {
+  border: 1px solid var(--ob-line);
+  background: var(--ob-glass);
+  backdrop-filter: blur(8px);
+}
+.ob-seg {
+  display: flex;
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 10px;
+  gap: 2px;
+}
+.ob-seg-opt {
+  flex: 1;
+  padding: 9px 6px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ob-dim);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.ob-seg-opt:hover { background: rgba(255, 255, 255, 0.1); color: var(--ob-text); }
 .ob-prov {
   display: flex;
   flex-direction: row;
@@ -997,10 +1025,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border: 1px solid var(--ob-line);
   border-radius: 10px;
-  background: var(--ob-glass);
-  backdrop-filter: blur(8px);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -1011,6 +1036,43 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .ob-prov-name { font-size: 13px; font-weight: 600; color: var(--ob-text); letter-spacing: -0.005em; white-space: nowrap; }
 .ob-prov-desc { font-size: 11px; color: var(--ob-faint); text-align: right; }
 .ob-prov.demo { border-style: dashed; background: rgba(10, 10, 14, 0.35); }
+.ob-keywrap { position: relative; margin-bottom: 8px; }
+.ob-key { padding: 14px 42px 14px 16px; font-size: 14px; letter-spacing: 0.02em; margin-bottom: 0; }
+.ob-keylabel {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ob-faint);
+  font-size: 13px;
+  font-family: inherit;
+  pointer-events: none;
+  transition: all 0.15s var(--ease);
+}
+.ob-key:focus ~ .ob-keylabel,
+.ob-key:not(:placeholder-shown) ~ .ob-keylabel {
+  top: -7px;
+  transform: none;
+  font-size: 10px;
+  color: var(--ob-dim);
+  background: var(--ob-glass);
+  padding: 0 6px;
+  border-radius: 4px;
+}
+.ob-spinner {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 14px; height: 14px;
+  margin-top: -7px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  animation: obspin 0.7s linear infinite;
+}
+@keyframes obspin { to { transform: rotate(360deg); } }
+.ob-arrow { display: inline-block; margin-left: 6px; opacity: 0; transform: translateX(-4px); transition: opacity 0.15s var(--ease), transform 0.15s var(--ease); }
+.ob-continue:hover .ob-arrow { opacity: 1; transform: translateX(0); }
 .ob-more {
   background: none;
   border: none;
