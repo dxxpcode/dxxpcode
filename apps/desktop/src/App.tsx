@@ -5,7 +5,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -151,8 +151,11 @@ export default function App() {
   const [palOpen, setPalOpen] = useState(false);
   const [palQuery, setPalQuery] = useState("");
   const [palIdx, setPalIdx] = useState(0);
+  const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
+  const [railQuery, setRailQuery] = useState("");
   const [bootGone, setBootGone] = useState(false);
-  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]>([]);
+  const [sessMenu, setSessMenu] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
     return saved === "light" || saved === "dark" ? saved : "system";
@@ -194,6 +197,9 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
   }, [dark, theme]);
+  useEffect(() => {
+    localStorage.setItem("railOpen", railOpen ? "1" : "0");
+  }, [railOpen]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -364,7 +370,7 @@ export default function App() {
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
         break;
       case "sessions":
-        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string }[]) : []);
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -851,6 +857,9 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (ready) setPalOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        if (ready) setRailOpen((v) => !v);
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
       }
@@ -876,14 +885,31 @@ export default function App() {
     }
   }, [palOpen]);
 
-  // Refresh the session list when the palette opens or the session changes.
+  // Sessions feed both the ⌘K palette and the rail — refresh on ready, on
+  // session change, and when a run settles (a first run assigns the title).
   useEffect(() => {
-    if (ready && palOpen) void send({ type: "sessions" });
-  }, [ready, palOpen, sessionInfo.id]);
+    if (ready) void send({ type: "sessions" });
+  }, [ready, sessionInfo.id, running]);
 
   // Group sessions by recency: desc is "<yyyy-mm-dd> · N msg".
-  const sessionGroups = (() => {
-    const q = palQuery.trim().toLowerCase();
+  const sessGlyph = (status?: string) => {
+    const v = (status ?? "").toLowerCase();
+    if (v.includes("fail") || v.includes("error") || v.includes("denied") || v.includes("cancel")) return "bad";
+    if (v) return "ok";
+    return "none";
+  };
+  const relTime = (when?: string) => {
+    if (!when) return "";
+    const t = Date.parse(when.replace(" ", "T"));
+    if (Number.isNaN(t)) return "";
+    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.round(hrs / 24)}d ago`;
+  };
+  const groupSessions = (query: string) => {
+    const q = query.trim().toLowerCase();
     const filtered = q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
     const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -896,7 +922,9 @@ export default function App() {
       else groups.push([label, [s]]);
     }
     return groups;
-  })();
+  };
+  const sessionGroups = groupSessions(palQuery);
+  const railGroups = groupSessions(railQuery);
   const palRows = sessionGroups.flatMap(([, g]) => g);
   // Queued backlog shows above session history — picking one loads it into the
   // composer for editing and drops it from the queue.
@@ -1005,10 +1033,157 @@ export default function App() {
           </div>
         </div>
       )}
+      {ready && !onboarding && railOpen && (
+        <aside className="rail">
+          {IS_MAC && <div className="rail-macpad" data-tauri-drag-region />}
+          <div className="rail-head">
+            <button className="rail-proj" title="Change project" onClick={openProject}>
+              <span className="truncate">{ready.project.name}</span>
+              <ChevronDown size={12} />
+            </button>
+            <button className="rail-new" onClick={() => cmd("/new")}>
+              <Plus size={13} />
+              <span>New session</span>
+            </button>
+            <div className="rail-search">
+              <Search size={12} />
+              <input
+                type="text"
+                placeholder="Search sessions…"
+                value={railQuery}
+                onChange={(e) => setRailQuery(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+          </div>
+          <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
+            {queue.length > 0 && (
+              <div>
+                <div className="pal-group-label">Queued</div>
+                {queue.map((text, i) => (
+                  <Button
+                    key={`q-${i}`}
+                    variant="ghost"
+                    title={text}
+                    className="pal-row"
+                    onClick={() => { setQueue((q) => q.filter((_, j) => j !== i)); setInput(text); taRef.current?.focus(); }}
+                  >
+                    <ListEnd size={13} />
+                    <span className="truncate">{text}</span>
+                  </Button>
+                ))}
+              </div>
+            )}
+            {wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
+              <div>
+                <div className="pal-group-label">Parallel tasks</div>
+                {wtasks
+                  .filter((w) => w.phase !== "merged" && w.phase !== "discarded")
+                  .map((w) => (
+                    <div className="rail-worker" key={w.id}>
+                      <div className="pal-row rail-worker-row" title={w.text}>
+                        <span className="truncate">{w.text}</span>
+                        <span className={`rail-phase ${w.phase}`}>
+                          {w.phase === "running" ? "running" : w.phase === "done" ? "done" : "failed"}
+                        </span>
+                      </div>
+                      <div className="rail-menu">
+                        {w.phase === "running" && (
+                          <button className="rail-menu-btn" title={w.status} onClick={() => stopWorker(w.id)}>stop + discard</button>
+                        )}
+                        {w.phase === "done" && (
+                          <>
+                            <button className="rail-menu-btn" onClick={() => void resolveWorker(w.id, true)}>merge</button>
+                            <button className="rail-menu-btn" onClick={() => void resolveWorker(w.id, false)}>discard</button>
+                          </>
+                        )}
+                        {w.phase === "failed" && (
+                          <button className="rail-menu-btn" title={w.result} onClick={() => void resolveWorker(w.id, false)}>discard</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+            {railGroups.length === 0 && <p className="pal-empty">{railQuery ? "No matches." : "No sessions in this project yet."}</p>}
+            {railGroups.map(([label, group]) => (
+              <div key={label}>
+                <div className="pal-group-label">{label}</div>
+                {group.map((s) => {
+                  const current = s.id === sessionInfo.id;
+                  return (
+                    <div key={s.id} className="rail-sess">
+                      <div
+                        className="pal-row rail-sessrow"
+                        data-active={current || undefined}
+                        title={s.title}
+                        onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
+                      >
+                        {current && running ? (
+                          <span className="rail-glyph rail-live" />
+                        ) : (
+                          <span className={`rail-glyph ${sessGlyph(s.status)}`} />
+                        )}
+                        <span className="rail-sessmain">
+                          <span className="truncate">{s.title || "Untitled"}</span>
+                          <span className="rail-sessmeta">
+                            {current ? "current" : relTime(s.when)}
+                            {s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}
+                          </span>
+                        </span>
+                        <button
+                          className="rail-act"
+                          title="Session actions"
+                          onClick={(e) => { e.stopPropagation(); setSessMenu((m) => (m === s.id ? null : s.id)); }}
+                        >
+                          ⋯
+                        </button>
+                      </div>
+                      {sessMenu === s.id && (
+                        <div className="rail-menu">
+                          {s.status && <div className="rail-menu-info">{s.status}{s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}</div>}
+                          {s.task && (
+                            <button className="rail-menu-btn" onClick={() => { setInput(s.task ?? ""); setSessMenu(null); taRef.current?.focus(); }}>re-run prompt</button>
+                          )}
+                          {s.files && s.files.length > 0 && (
+                            <button
+                              className="rail-menu-btn"
+                              onClick={() => {
+                                setDocView({ title: `Changed files — ${s.title}`, text: `\`\`\`\n${s.files?.join("\n") ?? ""}\n\`\`\`` });
+                                setSessMenu(null);
+                              }}
+                            >
+                              view changed files
+                            </button>
+                          )}
+                          {s.task && (
+                            <button className="rail-menu-btn" onClick={() => { void navigator.clipboard.writeText(s.task ?? ""); setSessMenu(null); }}>copy task</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </ScrollArea>
+        </aside>
+      )}
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && <Logo className="logo-mark" />}
+          {ready && !onboarding && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rail-toggle"
+              title={railOpen ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
+              onClick={() => setRailOpen((v) => !v)}
+            >
+              <PanelLeft size={14} />
+            </Button>
+          )}
         </div>
         <span className="spacer" />
         {ready && !IS_MAC && (

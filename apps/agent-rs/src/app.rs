@@ -1867,6 +1867,10 @@ pub fn run_app(deps: AppDeps) -> i32 {
                             "id": &s.id,
                             "title": s.task.chars().take(80).collect::<String>().replace('\n', " "),
                             "desc": s.updated_at.chars().take(10).collect::<String>(),
+                            "task": &s.task,
+                            "files": &s.files_changed,
+                            "status": &s.result,
+                            "when": &s.updated_at,
                         })
                     })
                     .collect();
