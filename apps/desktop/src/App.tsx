@@ -1565,27 +1565,6 @@ export default function App() {
           </div>
         )}
         <div className="inputbox">
-          {ready && (
-            <div className="inctx-row">
-              <div className="modeseg" role="tablist" aria-label="Agent mode">
-                <button
-                  className={`modeseg-btn${!chatMode ? " cur" : ""}`}
-                  disabled={running}
-                  onClick={() => void send({ type: "mode", mode: "code" })}
-                >
-                  Code
-                </button>
-                <button
-                  className={`modeseg-btn${chatMode ? " cur" : ""}`}
-                  disabled={running}
-                  onClick={() => void send({ type: "mode", mode: "chat" })}
-                >
-                  Chat
-                </button>
-              </div>
-              <span className="modehint">{chatMode ? "read-only" : "read-write"}</span>
-            </div>
-          )}
           <div className="inputrow">
           <span className="prompt-glyph">❯</span>
           <div className="ghost-wrap">
