@@ -154,7 +154,7 @@ export default function App() {
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
   const [railQuery, setRailQuery] = useState("");
   const [bootGone, setBootGone] = useState(false);
-  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
@@ -370,7 +370,7 @@ export default function App() {
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
         break;
       case "sessions":
-        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string }[]) : []);
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -892,6 +892,22 @@ export default function App() {
   }, [ready, sessionInfo.id, running]);
 
   // Group sessions by recency: desc is "<yyyy-mm-dd> · N msg".
+  const sessGlyph = (status?: string) => {
+    const v = (status ?? "").toLowerCase();
+    if (v.includes("fail") || v.includes("error") || v.includes("denied") || v.includes("cancel")) return "bad";
+    if (v) return "ok";
+    return "none";
+  };
+  const relTime = (when?: string) => {
+    if (!when) return "";
+    const t = Date.parse(when.replace(" ", "T"));
+    if (Number.isNaN(t)) return "";
+    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.round(hrs / 24)}d ago`;
+  };
   const groupSessions = (query: string) => {
     const q = query.trim().toLowerCase();
     const filtered = q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
@@ -1025,10 +1041,10 @@ export default function App() {
               <span className="truncate">{ready.project.name}</span>
               <ChevronDown size={12} />
             </button>
-            <Button variant="secondary" className="rail-new" onClick={() => cmd("/new")}>
+            <button className="rail-new" onClick={() => cmd("/new")}>
               <Plus size={13} />
               <span>New session</span>
-            </Button>
+            </button>
             <div className="rail-search">
               <Search size={12} />
               <input
@@ -1096,16 +1112,25 @@ export default function App() {
                 {group.map((s) => {
                   const current = s.id === sessionInfo.id;
                   return (
-                    <div key={s.id}>
+                    <div key={s.id} className="rail-sess">
                       <div
                         className="pal-row rail-sessrow"
                         data-active={current || undefined}
                         title={s.title}
                         onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
                       >
-                        <span className="truncate">{s.title || "Untitled"}</span>
-                        {current && running && <span className="rail-live" />}
-                        {current && !running && <span className="pal-current">current</span>}
+                        {current && running ? (
+                          <span className="rail-glyph rail-live" />
+                        ) : (
+                          <span className={`rail-glyph ${sessGlyph(s.status)}`} />
+                        )}
+                        <span className="rail-sessmain">
+                          <span className="truncate">{s.title || "Untitled"}</span>
+                          <span className="rail-sessmeta">
+                            {current ? "current" : relTime(s.when)}
+                            {s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}
+                          </span>
+                        </span>
                         <button
                           className="rail-act"
                           title="Session actions"

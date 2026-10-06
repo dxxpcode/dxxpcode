@@ -1870,6 +1870,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
                             "task": &s.task,
                             "files": &s.files_changed,
                             "status": &s.result,
+                            "when": &s.updated_at,
                         })
                     })
                     .collect();
