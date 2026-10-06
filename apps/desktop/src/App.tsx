@@ -5,12 +5,13 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, toolArg } from "./types";
+import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -152,7 +153,13 @@ export default function App() {
   const [palQuery, setPalQuery] = useState("");
   const [palIdx, setPalIdx] = useState(0);
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
-  const [railQuery, setRailQuery] = useState("");
+  const [railWidth, setRailWidth] = useState(() => clampRailWidth(Number(localStorage.getItem("railWidth") ?? DEFAULT_RAIL_WIDTH)));
+  const [projectExpanded, setProjectExpanded] = useState(() => localStorage.getItem("railProjectExpanded") !== "0");
+  const [railResizing, setRailResizing] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const maxRailWidth = Math.max(MIN_RAIL_WIDTH, Math.min(MAX_RAIL_WIDTH, Math.floor(windowWidth * 0.45)));
+  const displayedRailWidth = Math.min(railWidth, maxRailWidth);
+  const railDrag = useRef<{ x: number; width: number } | null>(null);
   const [bootGone, setBootGone] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
@@ -199,7 +206,22 @@ export default function App() {
   }, [dark, theme]);
   useEffect(() => {
     localStorage.setItem("railOpen", railOpen ? "1" : "0");
+    if (!railOpen) {
+      railDrag.current = null;
+      setRailResizing(false);
+    }
   }, [railOpen]);
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("railWidth", String(railWidth));
+  }, [railWidth]);
+  useEffect(() => {
+    localStorage.setItem("railProjectExpanded", projectExpanded ? "1" : "0");
+  }, [projectExpanded]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -860,6 +882,9 @@ export default function App() {
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
         if (ready) setRailOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        if (ready) setSettingsOpen((v) => !v);
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
       }
@@ -898,16 +923,6 @@ export default function App() {
     if (v) return "ok";
     return "none";
   };
-  const relTime = (when?: string) => {
-    if (!when) return "";
-    const t = Date.parse(when.replace(" ", "T"));
-    if (Number.isNaN(t)) return "";
-    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.round(hrs / 24)}d ago`;
-  };
   const groupSessions = (query: string) => {
     const q = query.trim().toLowerCase();
     const filtered = q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
@@ -924,7 +939,7 @@ export default function App() {
     return groups;
   };
   const sessionGroups = groupSessions(palQuery);
-  const railGroups = groupSessions(railQuery);
+  const railGroups = groupSessions("");
   const palRows = sessionGroups.flatMap(([, g]) => g);
   // Queued backlog shows above session history — picking one loads it into the
   // composer for editing and drops it from the queue.
@@ -948,7 +963,7 @@ export default function App() {
   };
 
   return (
-    <div className={artSrc ? "app has-art" : "app"}>
+    <div className={artSrc ? "app has-art" : "app"} data-resizing={railResizing || undefined}>
       {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
         <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
@@ -1034,28 +1049,24 @@ export default function App() {
         </div>
       )}
       {ready && !onboarding && railOpen && (
-        <aside className="rail">
-          {IS_MAC && <div className="rail-macpad" data-tauri-drag-region />}
-          <div className="rail-head">
-            <button className="rail-proj" title="Change project" onClick={openProject}>
-              <span className="truncate">{ready.project.name}</span>
-              <ChevronDown size={12} />
-            </button>
-            <button className="rail-new" onClick={() => cmd("/new")}>
-              <Plus size={13} />
-              <span>New session</span>
-            </button>
-            <div className="rail-search">
-              <Search size={12} />
-              <input
-                type="text"
-                placeholder="Search sessions…"
-                value={railQuery}
-                onChange={(e) => setRailQuery(e.target.value)}
-                spellCheck={false}
-              />
-            </div>
+        <aside className="rail" id="sessions-sidebar" aria-label="Sessions" style={{ width: displayedRailWidth }}>
+          <div className="rail-brand" data-tauri-drag-region>
+            <Logo className="logo-mark" />
+            <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Hide sidebar" title={IS_MAC ? "Hide sidebar (⌘B)" : "Hide sidebar (Ctrl B)"} onClick={() => setRailOpen(false)}>
+              <PanelLeft size={15} />
+            </Button>
           </div>
+          <nav className="rail-head" aria-label="Session actions">
+            <Button variant="ghost" className="rail-navrow" onClick={() => cmd("/new")}>
+              <Plus size={15} />
+              <span>New session</span>
+            </Button>
+            <Button variant="ghost" className="rail-navrow" onClick={() => setPalOpen(true)}>
+              <Search size={15} />
+              <span>Search sessions</span>
+              <kbd className="rail-shortcut">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
+            </Button>
+          </nav>
           <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
             {queue.length > 0 && (
               <div>
@@ -1105,7 +1116,19 @@ export default function App() {
                   ))}
               </div>
             )}
-            {railGroups.length === 0 && <p className="pal-empty">{railQuery ? "No matches." : "No sessions in this project yet."}</p>}
+            <div className="rail-section-head">
+              <span>Projects</span>
+              <Button variant="ghost" size="icon" aria-label="Open a project" title="Open a project" onClick={openProject}>
+                <Plus size={14} />
+              </Button>
+            </div>
+            <Button variant="ghost" className="rail-proj" aria-expanded={projectExpanded} aria-controls="project-sessions" onClick={() => setProjectExpanded((v) => !v)}>
+              {projectExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              <Folder size={14} />
+              <span className="truncate">{ready.project.name}</span>
+            </Button>
+            <div id="project-sessions" className="rail-project-sessions" hidden={!projectExpanded}>
+            {railGroups.length === 0 && <p className="pal-empty">No sessions yet.</p>}
             {railGroups.map(([label, group]) => (
               <div key={label}>
                 <div className="pal-group-label">{label}</div>
@@ -1113,26 +1136,29 @@ export default function App() {
                   const current = s.id === sessionInfo.id;
                   return (
                     <div key={s.id} className="rail-sess">
-                      <div
-                        className="pal-row rail-sessrow"
-                        data-active={current || undefined}
-                        title={s.title}
-                        onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
-                      >
-                        {current && running ? (
-                          <span className="rail-glyph rail-live" />
-                        ) : (
-                          <span className={`rail-glyph ${sessGlyph(s.status)}`} />
-                        )}
-                        <span className="rail-sessmain">
-                          <span className="truncate">{s.title || "Untitled"}</span>
-                          <span className="rail-sessmeta">
-                            {current ? "current" : relTime(s.when)}
-                            {s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}
+                      <div className="rail-sessrow" data-active={current || undefined}>
+                        <Button
+                          variant="ghost"
+                          className="rail-sesspick"
+                          aria-current={current || undefined}
+                          title={s.title}
+                          onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
+                        >
+                          {current && running ? (
+                            <span className="rail-glyph rail-live" />
+                          ) : sessGlyph(s.status) === "bad" ? (
+                            <span className="rail-glyph bad" aria-label="Unsuccessful session" />
+                          ) : null}
+                          <span className="rail-sessmain">
+                            <span className="truncate">{s.title || "Untitled"}</span>
+                            {current && approvals.some((a) => !a.answered) && <span className="rail-sessmeta">Needs approval</span>}
                           </span>
-                        </span>
+                          <span className="rail-time">{sessionAge(s.when)}</span>
+                        </Button>
                         <button
                           className="rail-act"
+                          aria-label={`Actions for ${s.title || "Untitled"}`}
+                          aria-expanded={sessMenu === s.id}
                           title="Session actions"
                           onClick={(e) => { e.stopPropagation(); setSessMenu((m) => (m === s.id ? null : s.id)); }}
                         >
@@ -1166,19 +1192,70 @@ export default function App() {
                 })}
               </div>
             ))}
+            </div>
           </ScrollArea>
+          <div className="rail-footer">
+            <Button variant="ghost" className="rail-navrow" onClick={() => cmd("/settings")}>
+              <SlidersHorizontal size={15} />
+              <span>Settings</span>
+              <kbd className="rail-shortcut">{IS_MAC ? "⌘," : "Ctrl ,"}</kbd>
+            </Button>
+          </div>
+          <div
+            className="rail-resize"
+            role="separator"
+            aria-label="Sidebar width"
+            aria-orientation="vertical"
+            aria-controls="sessions-sidebar"
+            aria-valuemin={MIN_RAIL_WIDTH}
+            aria-valuemax={maxRailWidth}
+            aria-valuenow={displayedRailWidth}
+            tabIndex={0}
+            onDoubleClick={() => setRailWidth(DEFAULT_RAIL_WIDTH)}
+            onPointerDown={(e) => {
+              if (!e.isPrimary || e.button !== 0) return;
+              e.preventDefault();
+              e.currentTarget.focus();
+              railDrag.current = { x: e.clientX, width: displayedRailWidth };
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setRailResizing(true);
+            }}
+            onPointerMove={(e) => {
+              const drag = railDrag.current;
+              if (drag && e.currentTarget.hasPointerCapture(e.pointerId)) setRailWidth(clampRailWidth(drag.width + e.clientX - drag.x, maxRailWidth));
+            }}
+            onPointerUp={(e) => {
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+              railDrag.current = null;
+              setRailResizing(false);
+            }}
+            onLostPointerCapture={() => { railDrag.current = null; setRailResizing(false); }}
+            onPointerCancel={() => { railDrag.current = null; setRailResizing(false); }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                e.preventDefault();
+                setRailWidth(clampRailWidth(displayedRailWidth + (e.key === "ArrowLeft" ? -10 : 10), maxRailWidth));
+              } else if (e.key === "Home" || e.key === "End") {
+                e.preventDefault();
+                setRailWidth(e.key === "Home" ? MIN_RAIL_WIDTH : maxRailWidth);
+              }
+            }}
+          />
         </aside>
       )}
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
-          {!onboarding && <Logo className="logo-mark" />}
-          {ready && !onboarding && (
+          {!onboarding && (!ready || !railOpen) && <Logo className="logo-mark" />}
+          {ready && !onboarding && !railOpen && (
             <Button
               variant="ghost"
               size="icon"
               className="rail-toggle"
-              title={railOpen ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
+              aria-label="Show sidebar"
+              aria-expanded={false}
+              aria-controls="sessions-sidebar"
+              title={IS_MAC ? "Show sidebar (⌘B)" : "Show sidebar (Ctrl B)"}
               onClick={() => setRailOpen((v) => !v)}
             >
               <PanelLeft size={14} />
@@ -1186,6 +1263,11 @@ export default function App() {
           )}
         </div>
         <span className="spacer" />
+        {ready && !onboarding && !railOpen && (
+          <Button variant="ghost" size="icon" aria-label="Settings" title="Settings" onClick={() => cmd("/settings")}>
+            <SlidersHorizontal size={14} />
+          </Button>
+        )}
         {ready && !IS_MAC && (
           <div className="hact">
             <Button variant="ghost" size="icon" title="Minimize" onClick={() => void win.minimize()}>
