@@ -153,14 +153,36 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .rail-proj:hover { color: var(--text); }
 .rail-proj svg { color: var(--faint); flex-shrink: 0; }
-.rail-sess { position: relative; }
+.rail-sess { position: relative; margin-bottom: 6px; }
 .rail-sessrow {
   display: flex; align-items: center;
-  min-height: 44px; padding: 5px 6px 5px 10px; gap: 8px;
-  border-radius: var(--radius-sm);
+  min-height: 44px; padding: 6px 8px 6px 10px; gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
   font-size: 13px; color: var(--faint);
   cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
 }
+.has-art .rail-sessrow { background: rgb(255 255 255 / 0.05); border-color: rgb(255 255 255 / 0.08); }
+.rail-sessrow:hover { border-color: var(--dim); }
+.has-art .rail-sessrow:hover { border-color: rgb(255 255 255 / 0.22); }
+.rail-sessrow[data-active] { border-color: var(--accent); }
+.rail-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.rail-chip {
+  font-family: var(--font-mono); font-size: 9.5px;
+  padding: 1px 5px; border-radius: 5px;
+  border: 1px solid var(--border); color: var(--faint);
+  max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.has-art .rail-chip { border-color: rgb(255 255 255 / 0.12); }
+.rail-foot {
+  flex-shrink: 0; padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--faint);
+  letter-spacing: 0.02em;
+}
+.has-art .rail-foot { border-top-color: rgb(255 255 255 / 0.08); }
 .rail-sessmain {
   display: flex; flex-direction: column; gap: 1px;
   min-width: 0; flex: 1;
@@ -178,8 +200,8 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 [data-theme="dark"] .rail-glyph.ok { background: #4caf6d; }
 [data-theme="dark"] .rail-glyph.bad { background: #e57373; }
 .rail-glyph.rail-live { background: var(--accent); width: 6px; height: 6px; margin-left: 0; }
-.rail-sessrow:hover { background: var(--surface2); color: var(--text); }
-.rail-sessrow[data-active] { background: var(--surface2); color: var(--text); }
+.rail-sessrow:hover { color: var(--text); }
+.rail-sessrow[data-active] { color: var(--text); }
 .rail-act {
   margin-left: auto; flex-shrink: 0;
   border: none; background: none; color: var(--faint);

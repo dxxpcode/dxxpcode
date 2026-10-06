@@ -1139,8 +1139,15 @@ export default function App() {
                           <span className="truncate">{s.title || "Untitled"}</span>
                           <span className="rail-sessmeta">
                             {current ? "current" : relTime(s.when)}
-                            {s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}
                           </span>
+                          {s.files && s.files.length > 0 && (
+                            <span className="rail-chips">
+                              {s.files.slice(0, 3).map((f) => (
+                                <span key={f} className="rail-chip">{f.split("/").pop()}</span>
+                              ))}
+                              {s.files.length > 3 && <span className="rail-chip">+{s.files.length - 3}</span>}
+                            </span>
+                          )}
                         </span>
                         <button
                           className="rail-act"
@@ -1178,6 +1185,9 @@ export default function App() {
               </div>
             ))}
           </ScrollArea>
+          <div className="rail-foot">
+            {ready.model} · {ready.effort ?? "default"}{sessionInfo.tokens > 0 ? ` · ${fmtK(sessionInfo.tokens)} tok` : ""}
+          </div>
         </aside>
       )}
       <div className="main">
