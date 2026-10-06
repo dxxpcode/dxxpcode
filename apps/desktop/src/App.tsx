@@ -684,7 +684,7 @@ export default function App() {
         rootRef.current = r;
         setProjectPath(r);
       }
-    }).catch(() => {});
+    }).catch(() => { if (active) setProjectPath("Project path unavailable"); });
     return () => { active = false; };
   }, [ready]);
 

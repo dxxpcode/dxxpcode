@@ -1254,13 +1254,14 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .ob-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .ob-footer-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .ob-footer-hint { color: var(--dim); font-size: 12px; text-align: right; }
-.onboarding .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm); box-shadow: none; }
+.onboarding .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm); box-shadow: none; transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease), opacity 0.15s var(--ease); }
+.onboarding .btn:active { transform: none; }
 .onboarding .btn.primary { background: var(--text); color: var(--surface); border: 1px solid var(--text); }
 .onboarding .btn.primary:hover:not(:disabled) { background: var(--text); opacity: 0.85; }
 .onboarding .btn.ghost { background: none; color: var(--dim); border-color: transparent; }
 .onboarding .btn.ghost:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
 .onboarding button:disabled { opacity: 0.5; cursor: default; }
-.onboarding button:focus-visible, .onboarding a:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; box-shadow: none; }
+html[data-theme] .onboarding button:focus-visible, html[data-theme] .onboarding a:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; box-shadow: none; }
 @media (max-width: 620px) {
   .onboarding { padding: 24px 16px; }
   .ob-header { align-items: flex-start; gap: 12px; }

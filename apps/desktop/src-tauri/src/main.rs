@@ -20,7 +20,9 @@ struct Outbox {
 #[tauri::command]
 fn ui_ready(outbox: State<'_, std::sync::Arc<Outbox>>, app: tauri::AppHandle) {
     let buffered: Vec<Vec<u8>> = std::mem::take(&mut *outbox.buffered.lock().unwrap());
-    outbox.ready.store(true, std::sync::atomic::Ordering::SeqCst);
+    outbox
+        .ready
+        .store(true, std::sync::atomic::Ordering::SeqCst);
     for ev in buffered {
         let _ = app.emit("pty-out", ev);
     }
@@ -106,11 +108,7 @@ fn art_image(dir: String) -> Result<serde_json::Value, String> {
         Some("avif") => "image/avif",
         _ => "image/jpeg",
     };
-    let data_url = format!(
-        "data:{};base64,{}",
-        mime,
-        base64_encode(&bytes)
-    );
+    let data_url = format!("data:{};base64,{}", mime, base64_encode(&bytes));
     Ok(serde_json::json!({
         "path": path.to_string_lossy(),
         "dataUrl": data_url,
@@ -197,10 +195,7 @@ fn spawn_sidecar(
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
 
-    let mut reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| e.to_string())?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
     let handle = app.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 8192];
@@ -283,10 +278,7 @@ fn spawn_worker(app: &tauri::AppHandle, id: u32, cwd: std::path::PathBuf) -> Res
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
 
-    let mut reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| e.to_string())?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
     let handle = app.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 8192];
@@ -322,7 +314,9 @@ fn worker_start(
     if !dir.is_dir() {
         return Err(format!("not a directory: {cwd}"));
     }
-    let id = workers.next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let id = workers
+        .next
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let pty = spawn_worker(&app, id, dir)?;
     workers.map.lock().unwrap().insert(id, pty);
     Ok(id)
@@ -461,7 +455,11 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(std::sync::Arc::new(Outbox {
             ready: std::sync::atomic::AtomicBool::new(false),
