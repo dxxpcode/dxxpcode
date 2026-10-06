@@ -3,6 +3,7 @@
 
 mod agent;
 mod app;
+mod backend;
 mod browser;
 mod config;
 mod errors;

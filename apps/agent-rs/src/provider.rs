@@ -183,9 +183,22 @@ fn read_sse<R: Read>(reader: R, aborted: &Arc<AtomicBool>, mut on_event: impl Fn
 }
 
 pub enum Provider {
-    Anthropic { key: String },
-    OpenAi { key: String, base_url: String },
-    Mock { script: Vec<Value>, turn: usize },
+    Anthropic {
+        key: String,
+    },
+    OpenAi {
+        key: String,
+        base_url: String,
+    },
+    Mock {
+        script: Vec<Value>,
+        turn: usize,
+    },
+    /// BYOS backend — a first-party agent CLI (claude, codex) the user is
+    /// signed into. Runs via backend::run_turn, not `chat()`.
+    Cli {
+        spec: &'static crate::backend::CliSpec,
+    },
 }
 
 impl Provider {
@@ -194,6 +207,7 @@ impl Provider {
             Self::Anthropic { .. } => "anthropic",
             Self::OpenAi { .. } => "openai",
             Self::Mock { .. } => "mock",
+            Self::Cli { spec, .. } => spec.name,
         }
     }
 
@@ -257,6 +271,7 @@ impl Provider {
                 Ok(ids)
             }
             Self::Mock { .. } => Ok(vec!["mock".into()]),
+            Self::Cli { spec, .. } => Ok(vec![spec.cli.to_string()]),
         }
     }
 
@@ -302,6 +317,10 @@ impl Provider {
                 mock_emit(t, emit, aborted);
                 Ok(())
             }
+            Self::Cli { .. } => Err(ProviderError(
+                "CLI backends run whole turns — they don't serve chat calls".into(),
+                None,
+            )),
         }
     }
 }
@@ -888,6 +907,27 @@ pub fn resolve_provider(
             Provider::Mock { script, turn: 0 },
             model_override.unwrap_or("mock").to_string(),
         ));
+    }
+
+    // BYOS backends — a signed-in first-party CLI carries the session.
+    if let Some(s) = crate::backend::spec(&name) {
+        return match crate::backend::detect(s) {
+            crate::backend::BackendStatus::Ready => Ok((
+                Provider::Cli { spec: s },
+                model_override.unwrap_or(s.cli).to_string(),
+            )),
+            crate::backend::BackendStatus::NotAuthed => Err(ProviderError(
+                format!("{} isn't signed in — run `{}`", s.label, s.auth_cmd),
+                None,
+            )),
+            crate::backend::BackendStatus::NotInstalled => Err(ProviderError(
+                format!(
+                    "{} isn't installed — `{}` not found on PATH",
+                    s.label, s.cli
+                ),
+                None,
+            )),
+        };
     }
 
     let env = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());

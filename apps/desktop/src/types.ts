@@ -8,10 +8,20 @@ export interface ReadyInfo {
   variant?: string;
   variants?: string[];
   providers?: string[];
+  backends?: BackendInfo[];
   mode: string;
   needsSetup?: boolean;
   commands?: { name: string; desc: string }[];
   project: { name: string; languages: string[]; git?: { branch: string; dirty: boolean } | null };
+}
+
+export interface BackendInfo {
+  name: string;
+  label: string;
+  cli: string;
+  auth: string;
+  install: string;
+  status: "ready" | "not-authed" | "not-installed";
 }
 
 export interface MenuState {

@@ -186,6 +186,7 @@ impl Shared {
             "variant": self.variant.lock().unwrap().clone().unwrap_or_else(|| "default".into()),
             "variants": variant_names(),
             "providers": available_providers(self),
+            "backends": crate::backend::statuses(),
             "mode": *self.mode.lock().unwrap(),
         }));
     }
@@ -908,8 +909,46 @@ fn run_onboarding(sh: &Arc<Shared>) {
     emit_note("you're all set — ask dxxpcode anything");
 }
 
+/// A resumed session that ran on a CLI backend switches the provider to
+/// it, so follow-up turns stay on the backend that owns the thread.
+fn adopt_session_backend(sh: &Shared, rec: &SessionRecord) {
+    let Some(bn) = rec.backend.as_deref() else {
+        return;
+    };
+    let Some(s) = crate::backend::spec(bn) else {
+        return;
+    };
+    if sh
+        .provider
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|p| p.name() == s.name)
+        .unwrap_or(false)
+    {
+        return;
+    }
+    match crate::backend::detect(s) {
+        crate::backend::BackendStatus::Ready => {
+            *sh.provider.lock().unwrap() = Some(Provider::Cli { spec: s });
+            *sh.provider_name.lock().unwrap() = s.name.into();
+            *sh.model.lock().unwrap() = s.cli.into();
+            sh.emit_state();
+        }
+        crate::backend::BackendStatus::NotAuthed => emit_note(format!(
+            "this session ran {} — sign in with `{}`",
+            s.label, s.auth_cmd
+        )),
+        crate::backend::BackendStatus::NotInstalled => emit_note(format!(
+            "this session ran {} — `{}` isn't on PATH",
+            s.label, s.cli
+        )),
+    }
+}
+
 /// Providers usable right now — env var or saved key in config.json, plus
-/// mock when it's in play. Current provider always first.
+/// mock when it's in play and CLI backends that are signed in.
+/// Current provider always first.
 fn available_providers(sh: &Shared) -> Vec<String> {
     let cfg = load_config();
     let cur = sh.provider_name.lock().unwrap().clone();
@@ -933,6 +972,17 @@ fn available_providers(sh: &Shared) -> Vec<String> {
         if !opts.iter().any(|p| p == "mock") {
             opts.push("mock".into());
         }
+    }
+    // BYOS backends that are installed and signed in.
+    for name in crate::backend::ready_names() {
+        if !opts.iter().any(|p| p == &name) {
+            opts.push(name);
+        }
+    }
+    // Keep the current CLI backend selectable even if its creds were
+    // revoked since it was chosen.
+    if crate::backend::spec(&cur).is_some() && !opts.iter().any(|p| *p == cur) {
+        opts.push(cur);
     }
     opts
 }
@@ -1387,6 +1437,7 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             sh.allowlist.lock().unwrap().clear();
             sh.emit_session();
             Shared::emit_history(&picked);
+            adopt_session_backend(sh, &picked);
             emit_note(format!(
                 "resumed session {} — {} message(s) restored",
                 picked.id.chars().take(8).collect::<String>(),
@@ -1561,6 +1612,44 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
     };
 
     let session_for_run = sh.session.lock().unwrap().take();
+
+    let sink = |ev: Value, sh: &Shared| {
+        if ev.get("type").and_then(|t| t.as_str()) == Some("usage") {
+            let u = ev.get("usage").cloned().unwrap_or(json!({}));
+            *sh.turn_tokens.lock().unwrap() =
+                (u.get("inputTokens").and_then(|v| v.as_u64()).unwrap_or(0)
+                    + u.get("outputTokens").and_then(|v| v.as_u64()).unwrap_or(0))
+                    as usize;
+        }
+        if ev.get("type").and_then(|t| t.as_str()) == Some("done") {
+            if let Some(sid) = ev.pointer("/result/sessionId").and_then(|v| v.as_str()) {
+                if !sid.is_empty() {
+                    if let Some(s) = load_session(sid) {
+                        *sh.session.lock().unwrap() = Some(s);
+                        sh.emit_session();
+                    }
+                }
+            }
+        }
+        emit(ev);
+    };
+
+    // BYOS backend — a signed-in first-party CLI runs the whole turn.
+    if let Provider::Cli { spec } = &mut provider {
+        let spec = *spec;
+        crate::backend::run_turn(
+            spec,
+            &mentions.text,
+            &deps.root,
+            session_for_run,
+            &sh.aborted,
+            &mut |ev| sink(ev, sh),
+        );
+        *sh.provider.lock().unwrap() = Some(provider);
+        emit(json!({"type": "idle"}));
+        return;
+    }
+
     let sh_steer = Arc::clone(sh);
     let mut steer = move || sh_steer.steer_queue.lock().unwrap().pop_front();
 
@@ -1590,26 +1679,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         procs: Arc::clone(&sh.procs),
     };
 
-    agent::run_task(&mut opts, &mut |ev| {
-        if ev.get("type").and_then(|t| t.as_str()) == Some("usage") {
-            let u = ev.get("usage").cloned().unwrap_or(json!({}));
-            *sh.turn_tokens.lock().unwrap() =
-                (u.get("inputTokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                    + u.get("outputTokens").and_then(|v| v.as_u64()).unwrap_or(0))
-                    as usize;
-        }
-        if ev.get("type").and_then(|t| t.as_str()) == Some("done") {
-            if let Some(sid) = ev.pointer("/result/sessionId").and_then(|v| v.as_str()) {
-                if !sid.is_empty() {
-                    if let Some(s) = load_session(sid) {
-                        *sh.session.lock().unwrap() = Some(s);
-                        sh.emit_session();
-                    }
-                }
-            }
-        }
-        emit(ev);
-    });
+    agent::run_task(&mut opts, &mut |ev| sink(ev, sh));
     *sh.provider.lock().unwrap() = Some(provider);
     emit(json!({"type": "idle"}));
 }
@@ -1702,6 +1772,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         "variant": deps.variant,
         "variants": variant_names(),
         "providers": available_providers(&sh),
+        "backends": crate::backend::statuses(),
         "mode": deps.mode,
         "commands": COMMAND_LIST.iter().map(|(n, d)| json!({"name": n, "desc": d})).collect::<Vec<_>>(),
         "needsSetup": needs_setup,
@@ -1884,6 +1955,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
                             sh.allowlist.lock().unwrap().clear();
                             sh.emit_session();
                             Shared::emit_history(&picked);
+                            adopt_session_backend(sh.as_ref(), &picked);
                             emit_note(format!(
                                 "resumed session {} — {} message(s) restored",
                                 picked.id.chars().take(8).collect::<String>(),

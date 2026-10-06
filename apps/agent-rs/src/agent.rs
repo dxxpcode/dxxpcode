@@ -899,6 +899,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         todos: None,
         result: None,
         mode: None,
+        backend: None,
+        cli_session: None,
     });
     session.mode = Some(if opts.chat { "chat" } else { "code" }.to_string());
 

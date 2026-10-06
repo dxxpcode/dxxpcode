@@ -118,6 +118,13 @@ pub struct SessionRecord {
     /// "code" (default) or "chat" — restored on resume.
     #[serde(default)]
     pub mode: Option<String>,
+    /// BYOS backend that ran this session ("claude-code", "codex-cli").
+    /// Absent for sessions run by the in-house agent.
+    #[serde(default)]
+    pub backend: Option<String>,
+    /// The CLI's own session id, used to `--resume` its thread.
+    #[serde(default, rename = "cliSession")]
+    pub cli_session: Option<String>,
 }
 
 pub fn sessions_dir() -> PathBuf {

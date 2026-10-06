@@ -9,7 +9,7 @@ import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, Slid
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
+import type { Approval, BackendInfo, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
@@ -365,6 +365,7 @@ export default function App() {
                 variant: ev.variant as string | undefined,
                 variants: ev.variants as string[] | undefined,
                 providers: ev.providers as string[] | undefined,
+                backends: ev.backends as ReadyInfo["backends"],
                 mode: String(ev.mode),
               }
             : prev,
@@ -1371,6 +1372,21 @@ export default function App() {
                       options={["default", ...(ready.variants ?? [])]}
                       onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
                     />
+                    {ready.backends && ready.backends.length > 0 && (
+                      <>
+                        <div className="setgroup-title">Subscriptions</div>
+                        <div className="setlist">
+                          {ready.backends.map((b) => (
+                            <BackendRow
+                              key={b.name}
+                              backend={b}
+                              active={ready.provider === b.name}
+                              onUse={() => void send({ type: "command", name: `/provider ${b.name}` })}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                     <div className="setrow static">
                       <span className="setlabel">Approval mode</span>
                       <span className="modeseg">
@@ -2147,6 +2163,38 @@ function SetRow({ label, desc, value, onClick }: { label: string; desc?: string;
       <span className="setlabel">{label}{desc && <span className="setdesc">{desc}</span>}</span>
       <span className="setval">{value}</span>
       {Chevron}
+    </button>
+  );
+}
+
+function BackendRow({ backend, active, onUse }: { backend: BackendInfo; active: boolean; onUse: () => void }) {
+  const [copied, setCopied] = useState(false);
+  if (backend.status === "ready") {
+    if (active) {
+      return (
+        <div className="setrow static">
+          <span className="setlabel">{backend.label}<span className="setdesc">in use</span></span>
+        </div>
+      );
+    }
+    return <SetAction label={backend.label} desc="signed in" onClick={onUse} />;
+  }
+  const cmd = backend.status === "not-authed" ? backend.auth : backend.install;
+  const hint = backend.status === "not-authed" ? "sign in" : "not installed";
+  return (
+    <button
+      className="setrow link"
+      onClick={() => {
+        void navigator.clipboard.writeText(cmd);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      }}
+    >
+      <span className="setlabel">
+        {backend.label}
+        <span className="setdesc">{hint} — <span className="mono">{cmd}</span></span>
+      </span>
+      <span className="setval">{copied ? "copied" : "copy"}</span>
     </button>
   );
 }
