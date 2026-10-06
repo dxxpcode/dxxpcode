@@ -95,6 +95,49 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   color: var(--faint);
 }
 
+/* Sessions rail — persistent left column (Codex-style task ledger) */
+.rail {
+  width: 236px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  z-index: 1;
+  animation: fadein 0.2s var(--ease);
+}
+.has-art .rail { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(18px); border-right-color: rgb(255 255 255 / 0.08); }
+.rail-macpad { height: 41px; flex-shrink: 0; }
+.rail-head {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.has-art .rail-head { border-bottom-color: rgb(255 255 255 / 0.08); }
+.rail-new { width: 100%; justify-content: flex-start; gap: 8px; }
+.rail-search {
+  display: flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 9px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  color: var(--faint);
+}
+.has-art .rail-search { background: rgb(255 255 255 / 0.08); }
+.rail-search input {
+  flex: 1; min-width: 0; border: none; outline: none; background: none;
+  font: inherit; font-size: 12.5px; color: var(--text);
+}
+.rail-search input::placeholder { color: var(--faint); }
+.rail-list { flex: 1; padding: 6px; }
+.rail-live {
+  margin-left: auto; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: railpulse 1.4s var(--ease) infinite;
+}
+.rail-toggle { color: var(--faint); }
+@keyframes railpulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 
 /* Boot — centered mark while the sidecar starts (before first ready) */
 .boot {

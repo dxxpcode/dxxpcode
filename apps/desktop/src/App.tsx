@@ -5,7 +5,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -151,6 +151,8 @@ export default function App() {
   const [palOpen, setPalOpen] = useState(false);
   const [palQuery, setPalQuery] = useState("");
   const [palIdx, setPalIdx] = useState(0);
+  const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
+  const [railQuery, setRailQuery] = useState("");
   const [bootGone, setBootGone] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
@@ -194,6 +196,9 @@ export default function App() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
   }, [dark, theme]);
+  useEffect(() => {
+    localStorage.setItem("railOpen", railOpen ? "1" : "0");
+  }, [railOpen]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -851,6 +856,9 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (ready) setPalOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        if (ready) setRailOpen((v) => !v);
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
       }
@@ -876,14 +884,15 @@ export default function App() {
     }
   }, [palOpen]);
 
-  // Refresh the session list when the palette opens or the session changes.
+  // Sessions feed both the ⌘K palette and the rail — refresh on ready, on
+  // session change, and when a run settles (a first run assigns the title).
   useEffect(() => {
-    if (ready && palOpen) void send({ type: "sessions" });
-  }, [ready, palOpen, sessionInfo.id]);
+    if (ready) void send({ type: "sessions" });
+  }, [ready, sessionInfo.id, running]);
 
   // Group sessions by recency: desc is "<yyyy-mm-dd> · N msg".
-  const sessionGroups = (() => {
-    const q = palQuery.trim().toLowerCase();
+  const groupSessions = (query: string) => {
+    const q = query.trim().toLowerCase();
     const filtered = q ? sessions.filter((s) => s.title.toLowerCase().includes(q)) : sessions;
     const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -896,7 +905,9 @@ export default function App() {
       else groups.push([label, [s]]);
     }
     return groups;
-  })();
+  };
+  const sessionGroups = groupSessions(palQuery);
+  const railGroups = groupSessions(railQuery);
   const palRows = sessionGroups.flatMap(([, g]) => g);
   // Queued backlog shows above session history — picking one loads it into the
   // composer for editing and drops it from the queue.
@@ -1005,10 +1016,84 @@ export default function App() {
           </div>
         </div>
       )}
+      {ready && !onboarding && railOpen && (
+        <aside className="rail">
+          {IS_MAC && <div className="rail-macpad" data-tauri-drag-region />}
+          <div className="rail-head">
+            <Button variant="secondary" className="rail-new" onClick={() => cmd("/new")}>
+              <Plus size={13} />
+              <span>New session</span>
+            </Button>
+            <div className="rail-search">
+              <Search size={12} />
+              <input
+                type="text"
+                placeholder="Search sessions…"
+                value={railQuery}
+                onChange={(e) => setRailQuery(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+          </div>
+          <ScrollArea className="rail-list">
+            {queue.length > 0 && (
+              <div>
+                <div className="pal-group-label">Queued</div>
+                {queue.map((text, i) => (
+                  <Button
+                    key={`q-${i}`}
+                    variant="ghost"
+                    title={text}
+                    className="pal-row"
+                    onClick={() => { setQueue((q) => q.filter((_, j) => j !== i)); setInput(text); taRef.current?.focus(); }}
+                  >
+                    <ListEnd size={13} />
+                    <span className="truncate">{text}</span>
+                  </Button>
+                ))}
+              </div>
+            )}
+            {railGroups.length === 0 && <p className="pal-empty">{railQuery ? "No matches." : "No sessions in this project yet."}</p>}
+            {railGroups.map(([label, group]) => (
+              <div key={label}>
+                <div className="pal-group-label">{label}</div>
+                {group.map((s) => {
+                  const current = s.id === sessionInfo.id;
+                  return (
+                    <Button
+                      key={s.id}
+                      variant="ghost"
+                      data-active={current || undefined}
+                      title={s.title}
+                      className="pal-row"
+                      onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
+                    >
+                      <span className="truncate">{s.title || "Untitled"}</span>
+                      {current && running && <span className="rail-live" />}
+                      {current && !running && <span className="pal-current">current</span>}
+                    </Button>
+                  );
+                })}
+              </div>
+            ))}
+          </ScrollArea>
+        </aside>
+      )}
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && <Logo className="logo-mark" />}
+          {ready && !onboarding && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rail-toggle"
+              title={railOpen ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
+              onClick={() => setRailOpen((v) => !v)}
+            >
+              <PanelLeft size={14} />
+            </Button>
+          )}
         </div>
         <span className="spacer" />
         {ready && !IS_MAC && (
