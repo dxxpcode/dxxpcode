@@ -236,6 +236,24 @@ export default function App() {
     setItems((prev) => [...prev, item]);
   };
   const commands = ready?.commands ?? [];
+  // Per-turn stats for the Codex-style activity line: tools run since the
+  // last user prompt (for "Worked for Ns · M tools") and the most recent
+  // tool label for the live "Working…" row.
+  const turnTools = new Map<number, number>();
+  {
+    let n = 0;
+    items.forEach((it, i) => {
+      if (it.k === "user") n = 0;
+      else if (it.k === "tool") n++;
+      else if (it.k === "done") turnTools.set(i, n);
+    });
+  }
+  let lastTool: string | null = null;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (it.k === "user") break;
+    if (it.k === "tool") { lastTool = `${TOOL_DISPLAY[it.tool] ?? it.tool}${it.arg ? ` ${it.arg}` : ""}`; break; }
+  }
   const palette = input.startsWith("/")
     ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
     : [];
@@ -1628,12 +1646,22 @@ export default function App() {
             </div>
           </div>
         )}
-        {groupItems(items).map((seg, si) =>
-          Array.isArray(seg) ? (
-            <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
-          ) : (
-            <ItemView key={seg.idx} item={seg.item} />
-          ),
+        {groupTurns(groupItems(items)).map((turn, ti) => (
+          <div className="turn" key={ti}>
+            {turn.map((seg, si) =>
+              Array.isArray(seg) ? (
+                <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
+              ) : (
+                <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} />
+              ),
+            )}
+          </div>
+        ))}
+        {running && (
+          <div className="workline row">
+            <span className="think-shimmer">Working…</span>
+            {lastTool && <span className="workline-tool">{lastTool}</span>}
+          </div>
         )}
         {approvals.map((a) => (
           a.answered ? (
@@ -1911,7 +1939,7 @@ export default function App() {
   );
 }
 
-function ItemView({ item }: { item: Item }) {
+function ItemView({ item, toolCount }: { item: Item; toolCount?: number }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row"><span className="chev">❯</span>{item.text}</div>;
@@ -2015,17 +2043,20 @@ function ItemView({ item }: { item: Item }) {
     case "denied":
       return <div className="note row" style={{ color: "var(--red)" }}>⎿ Denied: {item.reason} ({item.tool})</div>;
     case "done": {
-      const bits = [
+      const ok = item.status === "completed";
+      const cancelled = item.status === "cancelled";
+      const fail = item.status === "error" || item.status === "failed";
+      const meta = [
+        toolCount ? `${toolCount} tool${toolCount === 1 ? "" : "s"}` : null,
         item.filesChanged.length > 0 ? `${item.filesChanged.length} file${item.filesChanged.length === 1 ? "" : "s"}` : null,
-        item.secs != null ? fmtDuration(item.secs) : null,
         item.tokens ? fmtK(item.tokens) + " tok" : null,
       ].filter(Boolean).join(" · ");
+      const label = ok ? "Worked" : cancelled ? "Stopped" : fail ? "Failed" : item.status === "incomplete" ? "Incomplete" : item.status === "max_iterations" ? "Stopped at limit" : item.status;
       return (
-        <div className="done row">
-          <span className={`st ${item.status === "completed" ? "ok" : item.status === "error" ? "err" : "warn"}`}>
-            {item.status === "completed" ? "Completed" : item.status}
-          </span>
-          {bits && <span className="meta">{bits}</span>}
+        <div className={`worked row${ok ? "" : cancelled ? " stop" : fail ? " fail" : " warn"}`}>
+          <span className="worked-dot" />
+          <span className="worked-label">{label}{item.secs != null ? ` for ${fmtDuration(item.secs)}` : ""}</span>
+          {meta && <span className="meta">{meta}</span>}
           {item.filesChanged.length > 0 && (
             <ul>{item.filesChanged.map((f) => <li className="mono" key={f}>{f}</li>)}</ul>
           )}
@@ -2229,6 +2260,18 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
 }
 
 type Grouped = { idx: number; item: Item };
+
+// Turn = a user prompt plus everything until the next one — rendered in a
+// `.turn` wrapper so prompts read as separators and whitespace does the
+// grouping, Codex-style.
+function groupTurns(segs: (Grouped | Grouped[])[]): (Grouped | Grouped[])[][] {
+  const turns: (Grouped | Grouped[])[][] = [[]];
+  for (const s of segs) {
+    if (!Array.isArray(s) && s.item.k === "user") turns.push([]);
+    turns[turns.length - 1].push(s);
+  }
+  return turns.filter((t) => t.length > 0);
+}
 
 function groupItems(items: Item[]): (Grouped | Grouped[])[] {
   const segs: (Grouped | Grouped[])[] = [];
