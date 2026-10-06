@@ -322,6 +322,7 @@ export default function App() {
                 effort: ev.effort as string | undefined,
                 variant: ev.variant as string | undefined,
                 variants: ev.variants as string[] | undefined,
+                providers: ev.providers as string[] | undefined,
                 mode: String(ev.mode),
               }
             : prev,
@@ -1052,9 +1053,9 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">General</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project<span className="setdesc">The folder the agent works in</span></span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" desc="Choose a different working folder" onClick={openProject} />
-                    <SetAction label="Run setup…" desc="Provider, model, and effort walkthrough" onClick={() => cmd("/setup")} />
+                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
+                    <SetAction label="Open a project…" onClick={openProject} />
+                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
                   </div>
                 </div>
               )}
@@ -1062,11 +1063,15 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">Providers & Models</div>
                   <div className="setlist">
-                    <SetRow label="Provider" desc="Which service answers your requests" value={`${ready.provider} · ${ready.model}`} onClick={() => cmd("/providers")} />
-                    <SetRow label="Connect a provider" desc="Add an API key for another service" value="add an API key" onClick={() => cmd("/provider")} />
+                    <SetSelect
+                      label="Provider"
+                      value={ready.provider}
+                      options={ready.providers && ready.providers.length ? ready.providers : [ready.provider]}
+                      extra={["connect a provider…"]}
+                      onChange={(v) => v === "connect a provider…" ? cmd("/providers") : void send({ type: "command", name: `/provider ${v}` })}
+                    />
                     <SetSelect
                       label="Model"
-                      desc="Which model answers your requests"
                       value={ready.model}
                       options={modelOpts.length ? modelOpts : [ready.model]}
                       onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
@@ -1074,21 +1079,18 @@ export default function App() {
                     />
                     <SetSelect
                       label="Reasoning effort"
-                      desc="How much the model thinks before answering"
                       value={ready.effort ?? "default"}
                       options={[...EFFORT_LEVELS]}
                       onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
                     />
                     <SetSelect
                       label="Model variant"
-                      desc="Named request preset from your config.json variants"
                       value={ready.variant ?? "default"}
                       options={["default", ...(ready.variants ?? [])]}
                       onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
                     />
                     <SetSelect
                       label="Approval mode"
-                      desc="When the agent asks before acting"
                       value={ready.mode === "smart" ? "smart (Jev)" : ready.mode}
                       options={["ask", "always-approve", "smart (Jev)"]}
                       onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
@@ -1101,7 +1103,7 @@ export default function App() {
                   <div className="setgroup-title">Appearance</div>
                   <div className="setlist">
                     <div className="setrow static">
-                      <span className="setlabel">Theme<span className="setdesc">{artSrc ? "Dark while art is set — the backdrop is the theme" : "Follow the OS, or force light or dark — hover to preview"}</span></span>
+                      <span className="setlabel">Theme{artSrc ? <span className="setdesc">Dark while art is set</span> : null}</span>
                       <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
                         {(["system", "light", "dark"] as const).map((t) => (
                           <button
@@ -1117,7 +1119,7 @@ export default function App() {
                       </span>
                     </div>
                     <div className="setrow static artsect">
-                      <span className="setlabel">Art<span className="setdesc">Pick a backdrop — or use your own image folder</span></span>
+                      <span className="setlabel">Art</span>
                     </div>
                     <div className="artgrid">
                       {ART_PIECES.map((p) => (
@@ -1134,12 +1136,11 @@ export default function App() {
                     </div>
                     <SetRow
                       label="Custom folder"
-                      desc="Use your own image folder as the backdrop"
                       value={artDirLabel || "None"}
                       onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } })}
                     />
                     {artLabel && (
-                      <SetAction label="Clear art" desc="Stop showing artwork as the backdrop" onClick={() => { setArtPiece(""); setArtDir(""); }} />
+                      <SetAction label="Clear art" onClick={() => { setArtPiece(""); setArtDir(""); }} />
                     )}
                   </div>
                 </div>
@@ -1148,12 +1149,12 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">Session</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Session ID<span className="setdesc">Identifier for this conversation</span></span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                    <div className="setrow static"><span className="setlabel">Context<span className="setdesc">Tokens used against the context limit</span></span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" desc="Pick up a previous conversation (⌘K)" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
-                    <SetAction label="Compact context" desc="Summarize old messages to free space" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" desc="Revert the agent's last change" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" desc="Begin a fresh conversation" onClick={() => cmd("/new")} />
+                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                    <SetAction label="Resume a session…" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
+                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
+                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
+                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
                   </div>
                 </div>
               )}
@@ -1161,16 +1162,16 @@ export default function App() {
                 <div className="setgroup">
                   <div className="setgroup-title">About</div>
                   <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Version<span className="setdesc">The build you're running</span></span><span className="setval mono">v{ready.version}</span></div>
+                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
                     {update?.status === "downloading" && (
                       <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
                     )}
                     {update?.status === "ready" && (
                       <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
                     )}
-                    <SetAction label="Documentation" desc="Commands, mentions, and shortcuts" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" desc="What changed in each release" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" desc="Close the app" onClick={() => cmd("/exit")} danger />
+                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
+                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
+                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
                   </div>
                 </div>
               )}
