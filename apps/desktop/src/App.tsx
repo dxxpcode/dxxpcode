@@ -134,6 +134,8 @@ export default function App() {
     { id: "mistral", name: "Mistral", desc: "Mistral models" },
     { id: "custom", name: "Other endpoint", desc: "any OpenAI-compatible API" },
   ];
+  const OB_MAIN = ["anthropic", "openai"];
+  const [obMore, setObMore] = useState(false);
   const [obKey, setObKey] = useState("");
   const [obBase, setObBase] = useState("");
   const [obBusy, setObBusy] = useState(false);
@@ -1190,6 +1192,14 @@ export default function App() {
         <div className="onboarding">
           <img className="ob-art" src={artSrc ?? artWanderer} alt="" />
           <div className="ob-veil" />
+          {obStep === "welcome" && (
+            <button className="ob-skip" onClick={() => setOnboarding(false)}>skip</button>
+          )}
+          {obStep !== "welcome" && (
+            <button className="ob-back" onClick={() => setObStep(obStep === "key" ? "pick" : obStep === "pick" ? "welcome" : "pick")} aria-label="Back">
+              ‹
+            </button>
+          )}
           <div className="ob-stage" key={obStep}>
             {obStep === "welcome" && (
               <>
@@ -1198,7 +1208,6 @@ export default function App() {
                 <p className="ob-desc">Local. Private. Yours.</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setObStep("pick")}>Get started</button>
-                  <button className="btn ghost" onClick={() => setOnboarding(false)}>Skip for now</button>
                 </div>
                 <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
               </>
@@ -1206,9 +1215,8 @@ export default function App() {
             {obStep === "pick" && (
               <>
                 <div className="ob-title">Connect a provider.</div>
-                <p className="ob-desc">Pick where your models come from — you can add more later.</p>
                 <div className="ob-providers">
-                  {OB_PROVIDERS.map((p) => (
+                  {OB_PROVIDERS.filter((p) => OB_MAIN.includes(p.id)).map((p) => (
                     <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
                       <span className="ob-prov-name">{p.name}</span>
                       <span className="ob-prov-desc">{p.desc}</span>
@@ -1218,9 +1226,16 @@ export default function App() {
                     <span className="ob-prov-name">Just explore</span>
                     <span className="ob-prov-desc">demo mode — no key needed</span>
                   </button>
-                </div>
-                <div className="setbtns">
-                  <button className="btn ghost" onClick={() => setObStep("welcome")}>Back</button>
+                  <button className="ob-more" onClick={() => setObMore((m) => !m)}>
+                    {obMore ? "Fewer providers" : "More providers"}
+                    <span className={`ob-more-chev${obMore ? " up" : ""}`}>⌄</span>
+                  </button>
+                  {obMore && OB_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
+                    <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                      <span className="ob-prov-name">{p.name}</span>
+                      <span className="ob-prov-desc">{p.desc}</span>
+                    </button>
+                  ))}
                 </div>
               </>
             )}
@@ -1230,9 +1245,7 @@ export default function App() {
                 <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setObStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
-                  <button className="btn ghost" onClick={openProject}>
-                    Choose folder…
-                  </button>
+                  <button className="btn ghost" onClick={openProject}>Choose folder…</button>
                 </div>
                 <p className="ob-hint">Switch anytime with Settings → Open a project</p>
               </>
@@ -1263,9 +1276,9 @@ export default function App() {
             {obStep === "key" && (
               <>
                 <div className="ob-title">{OB_PROVIDERS.find((p) => p.id === obProvider)?.name ?? "Provider"} API key</div>
-                <p className="ob-desc">Validated against {obProvider === "anthropic" ? "api.anthropic.com" : (OB_BASE[obProvider]?.replace("https://", "") ?? "the /models endpoint")} before it's saved.</p>
+                <p className="ob-desc">Stored on this machine — validated before it's saved.</p>
                 <input
-                  className="ob-input mono"
+                  className="ob-input ob-key mono"
                   type="password"
                   autoFocus
                   placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "sk-…"}
@@ -1289,7 +1302,6 @@ export default function App() {
                 )}
                 {obError && <p className="ob-error">{obError}</p>}
                 <div className="setbtns">
-                  <button className="btn ghost" disabled={obBusy} onClick={() => setObStep("pick")}>Back</button>
                   <button
                     className="btn primary"
                     disabled={!obKey.trim() || obBusy}
