@@ -10,9 +10,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
-import { TOOL_DISPLAY, toolArg } from "./types";
+import { TOOL_DISPLAY, TOOL_FAMILY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
+import { groupStreamTurns, toolGroupState, type ToolEntry } from "./lib/stream-layout";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -39,18 +40,6 @@ function closePartialMd(t: string): string {
   const fences = t.match(/(^|\n)```/g);
   if (fences && fences.length % 2 === 1) t += "\n```";
   return t;
-}
-
-// Streaming text: render everything but the newest fragment statically, and
-// wrap the tail in an .ease span so only the freshly arrived words fade/slide
-// in (re-mounting the tail is fine — it's the part that's animating anyway).
-function mdStream(t: string) {
-  const closed = closePartialMd(t);
-  const cut = Math.max(0, closed.length - 28);
-  const sp = closed.indexOf(" ", cut);
-  const tail = sp > 0 ? closed.slice(sp + 1) : closed.slice(cut);
-  const head = closed.slice(0, closed.length - tail.length);
-  return { __html: `${marked.parse(head, { async: false })}<span class="ease">${marked.parseInline(tail, { async: false })}</span>` };
 }
 
 const EFFORT_LEVELS = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
@@ -1639,13 +1628,17 @@ export default function App() {
             </div>
           </div>
         )}
-        {groupItems(items).map((seg, si) =>
-          Array.isArray(seg) ? (
-            <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
-          ) : (
-            <ItemView key={seg.idx} item={seg.item} streaming={running && seg.idx === items.length - 1} />
-          ),
-        )}
+        {groupStreamTurns(items).map((turn) => (
+          <section className="stream-turn" key={`turn${turn.key}`}>
+            {turn.segments.map((seg, si) =>
+              Array.isArray(seg) ? (
+                <TGroup key={`g${seg[0]?.idx ?? si}`} seg={seg} running={running} lastIdx={items.length - 1} />
+              ) : (
+                <ItemView key={seg.idx} item={seg.item} streaming={running && seg.idx === items.length - 1} />
+              ),
+            )}
+          </section>
+        ))}
         {approvals.map((a) => (
           a.answered ? (
             <div className={`dresolved row${a.answered === "n" ? " deny" : " ok"}`} key={`ap${a.id}`}>
@@ -1925,27 +1918,22 @@ export default function App() {
 function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
   switch (item.k) {
     case "user":
-      return <div className="usermsg row"><span className="chev">❯</span>{item.text}</div>;
+      return <div className="usermsg row">{item.text}</div>;
     case "text":
       return (
         <div className="text row">
-          <span dangerouslySetInnerHTML={streaming ? mdStream(item.text) : md(item.text)} />
-          {streaming && <span className="caret" aria-hidden />}
+          <div className="response-body" dangerouslySetInnerHTML={md(streaming ? closePartialMd(item.text) : item.text)} />
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
       );
     case "think":
-      // Reasoning tokens: live dim stream while arriving, collapsible after.
-      return item.live ? (
-        <div className="think row">
-          <div className="think-head"><span className="think-dot" /><span className="think-shimmer">Thinking</span></div>
-          <div className="think-text">{item.text}<span className="caret tool-caret" aria-hidden /></div>
-        </div>
-      ) : (
-        <details className="think row">
+      return (
+        <details className={`think row${item.live ? " live" : ""}`}>
           <summary>
-            {item.ms != null ? `Thought for ${Math.max(1, Math.round(item.ms / 1000))}s` : "Thought"}
-            <span className="think-n">{item.text.trim().split("\n")[0].slice(0, 64)}{(item.text.trim().split("\n")[0] ?? "").length > 64 || item.text.includes("\n") ? "…" : ""}</span>
+            <ChevronRight size={12} className="think-chevron" />
+            <span className="think-dot" />
+            {item.live ? "Thinking" : item.ms != null ? `Thought for ${Math.max(1, Math.round(item.ms / 1000))}s` : "Thought"}
+            {!item.live && <span className="think-n">{item.text.trim().split("\n")[0].slice(0, 64)}{(item.text.trim().split("\n")[0] ?? "").length > 64 || item.text.includes("\n") ? "…" : ""}</span>}
           </summary>
           <div className="think-text">{item.text}</div>
         </details>
@@ -2028,18 +2016,21 @@ function ItemView({ item, streaming }: { item: Item; streaming?: boolean }) {
       return <div className="note row" style={{ color: "var(--red)" }}>⎿ Denied: {item.reason} ({item.tool})</div>;
     case "done": {
       const bits = [
-        item.filesChanged.length > 0 ? `${item.filesChanged.length} file${item.filesChanged.length === 1 ? "" : "s"}` : null,
         item.secs != null ? fmtDuration(item.secs) : null,
         item.tokens ? fmtK(item.tokens) + " tok" : null,
       ].filter(Boolean).join(" · ");
       return (
         <div className="done row">
+          <span className={`done-mark ${item.status === "error" ? "err" : item.status === "completed" ? "ok" : "warn"}`} aria-hidden>{item.status === "completed" ? "✓" : item.status === "error" ? "!" : "·"}</span>
           <span className={`st ${item.status === "completed" ? "ok" : item.status === "error" ? "err" : "warn"}`}>
             {item.status === "completed" ? "Completed" : item.status}
           </span>
           {bits && <span className="meta">{bits}</span>}
           {item.filesChanged.length > 0 && (
-            <ul>{item.filesChanged.map((f) => <li className="mono" key={f}>{f}</li>)}</ul>
+            <details className="done-files">
+              <summary>{item.filesChanged.length} file{item.filesChanged.length === 1 ? "" : "s"} changed</summary>
+              <ul>{item.filesChanged.map((f) => <li className="mono" key={f}>{f}</li>)}</ul>
+            </details>
           )}
         </div>
       );
@@ -2160,13 +2151,13 @@ function Elapsed({ since }: { since: number }) {
   return <span className="elapsed">{s}s</span>;
 }
 
-function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; lastIdx: number }) {
-  const anyPending = seg.some((g) => g.item.k === "tool" && g.item.pending);
+function TGroup({ seg, running, lastIdx }: { seg: ToolEntry[]; running: boolean; lastIdx: number }) {
+  const state = toolGroupState(seg, TOOL_FAMILY);
   const [open, setOpen] = useState(true);
   useEffect(() => {
-    setOpen(anyPending || seg.length === 1);
-  }, [anyPending, seg.length]);
-  // A single tool stays as one quiet line; a finished run collapses to "N tools".
+    setOpen(state.pending || state.failed > 0 || seg.length === 1);
+  }, [state.pending, state.failed, seg.length]);
+  // A single tool stays as one quiet line; completed activity groups collapse.
   if (seg.length === 1) {
     const it = seg[0];
     return (
@@ -2180,8 +2171,12 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
       <button
         className="tg-summary"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
       >
-        <span className={`tg-dot${anyPending ? " live" : ""}`} />{seg.length} tools
+        <ChevronRight size={12} className="tg-chevron" />
+        <span className={`tg-dot${state.pending ? " live" : state.failed > 0 ? " failed" : ""}`} />
+        <span>{state.pending ? `Working · ${state.label}` : state.label}</span>
+        {state.failed > 0 && <span className="tg-failed">{state.failed} failed</span>}
       </button>
       {open && (
         <div className="tg-body">
@@ -2196,9 +2191,12 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
 
 function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
   const name = TOOL_DISPLAY[item.tool] ?? item.tool;
+  const [outputOpen, setOutputOpen] = useState(Boolean(item.isError));
+  useEffect(() => {
+    if (item.isError) setOutputOpen(true);
+  }, [item.isError]);
   const first = item.out?.split("\n").filter((l) => l.trim())[0]?.slice(0, 120);
-  // While running, show the tail of the streamed output; once finished it
-  // collapses into the usual details/summary.
+  // Keep live output bounded; the full result is available after completion.
   const tail = item.pending && item.out?.trim()
     ? item.out.trimEnd().split("\n").slice(-6).join("\n")
     : null;
@@ -2207,23 +2205,25 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
       <div className="head">
         <span className="name">{name}</span>
         {item.arg && <span className="arg">{item.arg}</span>}
-        {item.pending && (
-          <>
-            <span className="caret tool-caret" aria-hidden />
-            {item.startedAt && <Elapsed since={item.startedAt} />}
-          </>
-        )}
+        {item.pending && item.startedAt && <Elapsed since={item.startedAt} />}
       </div>
       {item.think && (
         <details className="think tool-think">
           <summary>
+            <ChevronRight size={12} className="think-chevron" />
+            <span className="think-dot" />
             {item.think.ms != null ? `Thought for ${Math.max(1, Math.round(item.think.ms / 1000))}s` : "Thought"}
             <span className="think-n">{item.think.text.trim().split("\n")[0].slice(0, 64)}…</span>
           </summary>
           <div className="think-text">{item.think.text}</div>
         </details>
       )}
-      {tail && <div className="out live">{tail}</div>}
+      {tail && (
+        <details open={outputOpen} onToggle={(e) => setOutputOpen(e.currentTarget.open)}>
+          <summary>Live output</summary>
+          <div className="out live">{tail}</div>
+        </details>
+      )}
       {item.diff ? (
         <div className="card" style={{ margin: "6px 0 0 22px" }}>
           <div className="card-body" style={{ padding: "8px 0" }}>
@@ -2231,29 +2231,13 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
           </div>
         </div>
       ) : !item.pending && item.out && item.out.trim() ? (
-        <details>
+        <details open={outputOpen} onToggle={(e) => setOutputOpen(e.currentTarget.open)}>
           <summary className={item.isError ? "" : ""}>{item.isError ? "error: " : ""}{first}{item.out.split("\n").length > 1 ? ` (+${item.out.split("\n").length - 1} lines)` : ""}</summary>
           <div className={`out${item.isError ? " err" : ""}`}>{item.out}</div>
         </details>
       ) : null}
     </div>
   );
-}
-
-type Grouped = { idx: number; item: Item };
-
-function groupItems(items: Item[]): (Grouped | Grouped[])[] {
-  const segs: (Grouped | Grouped[])[] = [];
-  items.forEach((item, idx) => {
-    const last = segs[segs.length - 1];
-    if (item.k === "tool") {
-      if (Array.isArray(last)) last.push({ idx, item });
-      else segs.push([{ idx, item }]);
-    } else {
-      segs.push({ idx, item });
-    }
-  });
-  return segs;
 }
 
 const SUMMARY_CLAMP_LINES = 6;
