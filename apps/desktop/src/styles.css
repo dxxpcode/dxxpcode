@@ -910,11 +910,31 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   overflow-y: auto;
   text-align: center;
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.7);
-  animation: obstep 0.35s var(--ease);
 }
-@keyframes obstep {
-  from { opacity: 0; transform: translateY(10px); }
+.ob-stage.fwd { animation: obfwd 0.32s var(--ease); }
+.ob-stage.back { animation: obback 0.32s var(--ease); }
+@keyframes obfwd {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes obback {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+/* staggered content entrance — each element settles just after the last */
+.ob-stage > * { animation: obchild 0.4s var(--ease) backwards; }
+.ob-stage > *:nth-child(1) { animation-delay: 0.02s; }
+.ob-stage > *:nth-child(2) { animation-delay: 0.05s; }
+.ob-stage > *:nth-child(3) { animation-delay: 0.08s; }
+.ob-stage > *:nth-child(4) { animation-delay: 0.11s; }
+.ob-stage > *:nth-child(5) { animation-delay: 0.14s; }
+.ob-stage > *:nth-child(n+6) { animation-delay: 0.17s; }
+@keyframes obchild {
+  from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding, .ob-stage, .ob-stage > *, .ob-providers > *, .ob-keywrap.err .ob-key { animation: none !important; }
 }
 .ob-mark {
   display: block;
@@ -946,9 +966,11 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   background: rgba(255, 255, 255, 0.94);
   color: #000;
   font-weight: 600;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), background 0.15s var(--ease), opacity 0.15s var(--ease);
 }
-.ob-stage .btn.primary:hover { background: #fff; }
-.ob-stage .btn.primary:disabled { opacity: 0.5; }
+.ob-stage .btn.primary:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+.ob-stage .btn.primary:active { transform: translateY(0) scale(0.98); box-shadow: none; }
+.ob-stage .btn.primary:disabled { opacity: 0.4; transform: none; box-shadow: none; }
 .ob-stage .btn.ghost {
   background: none;
   border: none;
@@ -973,13 +995,15 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   cursor: pointer;
   transition: color 0.15s var(--ease);
 }
-.ob-skip { right: 24px; }
-.ob-skip:hover, .ob-back:hover { color: var(--ob-text); }
+.ob-skip { right: 22px; padding: 4px 10px; border-radius: 8px; }
+.ob-skip:hover { color: var(--ob-text); background: rgba(255, 255, 255, 0.08); }
+.ob-back:hover { color: var(--ob-text); background: rgba(255, 255, 255, 0.08); }
 .ob-back {
-  left: 20px;
+  left: 18px;
   font-size: 20px;
   line-height: 1;
-  padding: 4px 10px;
+  padding: 4px 12px;
+  border-radius: 8px;
 }
 .ob-providers {
   display: flex;
@@ -990,6 +1014,13 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   max-height: 46vh;
   overflow-y: auto;
 }
+.ob-providers > * { animation: obchild 0.3s var(--ease) backwards; }
+.ob-providers > *:nth-child(2) { animation-delay: 0.03s; }
+.ob-providers > *:nth-child(3) { animation-delay: 0.06s; }
+.ob-providers > *:nth-child(4) { animation-delay: 0.09s; }
+.ob-providers > *:nth-child(5) { animation-delay: 0.12s; }
+.ob-providers > *:nth-child(6) { animation-delay: 0.15s; }
+.ob-providers > *:nth-child(n+7) { animation-delay: 0.18s; }
 /* unified glass surface — one treatment for every onboarding control */
 .ob-prov, .ob-input, .ob-panel, .ob-seg {
   border: 1px solid var(--ob-line);
@@ -1018,6 +1049,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
 .ob-seg-opt:hover { background: rgba(255, 255, 255, 0.1); color: var(--ob-text); }
+.ob-seg-opt:active { transform: scale(0.97); }
 .ob-prov {
   display: flex;
   flex-direction: row;
@@ -1120,20 +1152,23 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 }
 .ob-panel-title { font-size: 13.5px; font-weight: 600; color: var(--ob-text); margin-bottom: 4px; }
 .ob-panel-sub { font-size: 12px; line-height: 1.5; color: var(--ob-faint); }
-.ob-dots {
+.ob-progress {
   position: absolute;
-  bottom: 22px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
+  width: 120px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
 }
-.ob-dot {
-  width: 4px; height: 4px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
-  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
+.ob-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  transition: width 0.4s var(--ease);
 }
-.ob-dot.on { background: rgba(255, 255, 255, 0.9); transform: scale(1.4); }
 
 /* ---------- dark theme ---------- */
 html[data-theme="dark"] {

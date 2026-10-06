@@ -114,6 +114,12 @@ export default function App() {
   const [onboarding, setOnboarding] = useState(false);
   // Onboarding wizard: welcome → pick a provider → enter + validate the key.
   const [obStep, setObStep] = useState<"welcome" | "pick" | "key" | "project" | "first">("welcome");
+  const [obDir, setObDir] = useState<"fwd" | "back">("fwd");
+  const OB_ORDER: Record<string, number> = { welcome: 0, pick: 1, key: 2, project: 3, first: 4 };
+  const goStep = (s: "welcome" | "pick" | "key" | "project" | "first") => {
+    setObDir(OB_ORDER[s] >= OB_ORDER[obStep] ? "fwd" : "back");
+    setObStep(s);
+  };
   const [obProvider, setObProvider] = useState<string>("anthropic");
   const OB_BASE: Record<string, string | undefined> = {
     openrouter: "https://openrouter.ai/api/v1",
@@ -1196,18 +1202,18 @@ export default function App() {
             <button className="ob-skip" onClick={() => setOnboarding(false)}>skip</button>
           )}
           {obStep !== "welcome" && (
-            <button className="ob-back" onClick={() => setObStep(obStep === "key" ? "pick" : obStep === "pick" ? "welcome" : "pick")} aria-label="Back">
+            <button className="ob-back" onClick={() => goStep(obStep === "key" ? "pick" : obStep === "pick" ? "welcome" : "pick")} aria-label="Back">
               ‹
             </button>
           )}
-          <div className="ob-stage" key={obStep}>
+          <div className={`ob-stage ${obDir}`} key={obStep}>
             {obStep === "welcome" && (
               <>
                 <Logo className="ob-mark" />
                 <div className="ob-title">The AI coding agent on your desktop.</div>
                 <p className="ob-desc">Local. Private. Yours.</p>
                 <div className="setbtns">
-                  <button className="btn primary" onClick={() => setObStep("pick")}>Get started</button>
+                  <button className="btn primary" onClick={() => goStep("pick")}>Get started</button>
                 </div>
                 <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
               </>
@@ -1217,7 +1223,7 @@ export default function App() {
                 <div className="ob-title">Connect a provider.</div>
                 <div className="ob-seg">
                   {OB_PROVIDERS.filter((p) => OB_MAIN.includes(p.id)).map((p) => (
-                    <button key={p.id} className="ob-seg-opt" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                    <button key={p.id} className="ob-seg-opt" onClick={() => { setObProvider(p.id); goStep("key"); setObError(null); }}>
                       {p.name}
                     </button>
                   ))}
@@ -1232,7 +1238,7 @@ export default function App() {
                 {obMore && (
                   <div className="ob-providers">
                     {OB_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
-                      <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                      <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); goStep("key"); setObError(null); }}>
                         <span className="ob-prov-name">{p.name}</span>
                         <span className="ob-prov-desc">{p.desc}</span>
                       </button>
@@ -1246,7 +1252,7 @@ export default function App() {
                 <div className="ob-title">Open a project.</div>
                 <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
                 <div className="setbtns">
-                  <button className="btn primary" onClick={() => setObStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
+                  <button className="btn primary" onClick={() => goStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
                   <button className="btn ghost" onClick={openProject}>Choose folder…</button>
                 </div>
                 <p className="ob-hint">Switch anytime with Settings → Open a project</p>
@@ -1322,13 +1328,11 @@ export default function App() {
               </>
             )}
           </div>
-          <div className="ob-dots">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className={`ob-dot${({ welcome: 0, pick: 1, key: 1, project: 2, first: 2 })[obStep] === i ? " on" : ""}`}
-              />
-            ))}
+          <div className="ob-progress">
+            <div
+              className="ob-progress-fill"
+              style={{ width: `${(({ welcome: 1, pick: 2, key: 2, project: 3, first: 3 })[obStep] / 3) * 100}%` }}
+            />
           </div>
         </div>
       )}
