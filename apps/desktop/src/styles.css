@@ -160,18 +160,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .modeseg-btn:not(.cur):hover { color: var(--dim); }
 .modeseg-btn + .modeseg-btn { border-left: 1px solid var(--border); margin-left: 4px; padding-left: 8px; }
 .modeseg-btn:disabled { opacity: 0.55; cursor: default; }
-.inctx {
-  align-self: flex-start;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 0; margin: 0 0 0 -4px;
-  background: none;
-  cursor: pointer; font-family: var(--font-mono);
-  color: var(--dim);
-  transition: color 0.15s var(--ease);
-}
-.inctx:hover { color: var(--text); }
-.inctx-name { font-size: 11.5px; color: inherit; }
-.inctx .branch { font-size: 10px; color: var(--faint); }
 .subline {
   display: flex; align-items: center; justify-content: flex-end; gap: 14px;
   padding-top: 6px;
@@ -535,11 +523,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   min-height: 24px;
 }
 .statusline-act { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; }
-.statusline-ctx { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-.statusline-ctx .inctx { align-self: auto; margin: 0; }
-.statusline-ctx .inctx-name { font-size: 10px; }
-.statusline-ctx .branch { font-size: 9px; }
-.statusline-model { color: var(--faint); }
+
 .queuecount { color: var(--faint); }
 .pulse {
   width: 6px; height: 6px; border-radius: 50%;
