@@ -5,7 +5,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, Loader2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -64,7 +64,7 @@ interface Ev { type: string; [k: string]: unknown }
 interface WTask {
   id: number; text: string; dir: string; branch: string;
   phase: "running" | "done" | "failed" | "merged" | "discarded";
-  status: string; calls: number; result?: string;
+  status: string; calls: number; result?: string; t0: number;
 }
 
 export default function App() {
@@ -712,7 +712,7 @@ export default function App() {
     }
     const id = await invoke<number>("worker_start", { cwd: wt.dir });
     wPending.current[id] = text;
-    setWtasks((ts) => [...ts, { id, text, dir: wt.dir, branch: wt.branch, phase: "running", status: "starting", calls: 0 }]);
+    setWtasks((ts) => [...ts, { id, text, dir: wt.dir, branch: wt.branch, phase: "running", status: "starting", calls: 0, t0: Date.now() }]);
     setQueue((q) => q.filter((_, j) => j !== qi));
   };
 
@@ -892,6 +892,13 @@ export default function App() {
   }, [ready, sessionInfo.id, running]);
 
   // Group sessions by recency: desc is "<yyyy-mm-dd> · N msg".
+  const [workerNow, setWorkerNow] = useState(0);
+  useEffect(() => {
+    if (!wtasks.some((w) => w.phase === "running")) return;
+    const iv = setInterval(() => setWorkerNow((t) => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, [wtasks]);
+  void workerNow; // 1s re-render tick while workers run
   const sessGlyph = (status?: string) => {
     const v = (status ?? "").toLowerCase();
     if (v.includes("fail") || v.includes("error") || v.includes("denied") || v.includes("cancel")) return "bad";
@@ -1068,7 +1075,7 @@ export default function App() {
                     className="pal-row"
                     onClick={() => { setQueue((q) => q.filter((_, j) => j !== i)); setInput(text); taRef.current?.focus(); }}
                   >
-                    <ListEnd size={13} />
+                    <span className="rail-qnum">#{i + 1}</span>
                     <span className="truncate">{text}</span>
                   </Button>
                 ))}
@@ -1082,9 +1089,12 @@ export default function App() {
                   .map((w) => (
                     <div className="rail-worker" key={w.id}>
                       <div className="pal-row rail-worker-row" title={w.text}>
+                        {w.phase === "running" && <Loader2 size={12} className="rail-spin" />}
                         <span className="truncate">{w.text}</span>
                         <span className={`rail-phase ${w.phase}`}>
-                          {w.phase === "running" ? "running" : w.phase === "done" ? "done" : "failed"}
+                          {w.phase === "running"
+                            ? `${Math.floor((Date.now() - w.t0) / 60000)}:${String(Math.floor((Date.now() - w.t0) / 1000) % 60).padStart(2, "0")}`
+                            : w.phase === "done" ? "done" : "failed"}
                         </span>
                       </div>
                       <div className="rail-menu">
