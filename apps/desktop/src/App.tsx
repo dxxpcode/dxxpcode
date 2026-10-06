@@ -1188,22 +1188,24 @@ export default function App() {
       )}
       {onboarding && !settingsOpen && !docView && (
         <div className="onboarding">
-          <div className="card ob-card">
-            <Logo className="ob-mark" />
+          <img className="ob-art" src={artSrc ?? artWanderer} alt="" />
+          <div className="ob-veil" />
+          <div className="ob-stage" key={obStep}>
             {obStep === "welcome" && (
               <>
-                <div className="ob-title">Welcome to <span className="ob-grad">dxxpcode</span></div>
-                <p className="ob-desc">Your AI coding agent — one setup step and you're ready to ship.</p>
+                <Logo className="ob-mark" />
+                <div className="ob-title">The AI coding agent on your desktop.</div>
+                <p className="ob-desc">Local. Private. Yours.</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setObStep("pick")}>Get started</button>
-                  <button className="btn" onClick={() => setOnboarding(false)}>Skip for now</button>
+                  <button className="btn ghost" onClick={() => setOnboarding(false)}>Skip for now</button>
                 </div>
                 <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
               </>
             )}
             {obStep === "pick" && (
               <>
-                <div className="ob-title">Connect a provider</div>
+                <div className="ob-title">Connect a provider.</div>
                 <p className="ob-desc">Pick where your models come from — you can add more later.</p>
                 <div className="ob-providers">
                   {OB_PROVIDERS.map((p) => (
@@ -1218,17 +1220,17 @@ export default function App() {
                   </button>
                 </div>
                 <div className="setbtns">
-                  <button className="btn" onClick={() => setObStep("welcome")}>Back</button>
+                  <button className="btn ghost" onClick={() => setObStep("welcome")}>Back</button>
                 </div>
               </>
             )}
             {obStep === "project" && (
               <>
-                <div className="ob-title">Open a project</div>
+                <div className="ob-title">Open a project.</div>
                 <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setObStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
-                  <button className="btn" onClick={openProject}>
+                  <button className="btn ghost" onClick={openProject}>
                     Choose folder…
                   </button>
                 </div>
@@ -1237,8 +1239,12 @@ export default function App() {
             )}
             {obStep === "first" && (
               <>
-                <div className="ob-title">See it work</div>
-                <p className="ob-desc">One small task — it plans, shows you the diff, and asks before it writes.</p>
+                <div className="ob-title">See it work.</div>
+                <p className="ob-desc">One prompt, before you touch a real project.</p>
+                <div className="ob-panel">
+                  <div className="ob-panel-title">Write a summary file</div>
+                  <div className="ob-panel-sub">The agent reads the project, proposes a plan, and asks before it writes anything.</div>
+                </div>
                 <div className="setbtns">
                   <button
                     className="btn primary"
@@ -1247,9 +1253,9 @@ export default function App() {
                       void send({ type: "submit", text: "Create a file named DXXPCODE.md in this project containing a one-sentence summary of what this project does." });
                     }}
                   >
-                    Write a summary file
+                    Run first task
                   </button>
-                  <button className="btn" onClick={() => setOnboarding(false)}>Not now</button>
+                  <button className="btn ghost" onClick={() => setOnboarding(false)}>Not now</button>
                 </div>
                 <p className="ob-hint">You'll approve the change before anything lands</p>
               </>
@@ -1283,7 +1289,7 @@ export default function App() {
                 )}
                 {obError && <p className="ob-error">{obError}</p>}
                 <div className="setbtns">
-                  <button className="btn" disabled={obBusy} onClick={() => setObStep("pick")}>Back</button>
+                  <button className="btn ghost" disabled={obBusy} onClick={() => setObStep("pick")}>Back</button>
                   <button
                     className="btn primary"
                     disabled={!obKey.trim() || obBusy}
@@ -1297,6 +1303,14 @@ export default function App() {
                 </div>
               </>
             )}
+          </div>
+          <div className="ob-dots">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className={`ob-dot${({ welcome: 0, pick: 1, key: 1, project: 2, first: 2 })[obStep] === i ? " on" : ""}`}
+              />
+            ))}
           </div>
         </div>
       )}
