@@ -127,6 +127,63 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .rail-search input::placeholder { color: var(--faint); }
 .rail-list { flex: 1; padding: 6px; }
+.rail-proj {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 4px; border: none; background: none;
+  font: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text); cursor: pointer; text-align: left;
+}
+.rail-proj:hover { color: var(--text); }
+.rail-proj svg { color: var(--faint); flex-shrink: 0; }
+.rail-sessrow {
+  display: flex; align-items: center;
+  height: 32px; padding: 0 6px 0 10px; gap: 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--faint);
+  cursor: pointer;
+}
+.rail-sessrow:hover { background: var(--surface2); color: var(--text); }
+.rail-sessrow[data-active] { background: var(--surface2); color: var(--text); }
+.rail-act {
+  margin-left: auto; flex-shrink: 0;
+  border: none; background: none; color: var(--faint);
+  font-size: 13px; line-height: 1; padding: 4px 6px;
+  border-radius: 6px; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s var(--ease);
+}
+.rail-sessrow:hover .rail-act { opacity: 1; }
+.rail-act:hover { background: var(--surface3, var(--border)); color: var(--text); }
+.rail-live + .rail-act, .pal-current + .rail-act { margin-left: 0; }
+.rail-menu {
+  padding: 0 2px 6px 22px;
+  display: flex; flex-direction: column; gap: 0;
+}
+.rail-menu-btn {
+  border: none; background: none; text-align: left;
+  font: inherit; font-size: 12px; color: var(--faint);
+  padding: 4px 6px; border-radius: 6px; cursor: pointer;
+}
+.rail-menu-btn:hover { background: var(--surface2); color: var(--text); }
+.rail-menu-info {
+  font-size: 10.5px; color: var(--faint);
+  padding: 2px 6px 4px; letter-spacing: 0.02em;
+}
+.rail-worker-row {
+  display: flex; align-items: center;
+  height: 32px; padding: 0 10px; gap: 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--faint);
+  cursor: default;
+}
+.rail-phase {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 10.5px; color: var(--faint);
+}
+.rail-phase.running { color: var(--accent); animation: railpulse 1.4s var(--ease) infinite; }
+.rail-phase.done { color: #2e7d32; }
+.rail-phase.failed { color: #b3261e; }
+[data-theme="dark"] .rail-phase.done { color: #4caf6d; }
+[data-theme="dark"] .rail-phase.failed { color: #e57373; }
 .rail-live {
   margin-left: auto; width: 6px; height: 6px; border-radius: 50%;
   background: var(--accent);

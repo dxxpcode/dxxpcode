@@ -154,7 +154,8 @@ export default function App() {
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
   const [railQuery, setRailQuery] = useState("");
   const [bootGone, setBootGone] = useState(false);
-  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string }[]>([]);
+  const [sessMenu, setSessMenu] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
     return saved === "light" || saved === "dark" ? saved : "system";
@@ -369,7 +370,7 @@ export default function App() {
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
         break;
       case "sessions":
-        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string }[]) : []);
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -1020,6 +1021,10 @@ export default function App() {
         <aside className="rail">
           {IS_MAC && <div className="rail-macpad" data-tauri-drag-region />}
           <div className="rail-head">
+            <button className="rail-proj" title="Change project" onClick={openProject}>
+              <span className="truncate">{ready.project.name}</span>
+              <ChevronDown size={12} />
+            </button>
             <Button variant="secondary" className="rail-new" onClick={() => cmd("/new")}>
               <Plus size={13} />
               <span>New session</span>
@@ -1035,7 +1040,7 @@ export default function App() {
               />
             </div>
           </div>
-          <ScrollArea className="rail-list">
+          <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
             {queue.length > 0 && (
               <div>
                 <div className="pal-group-label">Queued</div>
@@ -1053,6 +1058,37 @@ export default function App() {
                 ))}
               </div>
             )}
+            {wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
+              <div>
+                <div className="pal-group-label">Parallel tasks</div>
+                {wtasks
+                  .filter((w) => w.phase !== "merged" && w.phase !== "discarded")
+                  .map((w) => (
+                    <div className="rail-worker" key={w.id}>
+                      <div className="pal-row rail-worker-row" title={w.text}>
+                        <span className="truncate">{w.text}</span>
+                        <span className={`rail-phase ${w.phase}`}>
+                          {w.phase === "running" ? "running" : w.phase === "done" ? "done" : "failed"}
+                        </span>
+                      </div>
+                      <div className="rail-menu">
+                        {w.phase === "running" && (
+                          <button className="rail-menu-btn" title={w.status} onClick={() => stopWorker(w.id)}>stop + discard</button>
+                        )}
+                        {w.phase === "done" && (
+                          <>
+                            <button className="rail-menu-btn" onClick={() => void resolveWorker(w.id, true)}>merge</button>
+                            <button className="rail-menu-btn" onClick={() => void resolveWorker(w.id, false)}>discard</button>
+                          </>
+                        )}
+                        {w.phase === "failed" && (
+                          <button className="rail-menu-btn" title={w.result} onClick={() => void resolveWorker(w.id, false)}>discard</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
             {railGroups.length === 0 && <p className="pal-empty">{railQuery ? "No matches." : "No sessions in this project yet."}</p>}
             {railGroups.map(([label, group]) => (
               <div key={label}>
@@ -1060,18 +1096,47 @@ export default function App() {
                 {group.map((s) => {
                   const current = s.id === sessionInfo.id;
                   return (
-                    <Button
-                      key={s.id}
-                      variant="ghost"
-                      data-active={current || undefined}
-                      title={s.title}
-                      className="pal-row"
-                      onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
-                    >
-                      <span className="truncate">{s.title || "Untitled"}</span>
-                      {current && running && <span className="rail-live" />}
-                      {current && !running && <span className="pal-current">current</span>}
-                    </Button>
+                    <div key={s.id}>
+                      <div
+                        className="pal-row rail-sessrow"
+                        data-active={current || undefined}
+                        title={s.title}
+                        onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
+                      >
+                        <span className="truncate">{s.title || "Untitled"}</span>
+                        {current && running && <span className="rail-live" />}
+                        {current && !running && <span className="pal-current">current</span>}
+                        <button
+                          className="rail-act"
+                          title="Session actions"
+                          onClick={(e) => { e.stopPropagation(); setSessMenu((m) => (m === s.id ? null : s.id)); }}
+                        >
+                          ⋯
+                        </button>
+                      </div>
+                      {sessMenu === s.id && (
+                        <div className="rail-menu">
+                          {s.status && <div className="rail-menu-info">{s.status}{s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}</div>}
+                          {s.task && (
+                            <button className="rail-menu-btn" onClick={() => { setInput(s.task ?? ""); setSessMenu(null); taRef.current?.focus(); }}>re-run prompt</button>
+                          )}
+                          {s.files && s.files.length > 0 && (
+                            <button
+                              className="rail-menu-btn"
+                              onClick={() => {
+                                setDocView({ title: `Changed files — ${s.title}`, text: `\`\`\`\n${s.files?.join("\n") ?? ""}\n\`\`\`` });
+                                setSessMenu(null);
+                              }}
+                            >
+                              view changed files
+                            </button>
+                          )}
+                          {s.task && (
+                            <button className="rail-menu-btn" onClick={() => { void navigator.clipboard.writeText(s.task ?? ""); setSessMenu(null); }}>copy task</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
