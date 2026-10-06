@@ -1089,12 +1089,20 @@ export default function App() {
                       options={["default", ...(ready.variants ?? [])]}
                       onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
                     />
-                    <SetSelect
-                      label="Approval mode"
-                      value={ready.mode === "smart" ? "smart (Jev)" : ready.mode}
-                      options={["ask", "always-approve", "smart (Jev)"]}
-                      onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
-                    />
+                    <div className="setrow static">
+                      <span className="setlabel">Approval mode</span>
+                      <span className="modeseg">
+                        {(["ask", "always-approve", "smart (Jev)"] as const).map((m) => (
+                          <button
+                            key={m}
+                            className={`modeseg-btn${(ready.mode === "smart" ? "smart (Jev)" : ready.mode) === m ? " cur" : ""}`}
+                            onClick={() => void send({ type: "command", name: `/approval ${m}` })}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
