@@ -231,18 +231,17 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 .usermsg {
-  background: var(--text); color: var(--surface);
-  border-radius: var(--radius) var(--radius) var(--radius) 4px;
-  padding: 10px 16px;
-  align-self: flex-end;
-  max-width: 640px;
-  margin-left: auto;
-  font-size: 13.5px;
-  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  padding: 2px 0;
+  align-self: flex-start;
+  max-width: 760px;
+  font-size: 14px;
+  font-weight: 500;
 }
-.usermsg .chev { color: rgba(255, 255, 255, 0.5); margin-right: 8px; font-weight: 600; }
+.usermsg .chev { color: var(--faint); margin-right: 8px; font-weight: 600; }
 
 .text { line-height: 1.7; font-size: 15px; }
+.row.text { margin-left: 18px; }
 .text p { margin: 0.4em 0; }
 .text code {
   background: var(--surface2);
@@ -313,28 +312,30 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 
 /* ---------- tool rows ---------- */
 .tgroup { margin: 4px 0; }
-.tg-head {
-  display: flex; align-items: center; gap: 7px;
-  color: var(--faint); font-size: 11.5px;
-  padding: 2px 0 4px 2px;
+.tg-summary {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 2px 0 4px 2px; background: none; border: none;
+  color: var(--faint); font-size: 10.5px; font-family: var(--font-mono);
+  cursor: pointer; transition: color 0.15s var(--ease);
 }
-.tg-head .tg-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: none; }
-.tg-body { margin-left: 7px; padding-left: 6px; border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
-.tg-body .tool { border-left: none; padding-left: 8px; }
-.tool {
-  border-left: 2px solid var(--border);
-  padding: 4px 0 4px 14px;
+.tg-summary:hover { color: var(--dim); }
+.tg-summary .tg-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); flex: none; }
+.tg-summary .tg-dot.live { background: var(--text); animation: pulse 1.2s var(--ease) infinite; }
+.tg-body { margin-left: 4px; }
+.tool { padding: 1px 0; }
+.tool .head {
+  display: flex; align-items: baseline; gap: 7px;
+  font-family: var(--font-mono); font-size: 11.5px;
 }
-.tool .head { display: flex; align-items: baseline; gap: 8px; }
-.tool .icon { width: 14px; text-align: center; font-size: 11px; }
-.tool .name { font-weight: 600; font-size: 12px; letter-spacing: -0.005em; color: var(--dim); }
+.tool .name { color: var(--faint); }
+.tool.err .name { color: var(--red); }
 .tool .arg {
-  color: var(--dim); font-size: 11.5px; font-family: var(--font-mono);
+  color: var(--dim); font-size: 11.5px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 560px;
 }
-.tool details { margin: 4px 0 0 22px; }
+.tool details { margin: 2px 0; }
 .tool summary {
-  color: var(--faint); font-size: 11.5px; cursor: pointer; user-select: none;
+  color: var(--faint); font-size: 11px; cursor: pointer; user-select: none;
   transition: color 0.15s var(--ease);
 }
 .tool summary:hover { color: var(--text); }
@@ -346,18 +347,13 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .tool .out.err { color: var(--red); }
 .tool .out.live {
-  margin: 6px 0 0 22px;
+  margin: 4px 0 0;
   border-style: dashed;
   color: var(--faint);
 }
-.tool .elapsed { color: var(--faint); font-size: 11.5px; font-family: var(--font-mono); }
+.tool .elapsed { color: var(--faint); font-size: 11px; }
 .tool .tool-caret { width: 6px; height: 11px; vertical-align: -1px; }
-.tool.reads .icon, .tool.reads .name { color: var(--blue); }
-.tool.writes .icon, .tool.writes .name { color: var(--green); }
-.tool.shell .icon, .tool.shell .name { color: var(--amber); }
-.tool.git   .icon, .tool.git .name { color: var(--purple); }
-.tool.danger .icon, .tool.danger .name { color: var(--red); }
-.tool.planx .icon, .tool.planx .name { color: var(--text); }
+.tool .think.tool-think { margin-left: 0; }
 
 /* ---------- cards ---------- */
 .card {
@@ -471,8 +467,27 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .decision .summary-more:hover { color: var(--dim); }
 
-/* ---------- decision cards ---------- */
-.decision { border-left: 3px solid var(--amber); animation: rise 0.25s var(--ease); }
+/* ---------- decision prompts ---------- */
+.decision { animation: rise 0.25s var(--ease); padding: 6px 0; }
+.dec-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--dim); margin-bottom: 6px;
+}
+.dec-tool { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); }
+.dec-acts { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pill {
+  padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: 12px; color: var(--text);
+  transition: all 0.15s var(--ease);
+}
+.pill:hover { border-color: var(--border-strong); }
+.pill:active { transform: translateY(0.5px); }
+.pill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.pill.allow { background: var(--text); color: var(--surface); border-color: var(--text); }
+.pill.allow:hover { opacity: 0.85; }
+.pill.deny, .pill.ghost { border-color: transparent; background: none; color: var(--faint); }
+.pill.deny:hover { color: var(--red); }
+.pill.ghost:hover { color: var(--text); }
 .decision .dres-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
 .dresolved {
   display: flex; align-items: baseline; gap: 7px;
