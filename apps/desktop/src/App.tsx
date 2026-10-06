@@ -562,8 +562,9 @@ export default function App() {
           setItems((prev) => {
             const next = [...prev];
             for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].k === "text") {
-                next[i] = { ...next[i], interrupted: true };
+              const item = next[i];
+              if (item.k === "text") {
+                next[i] = { ...item, interrupted: true };
                 break;
               }
               if (next[i].k === "user" || next[i].k === "done") break;
