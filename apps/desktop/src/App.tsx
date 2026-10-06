@@ -5,14 +5,12 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Card, CardContent, CardFooter, CardHeader } from "./components/ui/card";
-import { Badge } from "./components/ui/badge";
 import { Plus, Search, Minus, Square, X, ChevronDown, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
-import { TOOL_DISPLAY, TOOL_FAMILY, TOOL_ICONS, toolArg } from "./types";
+import { TOOL_DISPLAY, toolArg } from "./types";
 import artStarryNight from "./assets/art/starry-night_van-gogh.jpg";
 import artGreatWave from "./assets/art/great-wave_hokusai.jpg";
 import artOhashiRain from "./assets/art/ohashi-rain_hiroshige.jpg";
@@ -1359,14 +1357,7 @@ export default function App() {
         )}
         {groupItems(items).map((seg, si) =>
           Array.isArray(seg) ? (
-            <div className="tgroup" key={`g${si}`}>
-              <div className="tg-head"><span className="tg-dot" />{seg.length} tool call{seg.length === 1 ? "" : "s"}{famCounts(seg)}</div>
-              <div className="tg-body">
-                {seg.map((it) => (
-                  <ItemView key={it.idx} item={it.item} streaming={running && it.idx === items.length - 1} />
-                ))}
-              </div>
-            </div>
+            <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
           ) : (
             <ItemView key={seg.idx} item={seg.item} streaming={running && seg.idx === items.length - 1} />
           ),
@@ -1379,22 +1370,20 @@ export default function App() {
               {a.tool && <span className="dres-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
           ) : (
-            <Card className="row decision" key={`ap${a.id}`}>
-              <CardHeader>
+            <div className="row decision" key={`ap${a.id}`}>
+              <div className="dec-head">
                 <span className="dres-dot" />Approval required
-                {a.tool && <Badge variant="outline" className="font-mono">{TOOL_DISPLAY[a.tool] ?? a.tool}</Badge>}
-              </CardHeader>
-              <CardContent>
-                <ApprovalSummary text={a.summary} kind={a.kind} />
-                {a.reason && <div className="reason">Reason: {a.reason}</div>}
-              </CardContent>
-              <CardFooter>
-                <Button variant="default" onClick={() => answer(a.id, "y")}>Allow</Button>
-                {a.allowAlways && <Button variant="secondary" onClick={() => answer(a.id, "a")}>Always allow</Button>}
-                {a.extraChoice && <Button variant="secondary" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</Button>}
-                <Button variant="ghost" className="text-[var(--red)]" onClick={() => answer(a.id, "n")}>Deny</Button>
-              </CardFooter>
-            </Card>
+                {a.tool && <span className="dec-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
+              </div>
+              <ApprovalSummary text={a.summary} kind={a.kind} />
+              {a.reason && <div className="reason">Reason: {a.reason}</div>}
+              <div className="dec-acts">
+                <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow</button>
+                <button className="pill deny" onClick={() => answer(a.id, "n")}>Deny</button>
+                {a.allowAlways && <button className="pill ghost" onClick={() => answer(a.id, "a")}>Always allow</button>}
+                {a.extraChoice && <button className="pill ghost" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
+              </div>
+            </div>
           )
         ))}
         {diffs.map((d) => {
@@ -1409,19 +1398,17 @@ export default function App() {
             );
           }
           return (
-            <Card className="row decision" key={`df${d.id}`}>
-              <CardHeader>
-                <span className="dres-dot" />Review change <span className="dc-sep">·</span> <span className="dc-file">{d.path}</span> <span className="dc-sep">·</span> <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
-              </CardHeader>
-              <CardContent>
-                <Diff diff={d.diff} />
-              </CardContent>
-              <CardFooter>
-                <Button variant="default" onClick={() => decideDiff(d.id, "apply")}>Apply</Button>
-                <Button variant="secondary" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</Button>
-                <Button variant="ghost" className="text-[var(--red)]" onClick={() => decideDiff(d.id, "discard")}>Discard</Button>
-              </CardFooter>
-            </Card>
+            <div className="row decision" key={`df${d.id}`}>
+              <div className="dec-head">
+                <span className="dres-dot" />Review change <span className="dec-tool">{d.path}</span> <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
+              </div>
+              <Diff diff={d.diff} />
+              <div className="dec-acts">
+                <button className="pill allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
+                <button className="pill deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
+                <button className="pill ghost" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -1835,10 +1822,42 @@ function Elapsed({ since }: { since: number }) {
   return <span className="elapsed">{s}s</span>;
 }
 
+function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; lastIdx: number }) {
+  const anyPending = seg.some((g) => g.item.k === "tool" && g.item.pending);
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    setOpen(anyPending || seg.length === 1);
+  }, [anyPending, seg.length]);
+  // A single tool stays as one quiet line; a finished run collapses to "N tools".
+  if (seg.length === 1) {
+    const it = seg[0];
+    return (
+      <div className="tgroup">
+        <ItemView item={it.item} streaming={running && it.idx === lastIdx} />
+      </div>
+    );
+  }
+  return (
+    <div className="tgroup">
+      <button
+        className="tg-summary"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={`tg-dot${anyPending ? " live" : ""}`} />{seg.length} tools
+      </button>
+      {open && (
+        <div className="tg-body">
+          {seg.map((it) => (
+            <ItemView key={it.idx} item={it.item} streaming={running && it.idx === lastIdx} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
-  const fam = TOOL_FAMILY[item.tool] ?? "planx";
   const name = TOOL_DISPLAY[item.tool] ?? item.tool;
-  const icon = TOOL_ICONS[item.tool] ?? "•";
   const first = item.out?.split("\n").filter((l) => l.trim())[0]?.slice(0, 120);
   // While running, show the tail of the streamed output; once finished it
   // collapses into the usual details/summary.
@@ -1846,9 +1865,8 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
     ? item.out.trimEnd().split("\n").slice(-6).join("\n")
     : null;
   return (
-    <div className={`tool row ${fam}`}>
+    <div className={`tool row${item.isError ? " err" : ""}`}>
       <div className="head">
-        <span className="icon">{icon}</span>
         <span className="name">{name}</span>
         {item.arg && <span className="arg">{item.arg}</span>}
         {item.pending && (
@@ -1898,20 +1916,6 @@ function groupItems(items: Item[]): (Grouped | Grouped[])[] {
     }
   });
   return segs;
-}
-
-const FAM_LABEL: Record<string, string> = {
-  shell: "command", reads: "read", writes: "write", git: "git op", danger: "danger op", planx: "plan step",
-};
-
-function famCounts(seg: Grouped[]): string {
-  const counts = new Map<string, number>();
-  for (const g of seg) {
-    const fam = TOOL_FAMILY[g.item.k === "tool" ? g.item.tool : ""] ?? "planx";
-    counts.set(fam, (counts.get(fam) ?? 0) + 1);
-  }
-  const parts = [...counts].map(([fam, n]) => `${n} ${FAM_LABEL[fam] ?? fam}${n === 1 ? "" : "s"}`);
-  return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
 
 const SUMMARY_CLAMP_LINES = 6;
