@@ -1427,7 +1427,24 @@ export default function App() {
       </div>
 
       <div className="statusline">
-        {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
+        <span className="statusline-act">
+          {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}{running && <span style={{ color: "var(--faint)" }}>· esc to interrupt</span>}</>}
+          {queue.length > 0 && <span className="queuecount">+{queue.length} queued</span>}
+        </span>
+        {ready && (
+          <span className="statusline-ctx">
+            <button className="inctx" title="Change project" onClick={openProject}>
+              <span className="inctx-name">{ready.project.name}</span>
+              {ready.project.git && (
+                <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+              )}
+              <ChevronDown size={11} />
+            </button>
+            <span className="statusline-model">
+              {ready.model} · {ready.effort ?? "default"}{ready.variant ? ` · ${ready.variant}` : ""}
+            </span>
+          </span>
+        )}
       </div>
 
       {menu && (
@@ -1622,15 +1639,8 @@ export default function App() {
           </div>
           {ready && (
             <div className={`subline${running ? " dim" : ""}`}>
-              <button className="inctx" title="Change project" onClick={openProject}>
-                <span className="inctx-name">{ready.project.name}</span>
-                {ready.project.git && (
-                  <span className="branch mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-                )}
-                <ChevronDown size={11} />
-              </button>
-              <span className="subline-model">
-                {ready.model} · {ready.effort ?? "default"}{ready.variant ? ` · ${ready.variant}` : ""}
+              <span className="subline-hint">
+                {running ? "esc to interrupt" : "⏎ send · ⇧⏎ newline"}
               </span>
             </div>
           )}
