@@ -134,6 +134,8 @@ export default function App() {
     { id: "mistral", name: "Mistral", desc: "Mistral models" },
     { id: "custom", name: "Other endpoint", desc: "any OpenAI-compatible API" },
   ];
+  const OB_MAIN = ["anthropic", "openai"];
+  const [obMore, setObMore] = useState(false);
   const [obKey, setObKey] = useState("");
   const [obBase, setObBase] = useState("");
   const [obBusy, setObBusy] = useState(false);
@@ -1001,7 +1003,7 @@ export default function App() {
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
-          <Logo className="logo-mark" />
+          {!onboarding && <Logo className="logo-mark" />}
         </div>
         <span className="spacer" />
         {ready && !IS_MAC && (
@@ -1188,57 +1190,76 @@ export default function App() {
       )}
       {onboarding && !settingsOpen && !docView && (
         <div className="onboarding">
-          <div className="card ob-card">
-            <Logo className="ob-mark" />
+          <img className="ob-art" src={artSrc ?? artWanderer} alt="" />
+          <div className="ob-veil" />
+          {obStep === "welcome" && (
+            <button className="ob-skip" onClick={() => setOnboarding(false)}>skip</button>
+          )}
+          {obStep !== "welcome" && (
+            <button className="ob-back" onClick={() => setObStep(obStep === "key" ? "pick" : obStep === "pick" ? "welcome" : "pick")} aria-label="Back">
+              ‹
+            </button>
+          )}
+          <div className="ob-stage" key={obStep}>
             {obStep === "welcome" && (
               <>
-                <div className="ob-title">Welcome to <span className="ob-grad">dxxpcode</span></div>
-                <p className="ob-desc">Your AI coding agent — one setup step and you're ready to ship.</p>
+                <Logo className="ob-mark" />
+                <div className="ob-title">The AI coding agent on your desktop.</div>
+                <p className="ob-desc">Local. Private. Yours.</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setObStep("pick")}>Get started</button>
-                  <button className="btn" onClick={() => setOnboarding(false)}>Skip for now</button>
                 </div>
                 <p className="ob-hint">Re-run anytime with /setup or Settings → Run setup</p>
               </>
             )}
             {obStep === "pick" && (
               <>
-                <div className="ob-title">Connect a provider</div>
-                <p className="ob-desc">Pick where your models come from — you can add more later.</p>
-                <div className="ob-providers">
-                  {OB_PROVIDERS.map((p) => (
-                    <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
-                      <span className="ob-prov-name">{p.name}</span>
-                      <span className="ob-prov-desc">{p.desc}</span>
+                <div className="ob-title">Connect a provider.</div>
+                <div className="ob-seg">
+                  {OB_PROVIDERS.filter((p) => OB_MAIN.includes(p.id)).map((p) => (
+                    <button key={p.id} className="ob-seg-opt" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                      {p.name}
                     </button>
                   ))}
-                  <button className="ob-prov demo" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
-                    <span className="ob-prov-name">Just explore</span>
-                    <span className="ob-prov-desc">demo mode — no key needed</span>
+                  <button className="ob-seg-opt" onClick={() => { setObBusy(true); void send({ type: "setup", provider: "mock" }); }}>
+                    Just explore
                   </button>
                 </div>
-                <div className="setbtns">
-                  <button className="btn" onClick={() => setObStep("welcome")}>Back</button>
-                </div>
+                <button className="ob-more" onClick={() => setObMore((m) => !m)}>
+                  {obMore ? "Fewer providers" : "More providers"}
+                  <span className={`ob-more-chev${obMore ? " up" : ""}`}>⌄</span>
+                </button>
+                {obMore && (
+                  <div className="ob-providers">
+                    {OB_PROVIDERS.filter((p) => !OB_MAIN.includes(p.id)).map((p) => (
+                      <button key={p.id} className="ob-prov" onClick={() => { setObProvider(p.id); setObStep("key"); setObError(null); }}>
+                        <span className="ob-prov-name">{p.name}</span>
+                        <span className="ob-prov-desc">{p.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
             {obStep === "project" && (
               <>
-                <div className="ob-title">Open a project</div>
+                <div className="ob-title">Open a project.</div>
                 <p className="ob-desc">Pick the folder dxxpcode works in.{ready ? ` Currently ${ready.project.name}.` : ""}</p>
                 <div className="setbtns">
                   <button className="btn primary" onClick={() => setObStep("first")}>Use {ready?.project.name ?? "this folder"}</button>
-                  <button className="btn" onClick={openProject}>
-                    Choose folder…
-                  </button>
+                  <button className="btn ghost" onClick={openProject}>Choose folder…</button>
                 </div>
                 <p className="ob-hint">Switch anytime with Settings → Open a project</p>
               </>
             )}
             {obStep === "first" && (
               <>
-                <div className="ob-title">See it work</div>
-                <p className="ob-desc">One small task — it plans, shows you the diff, and asks before it writes.</p>
+                <div className="ob-title">See it work.</div>
+                <p className="ob-desc">One prompt, before you touch a real project.</p>
+                <div className="ob-panel">
+                  <div className="ob-panel-title">Write a summary file</div>
+                  <div className="ob-panel-sub">The agent reads the project, proposes a plan, and asks before it writes anything.</div>
+                </div>
                 <div className="setbtns">
                   <button
                     className="btn primary"
@@ -1247,9 +1268,9 @@ export default function App() {
                       void send({ type: "submit", text: "Create a file named DXXPCODE.md in this project containing a one-sentence summary of what this project does." });
                     }}
                   >
-                    Write a summary file
+                    Run first task
                   </button>
-                  <button className="btn" onClick={() => setOnboarding(false)}>Not now</button>
+                  <button className="btn ghost" onClick={() => setOnboarding(false)}>Not now</button>
                 </div>
                 <p className="ob-hint">You'll approve the change before anything lands</p>
               </>
@@ -1257,21 +1278,25 @@ export default function App() {
             {obStep === "key" && (
               <>
                 <div className="ob-title">{OB_PROVIDERS.find((p) => p.id === obProvider)?.name ?? "Provider"} API key</div>
-                <p className="ob-desc">Validated against {obProvider === "anthropic" ? "api.anthropic.com" : (OB_BASE[obProvider]?.replace("https://", "") ?? "the /models endpoint")} before it's saved.</p>
-                <input
-                  className="ob-input mono"
-                  type="password"
-                  autoFocus
-                  placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "sk-…"}
-                  value={obKey}
-                  onChange={(e) => { setObKey(e.target.value); setObError(null); }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && obKey.trim() && !obBusy) {
-                      setObBusy(true);
-                      void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
-                    }
-                  }}
-                />
+                <p className="ob-desc">Stored on this machine — validated before it's saved.</p>
+                <div className={`ob-keywrap${obError ? " err" : ""}`}>
+                  <input
+                    className="ob-input ob-key mono"
+                    id="ob-key"
+                    type="password"
+                    autoFocus
+                    placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "API key"}
+                    value={obKey}
+                    onChange={(e) => { setObKey(e.target.value.trim()); setObError(null); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && obKey.trim() && !obBusy) {
+                        setObBusy(true);
+                        void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
+                      }
+                    }}
+                  />
+                  {obBusy && <span className="ob-spinner" />}
+                </div>
                 {obProvider === "custom" && (
                   <input
                     className="ob-input mono"
@@ -1283,20 +1308,27 @@ export default function App() {
                 )}
                 {obError && <p className="ob-error">{obError}</p>}
                 <div className="setbtns">
-                  <button className="btn" disabled={obBusy} onClick={() => setObStep("pick")}>Back</button>
                   <button
-                    className="btn primary"
+                    className="btn primary ob-continue"
                     disabled={!obKey.trim() || obBusy}
                     onClick={() => {
                       setObBusy(true);
                       void send({ type: "setup", provider: obProvider === "anthropic" ? "anthropic" : "openai", key: obKey.trim(), base_url: OB_BASE[obProvider] ?? (obBase.trim() || undefined) });
                     }}
                   >
-                    {obBusy ? "Validating…" : "Validate & connect"}
+                    {obBusy ? "Validating" : "Continue"}<span className="ob-arrow">→</span>
                   </button>
                 </div>
               </>
             )}
+          </div>
+          <div className="ob-dots">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className={`ob-dot${({ welcome: 0, pick: 1, key: 1, project: 2, first: 2 })[obStep] === i ? " on" : ""}`}
+              />
+            ))}
           </div>
         </div>
       )}
