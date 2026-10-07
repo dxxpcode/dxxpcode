@@ -1,5 +1,5 @@
 import type { ApprovalRequest } from "@dxxpcode/agent";
-import type { ReasoningEffort } from "@dxxpcode/providers";
+import { EFFORT_TIERS, type ReasoningEffort } from "@dxxpcode/providers";
 
 export interface JevAnswer {
   type: "choice" | "noul" | "score";
@@ -76,7 +76,6 @@ export interface EffortRoute {
   confidence: number;
 }
 
-const EFFORT_TIERS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
 /**
  * Score a task prompt with Jev and pick a reasoning-effort tier. Returns null
@@ -104,7 +103,7 @@ export async function jevRouteEffort(task: string, apiKey: string): Promise<Effo
       },
     );
     const a = res.answers["effort"];
-    if (!a || !a.choice || !EFFORT_TIERS.includes(a.choice as (typeof EFFORT_TIERS)[number])) return null;
+    if (!a || !a.choice || !EFFORT_TIERS.includes(a.choice as ReasoningEffort)) return null;
     return { effort: a.choice as ReasoningEffort, confidence: a.confidence };
   } catch {
     return null;

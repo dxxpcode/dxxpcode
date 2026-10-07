@@ -52,8 +52,10 @@ export interface TodoItem {
   activeForm?: string;
 }
 
-/** Reasoning effort; mapped per-provider (Anthropic thinking budget, OpenAI reasoning_effort). */
-export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+/** Reasoning effort tiers, cheapest first; mapped per-provider
+/// (Anthropic thinking budget, OpenAI reasoning_effort). */
+export const EFFORT_TIERS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+export type ReasoningEffort = (typeof EFFORT_TIERS)[number];
 
 export interface ChatRequest {
   system: string;

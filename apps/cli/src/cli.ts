@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { detectProject } from "@dxxpcode/project";
-import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
+import { EFFORT_TIERS, ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
 import { homeDir, latestSessionFor, loadConfig, loadSession, saveConfig } from "@dxxpcode/sessions";
 import type { SessionRecord } from "@dxxpcode/sessions";
 import { renderBanner, renderTips } from "./banner.ts"; // kept for non-interactive/tests
@@ -240,7 +240,7 @@ async function main(): Promise<number> {
 
   const envEffort = process.env.DXXPCODE_EFFORT;
   const effort = args.effort
-    ?? (["minimal","low","medium","high","xhigh","max"].includes(envEffort ?? "") ? envEffort as Args["effort"] : config.effort);
+    ?? ((EFFORT_TIERS as readonly string[]).includes(envEffort ?? "") ? envEffort as Args["effort"] : config.effort);
   const autoApprove = args.yes || config.approvalMode === "auto";
   const smartApproveMode = !args.yes && config.approvalMode === "smart";
   // Mode shown in the status bar: plan | always-approve | smart | ask.
