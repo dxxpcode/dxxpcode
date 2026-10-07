@@ -71,7 +71,7 @@ function DownloadButtons() {
             <ArrowDown strokeWidth={1.5} className="h-4 w-4 opacity-60" />
           </a>
           <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-            v{VERSION} · {primary.build}
+            {primary.build}
             {primary.alts?.map((a) => (
               <span key={a.label}>
                 {" · "}
