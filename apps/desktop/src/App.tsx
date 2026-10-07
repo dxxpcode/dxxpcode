@@ -1339,18 +1339,27 @@ export default function App() {
             <ScrollArea className="settings-pane">
               {settingsTab === "general" && (
                 <div className="setgroup">
-                  <div className="setgroup-title">General</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" onClick={openProject} />
-                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
+                  <div className="setpage">
+                    <h2 className="setpage-title">General</h2>
+                    <p className="setpage-desc">Project and setup.</p>
+                  </div>
+                  <div className="setcard">
+                    <div className="setlist">
+                      <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
+                      <SetAction label="Open a project…" onClick={openProject} />
+                      <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
+                    </div>
                   </div>
                 </div>
               )}
               {settingsTab === "providers" && (
                 <div className="setgroup">
-                  <div className="setgroup-title">Providers & Models</div>
-                  <div className="setlist">
+                  <div className="setpage">
+                    <h2 className="setpage-title">Providers & Models</h2>
+                    <p className="setpage-desc">Provider, model, and approvals.</p>
+                  </div>
+                  <div className="setcard">
+                    <div className="setlist">
                     <SetSelect
                       label="Provider"
                       value={ready.provider}
@@ -1391,13 +1400,18 @@ export default function App() {
                         ))}
                       </span>
                     </div>
+                    </div>
                   </div>
                 </div>
               )}
               {settingsTab === "appearance" && (
                 <div className="setgroup">
-                  <div className="setgroup-title">Appearance</div>
-                  <div className="setlist">
+                  <div className="setpage">
+                    <h2 className="setpage-title">Appearance</h2>
+                    <p className="setpage-desc">Theme and artwork.</p>
+                  </div>
+                  <div className="setcard">
+                    <div className="setlist">
                     <div className="setrow static">
                       <span className="setlabel">Theme{artSrc ? <span className="setdesc">Dark while art is set</span> : null}</span>
                       <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
@@ -1438,36 +1452,47 @@ export default function App() {
                     {artLabel && (
                       <SetAction label="Clear art" onClick={() => { setArtPiece(""); setArtDir(""); }} />
                     )}
+                    </div>
                   </div>
                 </div>
               )}
               {settingsTab === "session" && (
                 <div className="setgroup">
-                  <div className="setgroup-title">Session</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
-                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
+                  <div className="setpage">
+                    <h2 className="setpage-title">Session</h2>
+                    <p className="setpage-desc">Current session and history.</p>
+                  </div>
+                  <div className="setcard">
+                    <div className="setlist">
+                      <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
+                      <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
+                      <SetAction label="Resume a session…" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
+                      <SetAction label="Compact context" onClick={() => cmd("/compact")} />
+                      <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
+                      <SetAction label="Start new session" onClick={() => cmd("/new")} />
+                    </div>
                   </div>
                 </div>
               )}
               {settingsTab === "about" && (
                 <div className="setgroup">
-                  <div className="setgroup-title">About</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
-                    {update?.status === "downloading" && (
-                      <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
-                    )}
-                    {update?.status === "ready" && (
-                      <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
-                    )}
-                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
+                  <div className="setpage">
+                    <h2 className="setpage-title">About</h2>
+                    <p className="setpage-desc">Version and updates.</p>
+                  </div>
+                  <div className="setcard">
+                    <div className="setlist">
+                      <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
+                      {update?.status === "downloading" && (
+                        <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
+                      )}
+                      {update?.status === "ready" && (
+                        <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
+                      )}
+                      <SetAction label="Documentation" onClick={() => cmd("/docs")} />
+                      <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
+                      <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
+                    </div>
                   </div>
                 </div>
               )}
