@@ -4,7 +4,8 @@ import { join } from "node:path";
 
 export type ApprovalMode = "ask" | "auto" | "smart";
 
-export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+import type { ReasoningEffort } from "@dxxpcode/providers";
+export type { ReasoningEffort };
 
 export interface DxxpConfig {
   provider?: string;
