@@ -196,6 +196,15 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .rail-glyph.bad { background: #b3261e; }
 [data-theme="dark"] .rail-glyph.bad { background: #e57373; }
+.rail-glyph.warn { background: var(--amber); }
+.rail-pin { margin-right: 4px; color: var(--faint); vertical-align: -1px; }
+.rail-attn { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+.rail-rename {
+  width: 100%; font: inherit; color: var(--text);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 6px; outline: none;
+}
+.rail-rename:focus { border-color: var(--border-strong); }
 .rail-glyph.rail-live { background: var(--accent); width: 6px; height: 6px; margin-left: 0; }
 .rail-sessrow:hover { background: var(--surface2); color: var(--text); }
 .rail-sessrow[data-active] { background: var(--surface2); color: var(--text); }
@@ -254,7 +263,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   background: var(--accent);
   animation: railpulse 1.4s var(--ease) infinite;
 }
-.rail-toggle { color: var(--faint); }
+.rail-toggle { position: relative; color: var(--faint); }
 .rail-footer { padding: 8px 10px 12px; flex-shrink: 0; }
 .rail button:focus-visible {
   outline: 1px solid var(--border-strong); outline-offset: -1px; box-shadow: none;

@@ -3,7 +3,8 @@
 
 use crate::agent::{self, compact_messages, estimate_tokens, undo_checkpoint};
 use crate::config::{
-    list_sessions, load_config, load_session, save_config, save_session, Config, SessionRecord,
+    list_sessions, load_config, load_session, save_config, save_session, sessions_dir, Config,
+    SessionRecord,
 };
 use crate::project::{detect_git, ProjectInfo};
 use crate::provider::{jev_route_effort, resolve_provider, smart_approve, Provider};
@@ -1854,27 +1855,41 @@ pub fn run_app(deps: AppDeps) -> i32 {
                 sh.aborted.store(true, Ordering::SeqCst);
             }
             // Sidebar: emit the project's recent sessions for the picker.
-            "sessions" => {
-                let past: Vec<SessionRecord> = list_sessions()
-                    .into_iter()
-                    .filter(|s| s.project_root == dinfo.root)
-                    .take(20)
-                    .collect();
-                let items: Vec<Value> = past
-                    .iter()
-                    .map(|s| {
-                        json!({
-                            "id": &s.id,
-                            "title": s.task.chars().take(80).collect::<String>().replace('\n', " "),
-                            "desc": s.updated_at.chars().take(10).collect::<String>(),
-                            "task": &s.task,
-                            "files": &s.files_changed,
-                            "status": &s.result,
-                            "when": &s.updated_at,
-                        })
-                    })
-                    .collect();
-                emit(json!({"type": "sessions", "items": items}));
+            "sessions" => emit_sessions(&dinfo.root),
+            "session_rename" => {
+                if let Some(id) = cmd.get("id").and_then(|v| v.as_str()) {
+                    if let Some(mut rec) = load_session(id) {
+                        let title = cmd
+                            .get("title")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .trim()
+                            .to_string();
+                        rec.title = (!title.is_empty()).then_some(title);
+                        save_session(&rec);
+                    }
+                    emit_sessions(&dinfo.root);
+                }
+            }
+            "session_pin" => {
+                if let Some(id) = cmd.get("id").and_then(|v| v.as_str()) {
+                    if let Some(mut rec) = load_session(id) {
+                        rec.pinned = cmd.get("pinned").and_then(|v| v.as_bool()).unwrap_or(true);
+                        save_session(&rec);
+                    }
+                    emit_sessions(&dinfo.root);
+                }
+            }
+            "session_delete" => {
+                if let Some(id) = cmd.get("id").and_then(|v| v.as_str()) {
+                    let current = sh.session.lock().unwrap().as_ref().map(|s| s.id.clone());
+                    if current.as_deref() == Some(id) {
+                        emit_note("can't delete the active session — start a new one first");
+                    } else if !id.contains('/') && !id.contains('\\') {
+                        let _ = std::fs::remove_file(sessions_dir().join(format!("{id}.json")));
+                        emit_sessions(&dinfo.root);
+                    }
+                }
             }
             "resume" => {
                 if let Some(id) = cmd.get("id").and_then(|v| v.as_str()) {
@@ -1901,6 +1916,35 @@ pub fn run_app(deps: AppDeps) -> i32 {
             _ => {}
         }
     }
+}
+
+/// Emit the project's recent sessions for the sidebar/palette — pinned first,
+/// then by recency (list_sessions already sorts by updated_at desc).
+fn emit_sessions(root: &str) {
+    let mut past: Vec<SessionRecord> = list_sessions()
+        .into_iter()
+        .filter(|s| s.project_root == root)
+        .collect();
+    past.sort_by(|a, b| b.pinned.cmp(&a.pinned));
+    let items: Vec<Value> = past
+        .iter()
+        .take(20)
+        .map(|s| {
+            json!({
+                "id": &s.id,
+                "title": s.title.clone().unwrap_or_else(|| {
+                    s.task.chars().take(80).collect::<String>().replace('\n', " ")
+                }),
+                "pinned": s.pinned,
+                "desc": s.updated_at.chars().take(10).collect::<String>(),
+                "task": &s.task,
+                "files": &s.files_changed,
+                "status": &s.result,
+                "when": &s.updated_at,
+            })
+        })
+        .collect();
+    emit(json!({"type": "sessions", "items": items}));
 }
 
 #[cfg(test)]

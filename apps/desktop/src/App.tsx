@@ -6,7 +6,7 @@ import { marked } from "marked";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -150,8 +150,9 @@ export default function App() {
   const displayedRailWidth = Math.min(railWidth, maxRailWidth);
   const railDrag = useRef<{ x: number; width: number } | null>(null);
   const [bootGone, setBootGone] = useState(false);
-  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
+  const [renamingSess, setRenamingSess] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
     return saved === "light" || saved === "dark" ? saved : "system";
@@ -406,7 +407,7 @@ export default function App() {
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
         break;
       case "sessions":
-        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string }[]) : []);
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -1008,7 +1009,7 @@ export default function App() {
     const groups: [string, typeof filtered][] = [];
     for (const s of filtered) {
       const date = s.desc.split("·")[0].trim();
-      const label = date === today ? "Today" : date === yesterday ? "Yesterday" : "Earlier";
+      const label = s.pinned ? "Pinned" : date === today ? "Today" : date === yesterday ? "Yesterday" : "Earlier";
       const last = groups[groups.length - 1];
       if (last && last[0] === label) last[1].push(s);
       else groups.push([label, [s]]);
@@ -1017,6 +1018,13 @@ export default function App() {
   };
   const sessionGroups = groupSessions(palQuery);
   const railGroups = groupSessions("");
+  // Something in the rail needs the user — a pending approval/diff decision or
+  // a parallel task awaiting merge/discard. Surfaces as a dot on the rail
+  // toggle when the sidebar is hidden.
+  const needsAttention =
+    approvals.some((a) => !a.answered) ||
+    diffs.some((d) => !d.decided) ||
+    wtasks.some((w) => w.phase === "done" || w.phase === "failed");
   // Settings palette: every setting is a searchable row. Select rows expand
   // their options inline under the row; action rows run immediately.
   type SetEntry = {
@@ -1274,9 +1282,34 @@ export default function App() {
                             <span className="rail-glyph rail-live" />
                           ) : sessGlyph(s.status) === "bad" ? (
                             <span className="rail-glyph bad" aria-label="Unsuccessful session" />
+                          ) : !s.status && s.files && s.files.length > 0 ? (
+                            <span className="rail-glyph warn" title="Unreviewed changes" aria-label="Unreviewed changes" />
                           ) : null}
                           <span className="rail-sessmain">
-                            <span className="truncate">{s.title || "Untitled"}</span>
+                            {renamingSess === s.id ? (
+                              <input
+                                className="rail-rename"
+                                defaultValue={s.title}
+                                autoFocus
+                                aria-label={`Rename ${s.title || "Untitled"}`}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                  if (e.key === "Enter") {
+                                    send({ type: "session_rename", id: s.id, title: e.currentTarget.value });
+                                    setRenamingSess(null);
+                                  } else if (e.key === "Escape") {
+                                    setRenamingSess(null);
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  send({ type: "session_rename", id: s.id, title: e.currentTarget.value });
+                                  setRenamingSess(null);
+                                }}
+                              />
+                            ) : (
+                              <span className="truncate">{s.pinned && <Pin size={10} className="rail-pin" aria-label="Pinned" />}{s.title || "Untitled"}</span>
+                            )}
                             {current && approvals.some((a) => !a.answered) && <span className="rail-sessmeta">Needs approval</span>}
                           </span>
                           <span className="rail-time">{sessionAge(s.when)}</span>
@@ -1296,6 +1329,11 @@ export default function App() {
                           {s.status && <div className="rail-menu-info">{s.status}{s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}</div>}
                           {s.task && (
                             <button className="rail-menu-btn" onClick={() => { setInput(s.task ?? ""); setSessMenu(null); taRef.current?.focus(); }}>re-run prompt</button>
+                          )}
+                          <button className="rail-menu-btn" onClick={() => { setRenamingSess(s.id); setSessMenu(null); }}>rename</button>
+                          <button className="rail-menu-btn" onClick={() => { send({ type: "session_pin", id: s.id, pinned: !s.pinned }); setSessMenu(null); }}>{s.pinned ? "unpin" : "pin"}</button>
+                          {!current && (
+                            <button className="rail-menu-btn" onClick={() => { send({ type: "session_delete", id: s.id }); setSessMenu(null); }}>delete</button>
                           )}
                           {s.files && s.files.length > 0 && (
                             <button
@@ -1381,10 +1419,11 @@ export default function App() {
               aria-label="Show sidebar"
               aria-expanded={false}
               aria-controls="sessions-sidebar"
-              title={IS_MAC ? "Show sidebar (⌘B)" : "Show sidebar (Ctrl B)"}
+              title={`${IS_MAC ? "Show sidebar (⌘B)" : "Show sidebar (Ctrl B)"}${needsAttention ? " — attention needed" : ""}`}
               onClick={() => setRailOpen((v) => !v)}
             >
               <PanelLeft size={14} />
+              {needsAttention && <span className="rail-attn" aria-hidden="true" />}
             </Button>
           )}
         </div>
