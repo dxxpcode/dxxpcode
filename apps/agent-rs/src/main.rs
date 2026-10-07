@@ -230,6 +230,7 @@ fn run_task_once(root: &str, task: String) {
         model,
         project_root: root.to_string(),
         plan_only: false,
+        approved_plan: None,
         max_iterations: cfg.max_iterations,
         approve_plan: &mut approve_plan,
         approve_tool: &mut approve_tool,

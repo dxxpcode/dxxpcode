@@ -725,6 +725,15 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   cursor: pointer; letter-spacing: 0.01em;
 }
 .plan-edit-add:hover { color: var(--text); }
+.build-cue { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.build-btn {
+  border: none; background: var(--text); color: var(--bg);
+  font: inherit; font-size: 12px; font-weight: 500;
+  padding: 5px 14px; border-radius: 6px; cursor: pointer;
+  transition: opacity 0.15s var(--ease);
+}
+.build-btn:hover { opacity: 0.85; }
+.build-hint { color: var(--faint); font-size: 11px; }
 .todo-list { margin: 0; padding: 0; list-style: none; }
 .todo-item { display: flex; gap: 10px; padding: 3px 0; align-items: baseline; }
 .todo-item .mark { width: 14px; flex: none; color: var(--faint); }
@@ -981,6 +990,14 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .composer-select .setdd-item { overflow-wrap: anywhere; }
 .composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
 .composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
+.plan-toggle {
+  background: none; font: inherit; font-size: 11px;
+  color: var(--faint); padding: 2px 7px; border-radius: 999px; cursor: pointer;
+  border: 1px solid transparent; transition: color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.plan-toggle:hover { color: var(--text); }
+.plan-toggle.on { color: var(--text); border-color: var(--border-strong); }
+.plan-toggle:disabled { opacity: 0.5; cursor: default; }
 .composer-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .composer-submit, .composer-stop { width: 32px; height: 32px; border-radius: var(--radius-sm); }
 .composer-submit:disabled { opacity: 0.3; }

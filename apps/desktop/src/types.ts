@@ -37,6 +37,8 @@ export type Item =
   | { k: "think"; text: string; live?: boolean; startedAt?: number; ms?: number }
   | { k: "tool"; tool: string; arg: string; out?: string; isError?: boolean; diff?: string; pending: boolean; startedAt?: number; think?: { text: string; ms?: number } }
   | { k: "plan"; plan: Plan }
+  // Plan-only runs leave a saved plan behind that "Build" executes.
+  | { k: "build" }
   | { k: "todos"; items: Todo[] }
   | { k: "note"; text: string; steer?: boolean }
   | { k: "error"; text: string; hint?: string; detail?: string; code?: string }
