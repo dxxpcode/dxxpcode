@@ -194,17 +194,16 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   width: 6px; height: 6px; border-radius: 50%;
   flex-shrink: 0; background: var(--border);
 }
-.rail-glyph.bad { background: #b3261e; }
-[data-theme="dark"] .rail-glyph.bad { background: #e57373; }
-.rail-glyph.warn { background: var(--amber); }
+.rail-glyph.warn { background: var(--amber); opacity: 0.6; width: 5px; height: 5px; }
 .rail-pin { margin-right: 4px; color: var(--faint); vertical-align: -1px; }
-.rail-attn { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+.truncate.statbad { color: #b3261e; }
+[data-theme="dark"] .truncate.statbad { color: #e57373; }
 .rail-rename {
   width: 100%; font: inherit; color: var(--text);
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 5px; padding: 1px 6px; outline: none;
+  background: transparent; border: none;
+  border-bottom: 1px solid var(--border-strong);
+  padding: 0; outline: none;
 }
-.rail-rename:focus { border-color: var(--border-strong); }
 .rail-glyph.rail-live { background: var(--accent); width: 6px; height: 6px; margin-left: 0; }
 .rail-sessrow:hover { background: var(--surface2); color: var(--text); }
 .rail-sessrow[data-active] { background: var(--surface2); color: var(--text); }
@@ -238,6 +237,10 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   padding: 4px 6px; border-radius: 6px; cursor: pointer;
 }
 .rail-menu-btn:hover { background: var(--surface2); color: var(--text); }
+.rail-menu-btn.danger { color: #b3261e; }
+[data-theme="dark"] .rail-menu-btn.danger { color: #e57373; }
+.rail-menu-btn.danger:hover { background: color-mix(in srgb, #b3261e 8%, transparent); }
+.rail-menu-divider { height: 1px; background: var(--border); margin: 4px 2px; }
 .rail-menu-info {
   font-size: 10.5px; color: var(--faint);
   padding: 2px 6px 4px; letter-spacing: 0.02em;
@@ -264,6 +267,8 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   animation: railpulse 1.4s var(--ease) infinite;
 }
 .rail-toggle { position: relative; color: var(--faint); }
+.rail-toggle.attn { color: var(--text); animation: railpulse 1.8s var(--ease) infinite; }
+.rail-pinbtn svg { display: block; }
 .rail-footer { padding: 8px 10px 12px; flex-shrink: 0; }
 .rail button:focus-visible {
   outline: 1px solid var(--border-strong); outline-offset: -1px; box-shadow: none;

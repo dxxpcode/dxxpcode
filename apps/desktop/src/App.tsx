@@ -1270,7 +1270,15 @@ export default function App() {
                   const current = s.id === sessionInfo.id;
                   return (
                     <div key={s.id} className="rail-sess">
-                      <div className="rail-sessrow" data-active={current || undefined}>
+                      <div
+                        className="rail-sessrow"
+                        data-active={current || undefined}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSessMenu((m) => (m === s.id ? null : s.id));
+                        }}
+                      >
                         <Button
                           variant="ghost"
                           className="rail-sesspick"
@@ -1280,8 +1288,6 @@ export default function App() {
                         >
                           {current && running ? (
                             <span className="rail-glyph rail-live" />
-                          ) : sessGlyph(s.status) === "bad" ? (
-                            <span className="rail-glyph bad" aria-label="Unsuccessful session" />
                           ) : !s.status && s.files && s.files.length > 0 ? (
                             <span className="rail-glyph warn" title="Unreviewed changes" aria-label="Unreviewed changes" />
                           ) : null}
@@ -1292,6 +1298,7 @@ export default function App() {
                                 defaultValue={s.title}
                                 autoFocus
                                 aria-label={`Rename ${s.title || "Untitled"}`}
+                                onFocus={(e) => e.target.select()}
                                 onClick={(e) => e.stopPropagation()}
                                 onKeyDown={(e) => {
                                   e.stopPropagation();
@@ -1308,21 +1315,36 @@ export default function App() {
                                 }}
                               />
                             ) : (
-                              <span className="truncate">{s.pinned && <Pin size={10} className="rail-pin" aria-label="Pinned" />}{s.title || "Untitled"}</span>
+                              <span className={`truncate${sessGlyph(s.status) === "bad" ? " statbad" : ""}`}>{s.pinned && <Pin size={10} className="rail-pin" aria-label="Pinned" />}{s.title || "Untitled"}</span>
                             )}
                             {current && approvals.some((a) => !a.answered) && <span className="rail-sessmeta">Needs approval</span>}
                           </span>
                           <span className="rail-time">{sessionAge(s.when)}</span>
                         </Button>
-                        <button
-                          className="rail-act"
-                          aria-label={`Actions for ${s.title || "Untitled"}`}
-                          aria-expanded={sessMenu === s.id}
-                          title="Session actions"
-                          onClick={(e) => { e.stopPropagation(); setSessMenu((m) => (m === s.id ? null : s.id)); }}
-                        >
-                          ⋯
-                        </button>
+                        {renamingSess !== s.id && (
+                          <>
+                            <button
+                              className="rail-act rail-pinbtn"
+                              aria-label={s.pinned ? `Unpin ${s.title || "Untitled"}` : `Pin ${s.title || "Untitled"}`}
+                              title={s.pinned ? "Unpin" : "Pin"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                send({ type: "session_pin", id: s.id, pinned: !s.pinned });
+                              }}
+                            >
+                              <Pin size={12} fill={s.pinned ? "currentColor" : "none"} />
+                            </button>
+                            <button
+                              className="rail-act"
+                              aria-label={`Actions for ${s.title || "Untitled"}`}
+                              aria-expanded={sessMenu === s.id}
+                              title="Session actions"
+                              onClick={(e) => { e.stopPropagation(); setSessMenu((m) => (m === s.id ? null : s.id)); }}
+                            >
+                              ⋯
+                            </button>
+                          </>
+                        )}
                       </div>
                       {sessMenu === s.id && (
                         <div className="rail-menu">
@@ -1331,10 +1353,6 @@ export default function App() {
                             <button className="rail-menu-btn" onClick={() => { setInput(s.task ?? ""); setSessMenu(null); taRef.current?.focus(); }}>re-run prompt</button>
                           )}
                           <button className="rail-menu-btn" onClick={() => { setRenamingSess(s.id); setSessMenu(null); }}>rename</button>
-                          <button className="rail-menu-btn" onClick={() => { send({ type: "session_pin", id: s.id, pinned: !s.pinned }); setSessMenu(null); }}>{s.pinned ? "unpin" : "pin"}</button>
-                          {!current && (
-                            <button className="rail-menu-btn" onClick={() => { send({ type: "session_delete", id: s.id }); setSessMenu(null); }}>delete</button>
-                          )}
                           {s.files && s.files.length > 0 && (
                             <button
                               className="rail-menu-btn"
@@ -1348,6 +1366,12 @@ export default function App() {
                           )}
                           {s.task && (
                             <button className="rail-menu-btn" onClick={() => { void navigator.clipboard.writeText(s.task ?? ""); setSessMenu(null); }}>copy task</button>
+                          )}
+                          {!current && (
+                            <>
+                              <div className="rail-menu-divider" role="separator" />
+                              <button className="rail-menu-btn danger" onClick={() => { send({ type: "session_delete", id: s.id }); setSessMenu(null); }}>delete</button>
+                            </>
                           )}
                         </div>
                       )}
@@ -1415,7 +1439,7 @@ export default function App() {
             <Button
               variant="ghost"
               size="icon"
-              className="rail-toggle"
+              className={`rail-toggle${needsAttention ? " attn" : ""}`}
               aria-label="Show sidebar"
               aria-expanded={false}
               aria-controls="sessions-sidebar"
@@ -1423,7 +1447,6 @@ export default function App() {
               onClick={() => setRailOpen((v) => !v)}
             >
               <PanelLeft size={14} />
-              {needsAttention && <span className="rail-attn" aria-hidden="true" />}
             </Button>
           )}
         </div>
