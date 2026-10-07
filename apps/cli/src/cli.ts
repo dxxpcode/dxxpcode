@@ -13,7 +13,7 @@ import { undoCheckpoint } from "@dxxpcode/agent";
 import { runAndRender } from "./run.ts";
 import { bold, cyan, dim, errLine, green, line, pill, red, renderDiff, rule } from "./render.ts";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.4";
 
 const HELP = `dxxpcode — AI coding agent for your terminal
 

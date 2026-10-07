@@ -1,6 +1,6 @@
 {
   "name": "dxxpcode",
-  "version": "0.1.0",
+  "version": "0.2.4",
   "type": "module",
   "description": "DxxpCode \u2014 a terminal-native AI coding agent",
   "license": "Apache-2.0",
