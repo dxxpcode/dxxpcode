@@ -11,7 +11,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
-import { ItemView, TGroup, ApprovalSummary, Diff, diffStats, groupTurns, groupItems, Logo } from "./transcript";
+import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo } from "./transcript";
 import { SetSelect } from "./settings";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
@@ -475,9 +475,23 @@ export default function App() {
         if (restored.length) setItems(restored);
         break;
       }
-      case "plan":
-        push({ k: "plan", plan: ev.plan as Plan });
+      case "plan": {
+        const plan = { ...(ev.plan as Plan), amended: ev.amended === true };
+        // A re-emitted plan (user edited steps before approving, or a
+        // re-proposal) replaces the previous card rather than stacking.
+        setItems((prev) => {
+          const next = [...prev];
+          let idx = -1;
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].k === "plan") { idx = i; break; }
+            if (next[i].k === "user" || next[i].k === "done") break;
+          }
+          if (idx >= 0) next[idx] = { k: "plan", plan };
+          else next.push({ k: "plan", plan });
+          return next;
+        });
         break;
+      }
       case "tool_start":
         push({
           k: "tool", tool: String(ev.tool),
@@ -572,6 +586,7 @@ export default function App() {
             summary: String(ev.summary), reason: ev.reason as string | undefined,
             allowAlways: ev.allowAlways === true,
             extraChoice: ev.extraChoice as { choice: string; label: string } | undefined,
+            steps: Array.isArray(ev.steps) ? (ev.steps as string[]) : undefined,
           },
         ]);
         break;
@@ -925,9 +940,9 @@ export default function App() {
     void send({ type: "prompt_submit", id: p.id, text: promptVal });
   };
 
-  const answer = (id: number, choice: string) => {
+  const answer = (id: number, choice: string, steps?: string[]) => {
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, answered: choice } : a)));
-    void send({ type: "approve", id, choice });
+    void send({ type: "approve", id, choice, plan: steps ? { steps } : undefined });
   };
 
   const decideDiff = (id: number, decision: string) => {
@@ -1782,14 +1797,25 @@ export default function App() {
                 <span className="dres-dot" />Approval required
                 {a.tool && <span className="dec-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
               </div>
-              <ApprovalSummary text={a.summary} kind={a.kind} />
-              {a.reason && <div className="reason">Reason: {a.reason}</div>}
-              <div className="dec-acts">
-                <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow</button>
-                <button className="pill deny" onClick={() => answer(a.id, "n")}>Deny</button>
-                {a.allowAlways && <button className="pill ghost" onClick={() => answer(a.id, "a")}>Always allow</button>}
-                {a.extraChoice && <button className="pill ghost" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
-              </div>
+              {a.kind === "plan" && a.steps ? (
+                <PlanApproval
+                  summary={a.summary}
+                  steps={a.steps}
+                  extraChoice={a.extraChoice}
+                  onAnswer={(choice, steps) => answer(a.id, choice, steps)}
+                />
+              ) : (
+                <>
+                  <ApprovalSummary text={a.summary} kind={a.kind} />
+                  {a.reason && <div className="reason">Reason: {a.reason}</div>}
+                  <div className="dec-acts">
+                    <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow</button>
+                    <button className="pill deny" onClick={() => answer(a.id, "n")}>Deny</button>
+                    {a.allowAlways && <button className="pill ghost" onClick={() => answer(a.id, "a")}>Always allow</button>}
+                    {a.extraChoice && <button className="pill ghost" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
+                  </div>
+                </>
+              )}
             </div>
           )
         ))}

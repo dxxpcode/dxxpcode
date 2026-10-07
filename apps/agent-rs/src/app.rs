@@ -150,7 +150,7 @@ pub struct Shared {
     pub session: Mutex<Option<SessionRecord>>,
     pub allowlist: Mutex<HashSet<String>>,
     pub next_id: Mutex<u64>,
-    pub pending_approvals: Mutex<HashMap<u64, Sender<String>>>,
+    pub pending_approvals: Mutex<HashMap<u64, Sender<Value>>>,
     pub pending_selects: Mutex<HashMap<u64, Sender<Option<usize>>>>,
     pub pending_prompts: Mutex<HashMap<u64, Sender<Option<String>>>>,
     pub pending_diffs: Mutex<HashMap<u64, Sender<String>>>,
@@ -213,7 +213,7 @@ impl Shared {
     /* ---------------------------- blocking asks ---------------------------- */
 
     fn ask(&self, kind: &str, summary: &str, reason: Option<&str>, tool: Option<&str>) -> String {
-        let (tx, rx) = channel::<String>();
+        let (tx, rx) = channel::<Value>();
         let id = {
             let mut n = self.next_id.lock().unwrap();
             let id = *n;
@@ -232,7 +232,49 @@ impl Shared {
             ev["tool"] = json!(t);
         }
         emit(ev);
-        rx.recv().unwrap_or_else(|_| "n".into())
+        rx.recv()
+            .ok()
+            .and_then(|v| v.get("choice").and_then(|c| c.as_str()).map(String::from))
+            .unwrap_or_else(|| "n".into())
+    }
+
+    /// Plan approval: returns the choice plus the steps the user approved — the
+    /// desktop lets them edit steps in place, so the reply can carry an amended
+    /// `plan.steps`.
+    fn ask_plan(&self, plan: &Value) -> (String, Option<Vec<String>>) {
+        let (tx, rx) = channel::<Value>();
+        let id = {
+            let mut n = self.next_id.lock().unwrap();
+            let id = *n;
+            *n += 1;
+            id
+        };
+        self.pending_approvals.lock().unwrap().insert(id, tx);
+        emit(json!({
+            "type": "approval", "id": id, "kind": "plan",
+            "summary": plan.get("summary").and_then(|v| v.as_str()).unwrap_or(""),
+            "steps": plan.get("steps").cloned().unwrap_or(json!([])),
+            "editable": true,
+            "allowAlways": false,
+            "extraChoice": {"choice": "s", "label": "Approve + save plan"},
+        }));
+        let reply = rx.recv().unwrap_or_else(|_| json!({"choice": "n"}));
+        let choice = reply
+            .get("choice")
+            .and_then(|c| c.as_str())
+            .unwrap_or("n")
+            .to_string();
+        let steps = reply
+            .get("plan")
+            .and_then(|p| p.get("steps"))
+            .and_then(|s| s.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|s| s.as_str().map(String::from))
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<String>>()
+            });
+        (choice, steps)
     }
 
     fn menu(&self, title: &str, options: Vec<Value>, current: Option<usize>) -> Option<usize> {
@@ -1410,33 +1452,28 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
     sh.aborted.store(false, Ordering::Relaxed);
     *sh.turn_tokens.lock().unwrap() = 0;
 
-    let mut approve_plan = |plan: &Value| -> bool {
+    let mut approve_plan = |plan: &Value| -> Option<Value> {
         if sh.auto_approve.load(Ordering::Relaxed) {
             emit_note("auto-approved plan");
-            return true;
+            return Some(plan.clone());
         }
-        let summary = plan.get("summary").and_then(|v| v.as_str()).unwrap_or("");
-        let steps: Vec<String> = plan
-            .get("steps")
-            .and_then(|v| v.as_array())
-            .map(|a| {
-                a.iter()
-                    .enumerate()
-                    .filter_map(|(i, s)| s.as_str().map(|s| format!("{}. {}", i + 1, s)))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let body = std::iter::once(summary.to_string())
-            .chain(steps)
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n");
-        let choice = sh.ask("plan", &body, None, None);
+        let (choice, edited_steps) = sh.ask_plan(plan);
+        if choice != "y" && choice != "a" && choice != "s" {
+            return None;
+        }
+        let mut approved = plan.clone();
+        if let Some(steps) = edited_steps {
+            approved["steps"] = json!(steps);
+        }
         if choice == "s" {
             // Persist the approved plan to the repo so it survives sessions and
             // can be versioned alongside the code.
             let dir = std::path::Path::new(&deps.root).join(".dxxpcode");
-            let steps_md: Vec<String> = plan
+            let summary = approved
+                .get("summary")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let steps_md: Vec<String> = approved
                 .get("steps")
                 .and_then(|v| v.as_array())
                 .map(|a| {
@@ -1453,7 +1490,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
                 Err(e) => emit_note(format!("couldn't save plan: {e}")),
             }
         }
-        choice == "y" || choice == "a" || choice == "s"
+        Some(approved)
     };
 
     let mut approve_tool =
@@ -1789,7 +1826,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
                 if let Some(id) = cmd.get("id").and_then(|v| v.as_u64()) {
                     if let Some(tx) = sh.pending_approvals.lock().unwrap().remove(&id) {
                         let choice = cmd.get("choice").and_then(|v| v.as_str()).unwrap_or("n");
-                        let _ = tx.send(choice.to_string());
+                        let _ = tx.send(json!({"choice": choice, "plan": cmd.get("plan").cloned().unwrap_or(Value::Null)}));
                     }
                 }
             }

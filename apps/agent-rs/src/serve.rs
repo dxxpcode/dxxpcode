@@ -284,8 +284,11 @@ fn spawn_task(srv: &Arc<Serve>, body: &Value) -> Result<Arc<TaskState>, String> 
         let ts_tool = Arc::clone(&t2);
         let ts_rev = Arc::clone(&t2);
         let ts_steer = Arc::clone(&t2);
-        let mut approve_plan =
-            move |plan: &Value| ts_plan.wait_approval(json!({"kind": "plan", "plan": plan}));
+        let mut approve_plan = move |plan: &Value| {
+            ts_plan
+                .wait_approval(json!({"kind": "plan", "plan": plan}))
+                .then(|| plan.clone())
+        };
         let mut approve_tool =
             move |name: &str, input: &Value, reason: &str, hint: Option<&str>| {
                 auto || ts_tool.wait_approval(json!({
