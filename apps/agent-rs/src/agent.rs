@@ -9,6 +9,7 @@ use crate::util::redact_secrets;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -46,19 +47,17 @@ fn detect_verify_cmd(root: &str) -> Option<String> {
 }
 
 /// Run `command` in the project root; returns (passed, tail of combined output).
+/// The 300s cap is enforced in-process — `timeout(1)` is GNU coreutils and
+/// does not exist on stock macOS, so wrapping the shell command made every
+/// verify attempt "fail" on the platform we ship for.
 fn run_verify(root: &str, command: &str) -> (bool, String) {
-    let shell_cmd = if cfg!(unix) {
-        format!("timeout 300 {command}")
-    } else {
-        command.to_string()
-    };
     let mut cmd = if cfg!(unix) {
         let mut c = Command::new("/bin/sh");
-        c.args(["-c", &shell_cmd]);
+        c.args(["-c", command]);
         c
     } else {
         let mut c = Command::new("cmd");
-        c.args(["/C", &shell_cmd]);
+        c.args(["/C", command]);
         c
     };
     cmd.current_dir(root)
@@ -68,21 +67,86 @@ fn run_verify(root: &str, command: &str) -> (bool, String) {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
-    match cmd.output() {
-        Ok(o) => {
-            let mut text = String::from_utf8_lossy(&o.stdout).to_string();
-            if !o.stderr.is_empty() {
-                text.push_str(&String::from_utf8_lossy(&o.stderr));
-            }
-            let text = if text.len() > VERIFY_OUTPUT_CAP {
-                text[text.len() - VERIFY_OUTPUT_CAP..].to_string()
-            } else {
-                text
-            };
-            (o.status.success(), text)
-        }
-        Err(e) => (false, format!("failed to start verify command: {e}")),
+    #[cfg(unix)]
+    unsafe {
+        use std::os::unix::process::CommandExt;
+        cmd.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
     }
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => return (false, format!("failed to start verify command: {e}")),
+    };
+    let pid = child.id();
+    // Drain pipes concurrently — a verify command that fills the pipe buffer
+    // would otherwise block writing and only the deadline would free it.
+    let out = Arc::new(Mutex::new(String::new()));
+    let mut readers = vec![];
+    let mut pipes: Vec<Box<dyn Read + Send>> = vec![];
+    if let Some(p) = child.stdout.take() {
+        pipes.push(Box::new(p));
+    }
+    if let Some(p) = child.stderr.take() {
+        pipes.push(Box::new(p));
+    }
+    for pipe in pipes {
+        let out = Arc::clone(&out);
+        readers.push(std::thread::spawn(move || {
+            let mut p = pipe;
+            let mut buf = [0u8; 8192];
+            while let Ok(n) = p.read(&mut buf) {
+                if n == 0 {
+                    break;
+                }
+                out.lock()
+                    .unwrap()
+                    .push_str(&String::from_utf8_lossy(&buf[..n]));
+            }
+        }));
+    }
+    let start = Instant::now();
+    let deadline = Duration::from_secs(300);
+    let timed_out = loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break false,
+            Ok(None) if start.elapsed() > deadline => {
+                #[cfg(unix)]
+                unsafe {
+                    libc::kill(-(pid as i32), libc::SIGKILL);
+                    libc::kill(pid as i32, libc::SIGKILL);
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = Command::new("taskkill")
+                        .args(["/PID", &pid.to_string(), "/F", "/T"])
+                        .output();
+                }
+                let _ = child.wait();
+                break true;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(25)),
+            Err(_) => break false,
+        }
+    };
+    for r in readers {
+        let _ = r.join();
+    }
+    let mut text = out.lock().unwrap().clone();
+    if timed_out {
+        text.push_str("\n(verify timed out after 300s)");
+    }
+    if text.len() > VERIFY_OUTPUT_CAP {
+        text = text[text.len() - VERIFY_OUTPUT_CAP..].to_string();
+    }
+    let status_ok = child
+        .try_wait()
+        .ok()
+        .flatten()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    (status_ok && !timed_out, text)
 }
 
 /* ------------------------------ blind review ------------------------------ */
@@ -345,6 +409,29 @@ fn iso_now() -> String {
 
 const CHARS_PER_TOKEN: usize = 4;
 
+/// Serialized length of a JSON value without materializing it — for
+/// tool_use inputs, whose `to_string()` would allocate a fresh copy on
+/// every estimate call (several times per turn over the full history).
+/// Escape inflation (\n → 2 serialized chars) is skipped; the estimate
+/// stays within a few percent, which is all the heuristic needs.
+fn json_len(v: &Value) -> usize {
+    match v {
+        Value::Object(m) => {
+            2 + m
+                .iter()
+                .map(|(k, x)| k.len() + 3 + json_len(x))
+                .sum::<usize>()
+                + m.len().saturating_sub(1)
+        }
+        Value::Array(a) => {
+            2 + a.iter().map(json_len).sum::<usize>() + a.len().saturating_sub(1)
+        }
+        Value::String(s) => s.len() + 2,
+        Value::Null => 4,
+        other => other.to_string().len(),
+    }
+}
+
 pub fn estimate_tokens(messages: &[Message]) -> usize {
     let mut chars = 0;
     for m in messages {
@@ -358,7 +445,7 @@ pub fn estimate_tokens(messages: &[Message]) -> usize {
                         .len()
                 }
                 Some("tool_use") => {
-                    chars += b.get("input").map(|i| i.to_string().len()).unwrap_or(0);
+                    chars += b.get("input").map(json_len).unwrap_or(0);
                     chars += b.get("name").and_then(|n| n.as_str()).unwrap_or("").len();
                 }
                 _ => chars += b.get("text").and_then(|t| t.as_str()).unwrap_or("").len(),
@@ -384,12 +471,16 @@ fn preview_lines(content: &str, lines: usize) -> Option<String> {
 }
 
 /// Returns Some((before, after, blocks)) when compaction happened.
+/// `before_hint` is the caller's current estimate — callers measure the
+/// history once per loop iteration and pass it here instead of having
+/// this function re-walk every message.
 pub fn compact_messages(
     messages: &mut [Message],
     max_tokens: usize,
     force: bool,
+    before_hint: Option<usize>,
 ) -> Option<(usize, usize, usize)> {
-    let before = estimate_tokens(messages);
+    let before = before_hint.unwrap_or_else(|| estimate_tokens(messages));
     if !force && before <= max_tokens {
         return None;
     }
@@ -972,11 +1063,12 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             finish_emit!("max_iterations", "Planning iteration limit reached");
         }
         iterations += 1;
-        if estimate_tokens(&session.messages) > 60_000 {
+        let ctx_tokens = estimate_tokens(&session.messages);
+        if ctx_tokens > 60_000 {
             emit(json!({"type": "status", "message": "Compacting context…"}));
         }
         if let Some((before, after, blocks)) =
-            compact_messages(&mut session.messages, 60_000, false)
+            compact_messages(&mut session.messages, 60_000, false, Some(ctx_tokens))
         {
             emit(json!({"type": "compacted", "before": before, "after": after, "blocks": blocks}));
         }
@@ -1161,11 +1253,12 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
             finish_emit!("cancelled", "Cancelled");
         }
-        if estimate_tokens(&session.messages) > 60_000 {
+        let ctx_tokens = estimate_tokens(&session.messages);
+        if ctx_tokens > 60_000 {
             emit(json!({"type": "status", "message": "Compacting context…"}));
         }
         if let Some((before, after, blocks)) =
-            compact_messages(&mut session.messages, 60_000, false)
+            compact_messages(&mut session.messages, 60_000, false, Some(ctx_tokens))
         {
             emit(json!({"type": "compacted", "before": before, "after": after, "blocks": blocks}));
         }
@@ -1608,5 +1701,35 @@ mod tests {
             Some("cargo test")
         );
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn run_verify_runs_command_without_shell_timeout() {
+        // Stock macOS has no `timeout(1)` — verify must run the command
+        // itself and still report pass/fail correctly.
+        let dir = std::env::temp_dir().join(format!("dxxp-runverify-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let root = dir.to_str().unwrap();
+        let (ok, out) = run_verify(root, "echo hello-verify");
+        assert!(ok, "{out}");
+        assert!(out.contains("hello-verify"), "{out}");
+        let (ok, out) = run_verify(root, "exit 3");
+        assert!(!ok, "{out}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn json_len_tracks_serialized() {
+        // The estimate path counts serialized size without allocating.
+        let v = json!({
+            "path": "src/main.rs",
+            "old_string": "fn f() {\n    x\n}",
+            "edits": [{"a": 1}, {"b": true}, {"c": null}],
+            "n": 12.5,
+        });
+        let exact = v.to_string().len();
+        let got = json_len(&v);
+        assert!(got <= exact, "{got} vs {exact}");
+        assert!(got >= exact * 9 / 10, "{got} vs {exact}");
     }
 }
