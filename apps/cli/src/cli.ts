@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { detectProject } from "@dxxpcode/project";
 import { ProviderConfigError, resolveProvider } from "@dxxpcode/providers";
@@ -13,7 +14,12 @@ import { undoCheckpoint } from "@dxxpcode/agent";
 import { runAndRender } from "./run.ts";
 import { bold, cyan, dim, errLine, green, line, pill, red, renderDiff, rule } from "./render.ts";
 
-const VERSION = "0.2.4";
+// Version comes from this package's package.json so it can never drift from
+// the release bump (works from both src/ and dist/ — both sit one level below
+// the package root).
+const VERSION = (JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { version: string }).version;
 
 const HELP = `dxxpcode — AI coding agent for your terminal
 
