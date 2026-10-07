@@ -510,6 +510,27 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   overflow-x: auto; overflow-wrap: normal; white-space: pre;
 }
 .reply .text pre code { padding: 0; border-radius: 0; font-size: inherit; }
+.text pre.codeblock { position: relative; }
+.code-copy {
+  position: absolute; top: 6px; right: 8px;
+  border: none; background: none; color: var(--faint);
+  font: inherit; font-size: 10.5px; letter-spacing: 0.02em;
+  padding: 2px 5px; border-radius: 5px; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s var(--ease);
+}
+pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-copy.done { opacity: 1; }
+.code-copy:hover { background: var(--surface); color: var(--text); }
+.code-copy.done { color: var(--dim); }
+.hljs-comment, .hljs-quote { color: var(--faint); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-template-tag, .hljs-keyword.hljs-operator { color: var(--text); font-weight: 550; }
+.hljs-string, .hljs-regexp, .hljs-symbol, .hljs-bullet { color: var(--dim); }
+.hljs-number, .hljs-literal { color: var(--dim); }
+.hljs-title, .hljs-name, .hljs-section, .hljs-built_in, .hljs-builtin-name, .hljs-type { color: var(--text); }
+.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable, .hljs-meta { color: var(--dim); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }
+.hljs-deletion { color: var(--faint); }
+.hljs-addition { color: var(--text); }
 .reply .text img { max-width: 100%; height: auto; }
 .reply-table { max-width: 100%; overflow-x: auto; }
 .reply .text table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1em 0; font-size: 14px; }
