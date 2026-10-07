@@ -4,6 +4,14 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-10-07
+
+- Agent: fix `read_file` panic on huge `offset` — `usize` overflow in `offset - 1 + limit` could crash the sidecar mid-session
+- Agent: fix whitespace-tolerant `edit_file` corrupting CRLF files — byte offsets assumed `\n` endings and drifted +1 byte per line
+- Agent: fix auto-verify always failing on stock macOS — `run_verify` used GNU `timeout`, which doesn't ship with macOS; the 300s cap is now enforced in-process
+- Agent: SSE parser no longer reallocates the buffer tail per event (cursor + 64KB compaction)
+- Agent: token estimate now runs once per turn and sizes `tool_use` inputs without serializing them
+
 ## [0.2.3] — 2026-10-05
 
 - Agent: `browse` tool — headless-Chrome CDP driver (navigate, snapshot, click, type, wait, console, screenshot, evaluate) with accessibility-ref grounding and tiered browse permissions

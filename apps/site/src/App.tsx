@@ -9,7 +9,7 @@ import Docs from "./Docs";
 import Notes from "./Notes";
 import Pricing, { PricingSuccess } from "./Pricing";
 
-const VERSION = "0.2.3";
+const VERSION = "0.2.4";
 const RELEASE = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/download/desktop-v${VERSION}`;
 const RELEASES = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/tag/desktop-v${VERSION}`;
 
