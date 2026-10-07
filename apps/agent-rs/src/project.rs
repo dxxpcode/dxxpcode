@@ -3,7 +3,6 @@
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct GitInfo {
@@ -35,24 +34,13 @@ impl ProjectInfo {
     }
 }
 
-fn git_out(root: &str, args: &[&str]) -> Option<String> {
-    Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .env("GIT_PAGER", "cat")
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-}
-
 pub fn detect_git(root: &str) -> Option<GitInfo> {
-    let branch = git_out(root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    let branch = crate::util::git_stdout_ok(root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
     if branch.is_empty() {
         return None;
     }
-    let status = git_out(root, &["status", "--porcelain"]).unwrap_or_default();
-    let ahead_behind = git_out(
+    let status = crate::util::git_stdout_ok(root, &["status", "--porcelain"]).unwrap_or_default();
+    let ahead_behind = crate::util::git_stdout_ok(
         root,
         &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
     );

@@ -208,6 +208,53 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
     }
 }
 
+/* ------------------------------- git helpers ------------------------------ */
+
+/// Raw stdout of `git <args>` run in `root`; empty when git can't run.
+/// `GIT_PAGER=cat` is always set so output never blocks on a pager.
+pub fn git_stdout(root: &str, args: &[&str]) -> String {
+    Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .env("GIT_PAGER", "cat")
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default()
+}
+
+/// Trimmed stdout when the command succeeds, `None` otherwise.
+pub fn git_stdout_ok(root: &str, args: &[&str]) -> Option<String> {
+    Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .env("GIT_PAGER", "cat")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+}
+
+/// Exit code plus combined stdout+stderr — for surfacing git output to the model.
+pub fn git_result(root: &str, args: &[&str]) -> (i32, String) {
+    match Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .env("GIT_PAGER", "cat")
+        .output()
+    {
+        Ok(o) => {
+            let mut s = String::from_utf8_lossy(&o.stdout).to_string();
+            let err = String::from_utf8_lossy(&o.stderr);
+            if !err.is_empty() {
+                s.push_str(&format!("\n{err}"));
+            }
+            (o.status.code().unwrap_or(1), s)
+        }
+        Err(_) => (1, String::new()),
+    }
+}
+
 /* ----------------------------- file index ----------------------------- */
 
 pub struct FileIndex {
@@ -216,15 +263,7 @@ pub struct FileIndex {
 }
 
 fn git_files(root: &str) -> Option<Vec<String>> {
-    let out = Command::new("git")
-        .args(["ls-files", "-co", "--exclude-standard"])
-        .current_dir(root)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let text = git_stdout_ok(root, &["ls-files", "-co", "--exclude-standard"])?;
     if text.is_empty() {
         return None;
     }

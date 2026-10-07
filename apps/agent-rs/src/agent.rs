@@ -173,23 +173,13 @@ fn review_changes(
     ] {
         let mut argv: Vec<String> = args.iter().map(|s| s.to_string()).collect();
         argv.extend(files.iter().cloned());
-        if let Ok(o) = Command::new("git")
-            .args(&argv)
-            .current_dir(root)
-            .env("GIT_PAGER", "cat")
-            .output()
-        {
-            body.push_str(&String::from_utf8_lossy(&o.stdout));
-        }
+        body.push_str(&crate::util::git_stdout(
+            root,
+            &argv.iter().map(String::as_str).collect::<Vec<_>>(),
+        ));
     }
     // New untracked files never appear in `git diff` — inline them.
-    let untracked = Command::new("git")
-        .args(["ls-files", "--others", "--exclude-standard"])
-        .current_dir(root)
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default();
+    let untracked = crate::util::git_stdout(root, &["ls-files", "--others", "--exclude-standard"]);
     for f in files {
         if untracked.lines().any(|u| u == f) {
             if let Ok(s) = fs::read_to_string(Path::new(root).join(f)) {
@@ -257,15 +247,7 @@ fn list_seqs(dir: &Path) -> Vec<i64> {
 }
 
 fn current_head(root: &str) -> Option<String> {
-    let out = Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(root)
-        .output()
-        .ok()?;
-    out.status
-        .success()
-        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
-        .filter(|s| !s.is_empty())
+    crate::util::git_stdout_ok(root, &["rev-parse", "HEAD"]).filter(|s| !s.is_empty())
 }
 
 /// Snapshot project-relative paths before mutation; returns (seq, paths).
@@ -534,21 +516,12 @@ pub struct RunOpts<'a> {
 }
 
 fn git_diff_stat(root: &str) -> Option<String> {
-    let diff = Command::new("git")
-        .args(["diff", "--stat"])
-        .current_dir(root)
-        .env("GIT_PAGER", "cat")
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default();
-    let untracked = Command::new("git")
-        .args(["ls-files", "--others", "--exclude-standard"])
-        .current_dir(root)
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default();
+    let diff = crate::util::git_stdout(root, &["diff", "--stat"])
+        .trim()
+        .to_string();
+    let untracked = crate::util::git_stdout(root, &["ls-files", "--others", "--exclude-standard"])
+        .trim()
+        .to_string();
     let mut parts = vec![];
     if !diff.is_empty() {
         parts.push(diff);
