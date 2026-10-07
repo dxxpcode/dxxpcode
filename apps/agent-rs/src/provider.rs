@@ -1003,7 +1003,8 @@ mod tests {
                 Ok(n)
             }
         }
-        let payload = "event: message_start\ndata: {\"a\":1}\n\ndata: [DONE]\n\ndata: {\"b\":\"x\\ny\"}\n\n";
+        let payload =
+            "event: message_start\ndata: {\"a\":1}\n\ndata: [DONE]\n\ndata: {\"b\":\"x\\ny\"}\n\n";
         let mut got: Vec<(String, String)> = vec![];
         read_sse(
             Frag {
@@ -1014,7 +1015,10 @@ mod tests {
             |e, d| got.push((e.to_string(), d.to_string())),
         );
         assert_eq!(got.len(), 3);
-        assert_eq!(got[0], ("message_start".to_string(), "{\"a\":1}".to_string()));
+        assert_eq!(
+            got[0],
+            ("message_start".to_string(), "{\"a\":1}".to_string())
+        );
         assert_eq!(got[1], ("".to_string(), "[DONE]".to_string()));
         assert_eq!(got[2].1, "{\"b\":\"x\\ny\"}");
     }

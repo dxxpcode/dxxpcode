@@ -423,9 +423,7 @@ fn json_len(v: &Value) -> usize {
                 .sum::<usize>()
                 + m.len().saturating_sub(1)
         }
-        Value::Array(a) => {
-            2 + a.iter().map(json_len).sum::<usize>() + a.len().saturating_sub(1)
-        }
+        Value::Array(a) => 2 + a.iter().map(json_len).sum::<usize>() + a.len().saturating_sub(1),
         Value::String(s) => s.len() + 2,
         Value::Null => 4,
         other => other.to_string().len(),
