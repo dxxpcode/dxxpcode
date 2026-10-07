@@ -77,7 +77,10 @@ export default function App() {
   const [modelOpts, setModelOpts] = useState<string[]>([]);
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
+  const [setQ, setSetPalQuery] = useState("");
+  const [setI, setSetPalIdx] = useState(0);
+  const [setPalOpen_, setSetPalOpen_] = useState(-1); // expanded row index within filtered list
+  const [setPalOptIdx, setSetPalOptIdx] = useState(0);
   // In-app updates: checked once on launch, downloaded in the background,
   // then surfaced as a restart row in Settings → About.
   const [update, setUpdate] = useState<{ version: string; status: "downloading" | "ready" } | null>(null);
@@ -871,8 +874,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (settingsOpen && settingsTab === "providers") void send({ type: "command", name: "/models" });
-  }, [settingsOpen, settingsTab]);
+    if (settingsOpen) void send({ type: "command", name: "/models" });
+  }, [settingsOpen]);
   useEffect(() => {
     setModelOpts([]);
     if (ready && !ready.needsSetup) void send({ type: "command", name: "/models" });
@@ -940,6 +943,14 @@ export default function App() {
       setPalIdx(0);
     }
   }, [palOpen]);
+  useEffect(() => {
+    if (settingsOpen) {
+      setSetPalQuery("");
+      setSetPalIdx(0);
+      setSetPalOpen_(-1);
+      setSetPalOptIdx(0);
+    }
+  }, [settingsOpen]);
 
   // Sessions feed both the ⌘K palette and the rail — refresh on ready, on
   // session change, and when a run settles (a first run assigns the title).
@@ -971,6 +982,55 @@ export default function App() {
   };
   const sessionGroups = groupSessions(palQuery);
   const railGroups = groupSessions("");
+  // Settings palette: every setting is a searchable row. Select rows expand
+  // their options inline under the row; action rows run immediately.
+  type SetEntry = {
+    id: string; label: string; group: string; value?: string;
+    options?: string[]; onPick?: (v: string) => void; action?: () => void; danger?: boolean;
+  };
+  const setEntries: SetEntry[] = [
+    { id: "provider", label: "Provider", group: "Providers & Models", value: ready?.provider,
+      options: [...(ready?.providers?.length ? ready.providers : [ready?.provider ?? ""]), "connect a provider…"],
+      onPick: (v) => v === "connect a provider…" ? cmd("/providers") : void send({ type: "command", name: `/provider ${v}` }) },
+    { id: "model", label: "Model", group: "Providers & Models", value: ready?.model,
+      options: [...(modelOpts.length ? modelOpts : [ready?.model ?? ""]), "custom…"],
+      onPick: (v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` }) },
+    { id: "effort", label: "Reasoning effort", group: "Providers & Models", value: ready?.effort ?? "default",
+      options: [...EFFORT_LEVELS], onPick: (v) => void send({ type: "command", name: `/effort ${v}` }) },
+    { id: "variant", label: "Model variant", group: "Providers & Models", value: ready?.variant ?? "default",
+      options: ["default", ...(ready?.variants ?? [])], onPick: (v) => void send({ type: "command", name: `/variant ${v}` }) },
+    { id: "approvals", label: "Approvals", group: "Providers & Models", value: ready?.mode === "smart" ? "smart (Jev)" : ready?.mode,
+      options: ["ask", "always-approve", "smart (Jev)"], onPick: (v) => void send({ type: "command", name: `/approval ${v}` }) },
+    { id: "theme", label: "Theme", group: "Appearance", value: artSrc ? "dark — set by art" : theme,
+      ...(artSrc ? {} : { options: ["system", "light", "dark"], onPick: (v) => setTheme(v as "system" | "light" | "dark") }) },
+    { id: "artwork", label: "Artwork", group: "Appearance", value: artLabel || artDirLabel || "None",
+      options: ["None", ...ART_PIECES.map((p) => p.title), "Custom folder…"],
+      onPick: (v) => {
+        if (v === "None") { setArtPiece(""); setArtDir(""); }
+        else if (v === "Custom folder…") {
+          void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } });
+        } else {
+          const p = ART_PIECES.find((x) => x.title === v);
+          if (p) setArtPiece(artPiece === p.id ? "" : p.id);
+        }
+      } },
+    { id: "project", label: "Open a project…", group: "Session", action: () => { setSettingsOpen(false); openProject(); } },
+    { id: "setup", label: "Run setup…", group: "Session", action: () => cmd("/setup") },
+    { id: "resume", label: "Resume a session…", group: "Session", action: () => { setSettingsOpen(false); setPalOpen(true); } },
+    { id: "compact", label: "Compact context", group: "Session", action: () => cmd("/compact") },
+    { id: "undo", label: "Undo checkpoint", group: "Session", action: () => cmd("/undo") },
+    { id: "new", label: "New session", group: "Session", action: () => cmd("/new") },
+    ...(update?.status === "ready" ? [{ id: "update", label: `Update ready — v${update.version}`, group: "DxxpCode", action: () => void relaunch() }] : []),
+    ...(update?.status === "downloading" ? [{ id: "update", label: `Downloading update v${update.version}…`, group: "DxxpCode" }] : []),
+    { id: "docs", label: "Documentation", group: "DxxpCode", action: () => cmd("/docs") },
+    { id: "changelog", label: "Changelog", group: "DxxpCode", action: () => cmd("/changelog") },
+    { id: "version", label: "Version", group: "DxxpCode", value: `v${ready?.version ?? ""}` },
+    { id: "quit", label: "Quit dxxpcode", group: "DxxpCode", action: () => cmd("/exit"), danger: true },
+  ];
+  const setPalRows = setEntries.filter((e) => {
+    const q = setQ.trim().toLowerCase();
+    return !q || e.label.toLowerCase().includes(q) || (e.value ?? "").toLowerCase().includes(q);
+  });
   const palRows = sessionGroups.flatMap(([, g]) => g);
   // Queued backlog shows above session history — picking one loads it into the
   // composer for editing and drops it from the queue.
@@ -1315,162 +1375,85 @@ export default function App() {
       </header>
 
       {settingsOpen && ready && (
-        <div className="settings" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
-          <div className="settings-dialog">
-            <nav className="settings-nav">
-              <div className="settings-nav-title">Settings</div>
-              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => {
-                const Icon = { general: SlidersHorizontal, providers: Cpu, appearance: Palette, session: History, about: Info }[tab];
-                return (
-                  <Button
-                    key={tab}
-                    variant={settingsTab === tab ? "secondary" : "ghost"}
-                    size="sm"
-                    className="settings-navitem"
-                    data-active={settingsTab === tab}
-                    onClick={() => setSettingsTab(tab)}
-                  >
-                    <Icon size={14} />
-                    {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
-                  </Button>
-                );
-              })}
-            </nav>
-            <ScrollArea className="settings-pane">
-              {settingsTab === "general" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">General</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" onClick={openProject} />
-                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
-                  </div>
-                </div>
-              )}
-              {settingsTab === "providers" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Providers & Models</div>
-                  <div className="setlist">
-                    <SetSelect
-                      label="Provider"
-                      value={ready.provider}
-                      options={ready.providers && ready.providers.length ? ready.providers : [ready.provider]}
-                      extra={["connect a provider…"]}
-                      onChange={(v) => v === "connect a provider…" ? cmd("/providers") : void send({ type: "command", name: `/provider ${v}` })}
-                    />
-                    <SetSelect
-                      label="Model"
-                      value={ready.model}
-                      options={modelOpts.length ? modelOpts : [ready.model]}
-                      onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
-                      extra={["custom…"]}
-                    />
-                    <SetSelect
-                      label="Reasoning effort"
-                      value={ready.effort ?? "default"}
-                      options={[...EFFORT_LEVELS]}
-                      onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
-                    />
-                    <SetSelect
-                      label="Model variant"
-                      value={ready.variant ?? "default"}
-                      options={["default", ...(ready.variants ?? [])]}
-                      onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
-                    />
-                    <div className="setrow static">
-                      <span className="setlabel">Approval mode</span>
-                      <span className="modeseg">
-                        {(["ask", "always-approve", "smart (Jev)"] as const).map((m) => (
-                          <button
-                            key={m}
-                            className={`modeseg-btn${(ready.mode === "smart" ? "smart (Jev)" : ready.mode) === m ? " cur" : ""}`}
-                            onClick={() => void send({ type: "command", name: `/approval ${m}` })}
+        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
+          <div className="sesspal-dialog setpal-dialog">
+            <div className="pal-search">
+              <Search size={13} />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search settings…"
+                value={setQ}
+                onChange={(e) => { setSetPalQuery(e.target.value); setSetPalIdx(0); setSetPalOpen_(-1); }}
+                onKeyDown={(e) => {
+                  const expanded = setPalOpen_ >= 0 ? setPalRows[setPalOpen_] : undefined;
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    if (expanded) setSetPalOpen_(-1);
+                    else setSettingsOpen(false);
+                  } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    if (expanded?.options) setSetPalOptIdx((i) => Math.min(i + 1, expanded.options!.length - 1));
+                    else setSetPalIdx((i) => Math.min(i + 1, setPalRows.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    if (expanded?.options) setSetPalOptIdx((i) => Math.max(i - 1, 0));
+                    else setSetPalIdx((i) => Math.max(i - 1, 0));
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (expanded?.options) expanded.onPick?.(expanded.options[setPalOptIdx]);
+                    else {
+                      const row = setPalRows[setI];
+                      if (!row) return;
+                      if (row.options) { setSetPalOpen_(setI); setSetPalOptIdx(Math.max(0, row.options.indexOf(row.value ?? ""))); }
+                      else row.action?.();
+                    }
+                  }
+                }}
+                spellCheck={false}
+              />
+            </div>
+            <ScrollArea className="pal-list">
+              {setPalRows.length === 0 && <p className="pal-empty">No matching settings.</p>}
+              {(() => {
+                let lastGroup = "";
+                return setPalRows.map((row, idx) => (
+                  <div key={row.id}>
+                    {row.group !== lastGroup && <div className="pal-group-label">{(lastGroup = row.group)}</div>}
+                    <Button
+                      variant="ghost"
+                      data-active={setI === idx || undefined}
+                      className={`pal-row setpal-row${row.danger ? " danger" : ""}`}
+                      onMouseEnter={() => setSetPalIdx(idx)}
+                      onClick={() => {
+                        if (row.options) { setSetPalOpen_(setPalOpen_ === idx ? -1 : idx); setSetPalOptIdx(Math.max(0, row.options.indexOf(row.value ?? ""))); }
+                        else row.action?.();
+                      }}
+                    >
+                      <span className="truncate">{row.label}</span>
+                      {row.value && <span className="setpal-val">{row.value}</span>}
+                      {row.options && <ChevronDown size={11} className={`setpal-caret${setPalOpen_ === idx ? " up" : ""}`} />}
+                    </Button>
+                    {setPalOpen_ === idx && row.options && (
+                      <div className="setpal-opts">
+                        {row.options.map((o, oi) => (
+                          <Button
+                            key={o}
+                            variant="ghost"
+                            data-active={setPalOptIdx === oi || undefined}
+                            className="pal-row setpal-opt"
+                            onMouseEnter={() => setSetPalOptIdx(oi)}
+                            onClick={() => row.onPick?.(o)}
                           >
-                            {m}
-                          </button>
+                            <span className="setpal-opt-check">{o === row.value ? "✓" : ""}</span>
+                            <span className="truncate">{o}</span>
+                          </Button>
                         ))}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {settingsTab === "appearance" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Appearance</div>
-                  <div className="setlist">
-                    <div className="setrow static">
-                      <span className="setlabel">Theme{artSrc ? <span className="setdesc">Dark while art is set</span> : null}</span>
-                      <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
-                        {(["system", "light", "dark"] as const).map((t) => (
-                          <button
-                            key={t}
-                            disabled={artSrc != null}
-                            className={`modeseg-btn${theme === t ? " cur" : ""}`}
-                            onMouseEnter={() => setPreviewTheme(t)}
-                            onClick={() => { setTheme(t); setPreviewTheme(null); }}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </span>
-                    </div>
-                    <div className="setrow static artsect">
-                      <span className="setlabel">Art</span>
-                    </div>
-                    <div className="artgrid">
-                      {ART_PIECES.map((p) => (
-                        <button
-                          key={p.id}
-                          className={`artthumb${artPiece === p.id ? " cur" : ""}`}
-                          title={`${p.title} — ${p.artist}`}
-                          onClick={() => setArtPiece(artPiece === p.id ? "" : p.id)}
-                        >
-                          <img src={p.src} alt={p.title} />
-                          <span className="artthumb-name">{p.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <SetRow
-                      label="Custom folder"
-                      value={artDirLabel || "None"}
-                      onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } })}
-                    />
-                    {artLabel && (
-                      <SetAction label="Clear art" onClick={() => { setArtPiece(""); setArtDir(""); }} />
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
-              {settingsTab === "session" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Session</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
-                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
-                  </div>
-                </div>
-              )}
-              {settingsTab === "about" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">About</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
-                    {update?.status === "downloading" && (
-                      <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
-                    )}
-                    {update?.status === "ready" && (
-                      <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
-                    )}
-                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
-                  </div>
-                </div>
-              )}
+                ));
+              })()}
             </ScrollArea>
           </div>
         </div>
