@@ -560,9 +560,10 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .ckpt-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); flex: none; }
 .ckpt-label { color: var(--dim); font-weight: 500; }
 .ckpt-meta {
+  display: inline-flex; gap: 4px; min-width: 0; overflow: hidden;
   font-family: var(--font-mono); font-size: 11px; color: var(--faint);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
+.ckpt-more { white-space: nowrap; }
 .ckpt-acts { display: inline-flex; gap: 2px; margin-left: 4px; }
 .ckpt-act {
   background: none; border: none; padding: 1px 7px; border-radius: var(--radius-sm);
@@ -570,6 +571,17 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   cursor: pointer; transition: color 0.15s var(--ease), background 0.15s var(--ease);
 }
 .ckpt-act:hover { color: var(--text); background: var(--surface2); }
+
+/* ---------- file chips ---------- */
+.fchip {
+  display: inline-flex; align-items: baseline; gap: 6px; min-width: 0;
+  padding: 2px 8px; border: none; border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: var(--font-mono); font-size: 11px; color: var(--text);
+  cursor: pointer; transition: background 0.15s var(--ease);
+}
+.fchip:hover { background: var(--border-strong); }
+.fchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; width: 100%; }
 
 .errrow { display: flex; gap: 8px; font-size: 12px; padding-left: 4px; color: var(--text); }
 .errrow .erricon { color: var(--red); flex-shrink: 0; }
@@ -813,7 +825,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .worked.warn .worked-label { color: var(--amber); }
 .worked.fail .worked-label { color: var(--red); }
 .worked .meta { color: var(--dim); font-size: 12px; }
-.worked ul { margin: 4px 0 0 14px; padding-left: 14px; color: var(--dim); font-size: 12.5px; width: 100%; }
 
 /* ---------- status + composer ---------- */
 .statusline {

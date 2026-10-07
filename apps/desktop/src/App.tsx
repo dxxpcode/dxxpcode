@@ -524,9 +524,26 @@ export default function App() {
         setStatus("Thinking…");
         break;
       }
-      case "todo":
-        push({ k: "todos", items: ev.items as Todo[] });
+      case "todo": {
+        // One checklist card per turn: update the last todos item in place
+        // instead of appending a new card for every write.
+        flushText();
+        closeThink();
+        const items = ev.items as Todo[];
+        setItems((prev) => {
+          const next = [...prev];
+          for (let i = next.length - 1; i >= 0; i--) {
+            const it = next[i];
+            if (it.k === "todos") {
+              next[i] = { ...it, items };
+              return next;
+            }
+            if (it.k === "user" || it.k === "done") break;
+          }
+          return [...next, { k: "todos", items }];
+        });
         break;
+      }
       case "checkpoint": {
         // Fold into the turn's existing checkpoint row — one ledger entry per
         // run, latest seq, union of snapshotted paths (Cursor-style).
@@ -2084,7 +2101,10 @@ function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: number; 
         <div className="ckpt row">
           <span className="ckpt-dot" />
           <span className="ckpt-label">Checkpoint {item.seq}</span>
-          <span className="ckpt-meta">{item.paths.length === 1 ? item.paths[0] : `${item.paths.length} files`}</span>
+          <span className="ckpt-meta">
+            {item.paths.slice(0, 4).map((p) => <FileChip key={p} path={p} />)}
+            {item.paths.length > 4 && <span className="ckpt-more">+{item.paths.length - 4}</span>}
+          </span>
           {onCmd && (
             <span className="ckpt-acts">
               <button className="ckpt-act" onClick={() => onCmd("/undo")}>Restore</button>
@@ -2109,7 +2129,9 @@ function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: number; 
           <span className="worked-label">{label}{item.secs != null ? ` for ${fmtDuration(item.secs)}` : ""}</span>
           {meta && <span className="meta">{meta}</span>}
           {item.filesChanged.length > 0 && (
-            <ul>{item.filesChanged.map((f) => <li className="mono" key={f}>{f}</li>)}</ul>
+            <div className="fchips">
+              {item.filesChanged.map((f) => <FileChip key={f} path={f} />)}
+            </div>
           )}
         </div>
       );
@@ -2275,6 +2297,23 @@ function TGroup({ seg, running, lastIdx, onCmd }: { seg: Grouped[]; running: boo
         </div>
       )}
     </div>
+  );
+}
+
+function FileChip({ path }: { path: string }) {
+  const base = path.split("/").pop() ?? path;
+  const dir = path.slice(0, path.length - base.length);
+  return (
+    <button
+      className="fchip"
+      title={`${path} — click to copy`}
+      onClick={() => void navigator.clipboard.writeText(path)}
+    >
+      <span className="dc-path">
+        <span className="dc-base">{base}</span>
+        {dir && <span className="dc-dir">{dir}</span>}
+      </span>
+    </button>
   );
 }
 
