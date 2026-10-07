@@ -95,6 +95,26 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   letter-spacing: 0.09em; text-transform: uppercase;
   color: var(--faint); opacity: 0.75;
 }
+.setpal-dialog { width: min(520px, calc(100vw - 48px)); }
+.setpal-row .setpal-val {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 11.5px; color: var(--faint);
+  max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.setpal-caret { flex-shrink: 0; color: var(--faint); transition: transform 0.15s var(--ease); }
+.setpal-caret.up { transform: rotate(180deg); }
+.setpal-row.danger { color: var(--red); }
+.setpal-opts {
+  margin: 2px 0 4px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  margin-left: 16px;
+}
+.setpal-opt { height: 30px; }
+.setpal-opt-check {
+  width: 14px; flex-shrink: 0;
+  font-size: 11px; color: var(--text);
+}
 
 /* Sessions rail */
 .rail {
