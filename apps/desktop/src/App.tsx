@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -2070,7 +2070,7 @@ export default function App() {
                     aria-pressed={planMode}
                     disabled={running || onboarding}
                     onClick={() => setPlanMode((v) => !v)}
-                  >plan</button>
+                  ><ListChecks size={11} strokeWidth={2} />plan</button>
                 </>
               )}
             </div>
