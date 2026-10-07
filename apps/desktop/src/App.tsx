@@ -77,7 +77,7 @@ export default function App() {
   const [modelOpts, setModelOpts] = useState<string[]>([]);
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"general" | "providers" | "appearance" | "session" | "about">("general");
+  const [setQuery, setSetQuery] = useState("");
   // In-app updates: checked once on launch, downloaded in the background,
   // then surfaced as a restart row in Settings → About.
   const [update, setUpdate] = useState<{ version: string; status: "downloading" | "ready" } | null>(null);
@@ -871,8 +871,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (settingsOpen && settingsTab === "providers") void send({ type: "command", name: "/models" });
-  }, [settingsOpen, settingsTab]);
+    if (settingsOpen) void send({ type: "command", name: "/models" });
+  }, [settingsOpen]);
   useEffect(() => {
     setModelOpts([]);
     if (ready && !ready.needsSetup) void send({ type: "command", name: "/models" });
@@ -918,11 +918,13 @@ export default function App() {
         if (ready) setSettingsOpen((v) => !v);
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
+      } else if (e.key === "Escape" && settingsOpen) {
+        setSettingsOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ready, palOpen]);
+  }, [ready, palOpen, settingsOpen]);
 
   // Boot hand-off: when ready lands, the boot mark fades/scales out over
   // ~300ms while the hero fades in, then unmounts.
@@ -971,6 +973,7 @@ export default function App() {
   };
   const sessionGroups = groupSessions(palQuery);
   const railGroups = groupSessions("");
+  const setShow = (keys: string, q: string) => !q.trim() || keys.includes(q.trim().toLowerCase());
   const palRows = sessionGroups.flatMap(([, g]) => g);
   // Queued backlog shows above session history — picking one loads it into the
   // composer for editing and drops it from the queue.
@@ -1315,164 +1318,137 @@ export default function App() {
       </header>
 
       {settingsOpen && ready && (
-        <div className="settings" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
-          <div className="settings-dialog">
-            <nav className="settings-nav">
-              <div className="settings-nav-title">Settings</div>
-              {(["general", "providers", "appearance", "session", "about"] as const).map((tab) => {
-                const Icon = { general: SlidersHorizontal, providers: Cpu, appearance: Palette, session: History, about: Info }[tab];
-                return (
-                  <Button
-                    key={tab}
-                    variant={settingsTab === tab ? "secondary" : "ghost"}
-                    size="sm"
-                    className="settings-navitem"
-                    data-active={settingsTab === tab}
-                    onClick={() => setSettingsTab(tab)}
-                  >
-                    <Icon size={14} />
-                    {{ general: "General", providers: "Providers & Models", appearance: "Appearance", session: "Session", about: "About" }[tab]}
-                  </Button>
-                );
-              })}
-            </nav>
-            <ScrollArea className="settings-pane">
-              {settingsTab === "general" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">General</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Project</span><span className="setval mono">{ready.project.name}</span></div>
-                    <SetAction label="Open a project…" onClick={openProject} />
-                    <SetAction label="Run setup…" onClick={() => cmd("/setup")} />
-                  </div>
-                </div>
-              )}
-              {settingsTab === "providers" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Providers & Models</div>
-                  <div className="setlist">
-                    <SetSelect
-                      label="Provider"
-                      value={ready.provider}
-                      options={ready.providers && ready.providers.length ? ready.providers : [ready.provider]}
-                      extra={["connect a provider…"]}
-                      onChange={(v) => v === "connect a provider…" ? cmd("/providers") : void send({ type: "command", name: `/provider ${v}` })}
-                    />
-                    <SetSelect
-                      label="Model"
-                      value={ready.model}
-                      options={modelOpts.length ? modelOpts : [ready.model]}
-                      onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
-                      extra={["custom…"]}
-                    />
-                    <SetSelect
-                      label="Reasoning effort"
-                      value={ready.effort ?? "default"}
-                      options={[...EFFORT_LEVELS]}
-                      onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
-                    />
-                    <SetSelect
-                      label="Model variant"
-                      value={ready.variant ?? "default"}
-                      options={["default", ...(ready.variants ?? [])]}
-                      onChange={(v) => void send({ type: "command", name: `/variant ${v}` })}
-                    />
-                    <div className="setrow static">
-                      <span className="setlabel">Approval mode</span>
-                      <span className="modeseg">
-                        {(["ask", "always-approve", "smart (Jev)"] as const).map((m) => (
-                          <button
-                            key={m}
-                            className={`modeseg-btn${(ready.mode === "smart" ? "smart (Jev)" : ready.mode) === m ? " cur" : ""}`}
-                            onClick={() => void send({ type: "command", name: `/approval ${m}` })}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {settingsTab === "appearance" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Appearance</div>
-                  <div className="setlist">
-                    <div className="setrow static">
-                      <span className="setlabel">Theme{artSrc ? <span className="setdesc">Dark while art is set</span> : null}</span>
-                      <span className="modeseg" onMouseLeave={() => setPreviewTheme(null)}>
-                        {(["system", "light", "dark"] as const).map((t) => (
-                          <button
-                            key={t}
-                            disabled={artSrc != null}
-                            className={`modeseg-btn${theme === t ? " cur" : ""}`}
-                            onMouseEnter={() => setPreviewTheme(t)}
-                            onClick={() => { setTheme(t); setPreviewTheme(null); }}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </span>
-                    </div>
-                    <div className="setrow static artsect">
-                      <span className="setlabel">Art</span>
-                    </div>
-                    <div className="artgrid">
-                      {ART_PIECES.map((p) => (
-                        <button
-                          key={p.id}
-                          className={`artthumb${artPiece === p.id ? " cur" : ""}`}
-                          title={`${p.title} — ${p.artist}`}
-                          onClick={() => setArtPiece(artPiece === p.id ? "" : p.id)}
-                        >
-                          <img src={p.src} alt={p.title} />
-                          <span className="artthumb-name">{p.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <SetRow
-                      label="Custom folder"
-                      value={artDirLabel || "None"}
-                      onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } })}
-                    />
-                    {artLabel && (
-                      <SetAction label="Clear art" onClick={() => { setArtPiece(""); setArtDir(""); }} />
-                    )}
-                  </div>
-                </div>
-              )}
-              {settingsTab === "session" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">Session</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Session ID</span><span className="setval mono">{sessionInfo.id ?? "—"}</span></div>
-                    <div className="setrow static"><span className="setlabel">Context</span><span className="setval mono">{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens} tok / 60k cap` : "—"}</span></div>
-                    <SetAction label="Resume a session…" onClick={() => { setSettingsOpen(false); setPalOpen(true); }} />
-                    <SetAction label="Compact context" onClick={() => cmd("/compact")} />
-                    <SetAction label="Undo last checkpoint" onClick={() => cmd("/undo")} />
-                    <SetAction label="Start new session" onClick={() => cmd("/new")} />
-                  </div>
-                </div>
-              )}
-              {settingsTab === "about" && (
-                <div className="setgroup">
-                  <div className="setgroup-title">About</div>
-                  <div className="setlist">
-                    <div className="setrow static"><span className="setlabel">Version</span><span className="setval mono">v{ready.version}</span></div>
-                    {update?.status === "downloading" && (
-                      <div className="setrow static"><span className="setlabel">Update</span><span className="setval mono">downloading v{update.version}…</span></div>
-                    )}
-                    {update?.status === "ready" && (
-                      <SetAction label={`Update ready — v${update.version} · restart to apply`} onClick={() => void relaunch()} />
-                    )}
-                    <SetAction label="Documentation" onClick={() => cmd("/docs")} />
-                    <SetAction label="Changelog" onClick={() => cmd("/changelog")} />
-                    <SetAction label="Quit dxxpcode" onClick={() => cmd("/exit")} danger />
-                  </div>
-                </div>
-              )}
-            </ScrollArea>
+        <div className="settings">
+          <div className="settop">
+            <button className="settings-back" onClick={() => setSettingsOpen(false)}>
+              <ArrowLeft size={13} /> Back <kbd>esc</kbd>
+            </button>
+            <span className="settop-title">Settings</span>
+            <label className="settop-search">
+              <Search size={12} />
+              <input
+                type="text"
+                placeholder="Search settings…"
+                value={setQuery}
+                onChange={(e) => setSetQuery(e.target.value)}
+              />
+            </label>
           </div>
+          <ScrollArea className="setscroll">
+            <div className="setcol">
+              {setShow("providers models connections approvals", setQuery) && (
+                <section className="setsect">
+                  <h1 className="seth">Providers</h1>
+                  <p className="setlede">Connections and models.</p>
+                  <div className="conn">
+                    {(ready.providers && ready.providers.length ? ready.providers : [ready.provider]).map((p) => (
+                      <button key={p} className="conn-row" onClick={() => void send({ type: "command", name: `/provider ${p}` })}>
+                        <span className="conn-logo">{p.slice(0, 1).toUpperCase()}</span>
+                        <span className="conn-main">
+                          <span className="conn-name">{p}</span>
+                          <span className="conn-stat"><i className="conn-dot" />{p === ready.provider ? "Active" : "Connected"}</span>
+                        </span>
+                        <ChevronRight size={13} className="conn-chev" />
+                      </button>
+                    ))}
+                    <button className="conn-row" onClick={() => cmd("/providers")}>
+                      <span className="conn-logo"><Plus size={13} /></span>
+                      <span className="conn-main"><span className="conn-name dim">Connect a provider…</span></span>
+                    </button>
+                    <div className="conn-foot">
+                      <span className="cf">Model <SetSelect compact label="Model" value={ready.model} options={modelOpts.length ? modelOpts : [ready.model]} extra={["custom…"]} onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })} /></span>
+                      <span className="cf">Effort <SetSelect compact label="Reasoning effort" value={ready.effort ?? "default"} options={[...EFFORT_LEVELS]} onChange={(v) => void send({ type: "command", name: `/effort ${v}` })} /></span>
+                      <span className="cf">Variant <SetSelect compact label="Model variant" value={ready.variant ?? "default"} options={["default", ...(ready.variants ?? [])]} onChange={(v) => void send({ type: "command", name: `/variant ${v}` })} /></span>
+                      <span className="cf cf-right">Approvals <SetSelect compact label="Approvals" value={ready.mode === "smart" ? "smart (Jev)" : ready.mode} options={["ask", "always-approve", "smart (Jev)"]} onChange={(v) => void send({ type: "command", name: `/approval ${v}` })} /></span>
+                    </div>
+                  </div>
+                </section>
+              )}
+              {setShow("appearance theme artwork art", setQuery) && (
+                <section className="setsect">
+                  <h1 className="seth">Appearance</h1>
+                  <p className="setlede">Theme and artwork.</p>
+                  <div className="ttiles" onMouseLeave={() => setPreviewTheme(null)}>
+                    {(["system", "light", "dark"] as const).map((t) => (
+                      <button
+                        key={t}
+                        disabled={artSrc != null}
+                        className={`ttile${theme === t ? " on" : ""}`}
+                        onMouseEnter={() => setPreviewTheme(t)}
+                        onClick={() => { setTheme(t); setPreviewTheme(null); }}
+                      >
+                        <span className={`tprev ${t}`} />
+                        <span className="tname"><i className="ttick" />{t}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {artSrc && <p className="setnote">Dark while art is set.</p>}
+                  <div className="setsub">Artwork</div>
+                  <div className="gal">
+                    {ART_PIECES.map((p) => (
+                      <button
+                        key={p.id}
+                        className={`gitem${artPiece === p.id ? " on" : ""}`}
+                        title={`${p.title} — ${p.artist}`}
+                        onClick={() => setArtPiece(artPiece === p.id ? "" : p.id)}
+                      >
+                        <img src={p.src} alt={p.title} />
+                        <span>{p.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="setlinks">
+                    <button onClick={() => void invoke<string | null>("pick_folder").then((dir) => { if (dir) { setArtPiece(""); setArtDir(dir); } })}>
+                      Custom folder…{artDirLabel ? <span className="mono dim"> {artDirLabel}</span> : null}
+                    </button>
+                    {artLabel && <button onClick={() => { setArtPiece(""); setArtDir(""); }}>Clear art</button>}
+                  </div>
+                </section>
+              )}
+              {setShow("project general setup", setQuery) && (
+                <section className="setsect">
+                  <h1 className="seth">Project</h1>
+                  <p className="setlede">Where sessions run.</p>
+                  <div className="pcard">
+                    <span className="picon"><Folder size={15} /></span>
+                    <span className="pmain">
+                      <span className="pname">{ready.project.name}</span>
+                      {ready.project.git && <span className="psub mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>}
+                    </span>
+                    <button className="plink" onClick={openProject}>Open a project…</button>
+                  </div>
+                  <div className="setlinks">
+                    <button onClick={() => cmd("/setup")}>Run setup…</button>
+                  </div>
+                </section>
+              )}
+              {setShow("session history context", setQuery) && (
+                <section className="setsect">
+                  <h1 className="seth">Session</h1>
+                  <p className="setlede">Current session and history.</p>
+                  <div className="stats">
+                    <div className="stat"><b>{sessions.filter((s) => s.desc.split("·")[0].trim() === new Date().toISOString().slice(0, 10)).length}</b><i>sessions today</i></div>
+                    <div className="stat"><b>{sessionInfo.tokens ? `~${sessionInfo.tokens >= 1000 ? (sessionInfo.tokens / 1000).toFixed(1) + "k" : sessionInfo.tokens}` : "—"}</b><i>tokens</i></div>
+                    <div className="stat"><b className="mono">{sessionInfo.id ? sessionInfo.id.slice(0, 8) : "—"}</b><i>session id</i></div>
+                  </div>
+                  <div className="setlinks">
+                    <button onClick={() => { setSettingsOpen(false); setPalOpen(true); }}>Resume a session…</button>
+                    <button onClick={() => cmd("/compact")}>Compact context</button>
+                    <button onClick={() => cmd("/undo")}>Undo checkpoint</button>
+                    <button onClick={() => cmd("/new")}>New session</button>
+                  </div>
+                </section>
+              )}
+              <footer className="setfoot">
+                <span className="sf-ver">dxxpcode <b className="mono">v{ready.version}</b></span>
+                {update?.status === "downloading" && <span className="dim">downloading v{update.version}…</span>}
+                {update?.status === "ready" && <button onClick={() => void relaunch()}>Update ready — v{update.version}</button>}
+                <button onClick={() => cmd("/docs")}>Documentation</button>
+                <button onClick={() => cmd("/changelog")}>Changelog</button>
+                <button className="sf-quit" onClick={() => cmd("/exit")}>Quit</button>
+              </footer>
+            </div>
+          </ScrollArea>
         </div>
       )}
       {docView && (
