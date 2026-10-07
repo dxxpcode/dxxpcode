@@ -527,9 +527,27 @@ export default function App() {
       case "todo":
         push({ k: "todos", items: ev.items as Todo[] });
         break;
-      case "checkpoint":
-        push({ k: "note", text: `checkpoint ${ev.seq} — /undo restores ${(ev.paths as string[]).join(", ")}` });
+      case "checkpoint": {
+        // Fold into the turn's existing checkpoint row — one ledger entry per
+        // run, latest seq, union of snapshotted paths (Cursor-style).
+        flushText();
+        closeThink();
+        const seq = Number(ev.seq);
+        const paths = (ev.paths as string[]) ?? [];
+        setItems((prev) => {
+          const next = [...prev];
+          for (let i = next.length - 1; i >= 0; i--) {
+            const it = next[i];
+            if (it.k === "checkpoint") {
+              next[i] = { ...it, seq, paths: Array.from(new Set([...it.paths, ...paths])) };
+              return next;
+            }
+            if (it.k === "user" || it.k === "done") break;
+          }
+          return [...next, { k: "checkpoint", seq, paths }];
+        });
         break;
+      }
       case "denied":
         push({ k: "denied", tool: String(ev.tool), reason: String(ev.reason) });
         break;
@@ -1667,9 +1685,9 @@ export default function App() {
           <div className="turn" key={ti}>
             {turn.map((seg, si) =>
               Array.isArray(seg) ? (
-                <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} />
+                <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} onCmd={cmd} />
               ) : (
-                <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} />
+                <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} onCmd={cmd} />
               ),
             )}
           </div>
@@ -1956,7 +1974,7 @@ export default function App() {
   );
 }
 
-function ItemView({ item, toolCount }: { item: Item; toolCount?: number }) {
+function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: number; onCmd?: (name: string) => void }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row">{item.text}</div>;
@@ -2061,6 +2079,20 @@ function ItemView({ item, toolCount }: { item: Item; toolCount?: number }) {
       );
     case "denied":
       return <div className="note row" style={{ color: "var(--red)" }}>⎿ Denied: {item.reason} ({item.tool})</div>;
+    case "checkpoint":
+      return (
+        <div className="ckpt row">
+          <span className="ckpt-dot" />
+          <span className="ckpt-label">Checkpoint {item.seq}</span>
+          <span className="ckpt-meta">{item.paths.length === 1 ? item.paths[0] : `${item.paths.length} files`}</span>
+          {onCmd && (
+            <span className="ckpt-acts">
+              <button className="ckpt-act" onClick={() => onCmd("/undo")}>Restore</button>
+              <button className="ckpt-act" onClick={() => onCmd("/review")}>Review</button>
+            </span>
+          )}
+        </div>
+      );
     case "done": {
       const ok = item.status === "completed";
       const cancelled = item.status === "cancelled";
@@ -2198,7 +2230,19 @@ function Elapsed({ since }: { since: number }) {
   return <span className="elapsed">{s}s</span>;
 }
 
-function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; lastIdx: number }) {
+const FILE_ARG_TOOLS = new Set([
+  "read_file", "write_file", "edit_file", "delete_file", "list_directory", "search_files", "git_diff",
+]);
+
+function toolLabel(it: Extract<Item, { k: "tool" }>): string {
+  const name = TOOL_DISPLAY[it.tool] ?? it.tool;
+  const a = it.arg.trim();
+  if (!a) return name;
+  const tail = FILE_ARG_TOOLS.has(it.tool) ? (a.split("/").pop() ?? a) : a.split(/\s+/).slice(0, 3).join(" ");
+  return `${name} ${tail.length > 26 ? tail.slice(0, 25) + "…" : tail}`;
+}
+
+function TGroup({ seg, running, lastIdx, onCmd }: { seg: Grouped[]; running: boolean; lastIdx: number; onCmd?: (name: string) => void }) {
   const anyPending = seg.some((g) => g.item.k === "tool" && g.item.pending);
   const [open, setOpen] = useState(true);
   useEffect(() => {
@@ -2209,22 +2253,24 @@ function TGroup({ seg, running, lastIdx }: { seg: Grouped[]; running: boolean; l
     const it = seg[0];
     return (
       <div className="tgroup">
-        <ItemView item={it.item} />
+        <ItemView item={it.item} onCmd={onCmd} />
       </div>
     );
   }
+  const tools = seg.map((g) => g.item as Extract<Item, { k: "tool" }>);
+  const preview = tools.slice(0, 3).map(toolLabel).join(" · ") + (tools.length > 3 ? ` · +${tools.length - 3}` : "");
   return (
     <div className="tgroup">
       <button
         className="tg-summary"
         onClick={() => setOpen((v) => !v)}
       >
-        <span className={`tg-dot${anyPending ? " live" : ""}`} />{seg.length} tools
+        <span className={`tg-dot${anyPending ? " live" : ""}`} />{seg.length} tools<span className="tg-preview">{preview}</span>
       </button>
       {open && (
         <div className="tg-body">
           {seg.map((it) => (
-            <ItemView key={it.idx} item={it.item} />
+            <ItemView key={it.idx} item={it.item} onCmd={onCmd} />
           ))}
         </div>
       )}
@@ -2240,11 +2286,16 @@ function ToolRow({ item }: { item: Extract<Item, { k: "tool" }> }) {
   const tail = item.pending && item.out?.trim()
     ? item.out.trimEnd().split("\n").slice(-6).join("\n")
     : null;
+  const dstat = item.diff ? diffStats(item.diff) : null;
   return (
     <div className={`tool row${item.isError ? " err" : ""}`}>
       <div className="head">
+        <span className="tsym" aria-hidden>{item.pending ? "·" : item.isError ? "×" : "✓"}</span>
         <span className="name">{name}</span>
         {item.arg && <span className="arg">{item.arg}</span>}
+        {dstat && (dstat.add > 0 || dstat.del > 0) && (
+          <span className="tstat"><span className="ds-add">+{dstat.add}</span><span className="ds-del">−{dstat.del}</span></span>
+        )}
         {item.pending && (
           <>
             <span className="caret tool-caret" aria-hidden />
