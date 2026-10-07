@@ -226,6 +226,40 @@ fn spawn_sidecar(
 /// `restart_sidecar` so the frontend knows the project root.
 struct SessionCwd(Mutex<String>);
 
+/// Unified diff for one file in the current project (`git diff HEAD -- path`).
+/// Untracked files get a synthetic all-add diff so the view still renders.
+#[tauri::command]
+fn file_diff(cwd: State<'_, SessionCwd>, path: String) -> Result<String, String> {
+    let root = cwd.0.lock().unwrap().clone();
+    let out = std::process::Command::new("git")
+        .args(["diff", "HEAD", "--", &path])
+        .current_dir(&root)
+        .output()
+        .map_err(|e| e.to_string())?;
+    let diff = String::from_utf8_lossy(&out.stdout).to_string();
+    if !diff.trim().is_empty() {
+        return Ok(diff);
+    }
+    let full = std::path::Path::new(&root).join(&path);
+    let body = std::fs::read_to_string(&full).map_err(|e| e.to_string())?;
+    let n = body.lines().count();
+    let mut s = format!(
+        "diff --git a/{0} b/{0}
+new file mode 100644
+--- /dev/null
++++ b/{0}
+@@ -0,0 +1,{1} @@
+",
+        path, n
+    );
+    for l in body.lines() {
+        s.push('+');
+        s.push_str(l);
+        s.push('\n');
+    }
+    Ok(s)
+}
+
 #[tauri::command]
 fn session_cwd(cwd: State<'_, SessionCwd>) -> String {
     cwd.0.lock().unwrap().clone()
@@ -489,6 +523,7 @@ fn main() {
             art_image,
             restart_sidecar,
             session_cwd,
+            file_diff,
             worker_start,
             worker_write,
             worker_stop,

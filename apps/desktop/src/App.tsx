@@ -138,6 +138,7 @@ export default function App() {
   // event then finishes onboarding instead of re-showing it.
   const projectSwitchPending = useRef(false);
   const [docView, setDocView] = useState<{ title: string; text: string } | null>(null);
+  const [diffView, setDiffView] = useState<{ path: string; diff: string; pendingId?: number } | null>(null);
   const [palOpen, setPalOpen] = useState(false);
   const [palQuery, setPalQuery] = useState("");
   const [palIdx, setPalIdx] = useState(0);
@@ -902,6 +903,18 @@ export default function App() {
     void send({ type: "approve", id, choice });
   };
 
+  // Changed files: pending diff-review paths + the current session's record.
+  const changedFiles = Array.from(new Set([
+    ...diffs.filter((d) => !d.decided).map((d) => d.path),
+    ...(sessions.find((x) => x.id === sessionInfo.id)?.files ?? []),
+  ]));
+  const openFileDiff = (path: string) => {
+    const pending = diffs.find((d) => !d.decided && d.path === path);
+    if (pending) { setDiffView({ path, diff: pending.diff, pendingId: pending.id }); return; }
+    void invoke<string>("file_diff", { path })
+      .then((diff) => setDiffView({ path, diff }))
+      .catch((e) => setDocView({ title: path, text: String(e) }));
+  };
   const decideDiff = (id: number, decision: string) => {
     setDiffs((prev) => prev.map((d) => (d.id === id ? { ...d, decided: decision } : d)));
     void send({ type: "diff_decide", id, decision });
@@ -1454,6 +1467,45 @@ export default function App() {
                   </div>
                 ));
               })()}
+            </ScrollArea>
+          </div>
+        </div>
+      )}
+      {changedFiles.length > 0 && (
+        <aside className="frail" aria-label="Changed files">
+          <div className="frail-head">Changed files</div>
+          <ScrollArea className="frail-list">
+            {changedFiles.map((p) => {
+              const pending = diffs.find((d) => !d.decided && d.path === p);
+              const st = pending ? diffStats(pending.diff) : null;
+              return (
+                <button key={p} className="frow" title={p} onClick={() => openFileDiff(p)}>
+                  <span className="frow-name">{p.split("/").pop()}</span>
+                  <span className="frow-dir">{p.split("/").slice(0, -1).join("/")}</span>
+                  {st && <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>}
+                </button>
+              );
+            })}
+          </ScrollArea>
+        </aside>
+      )}
+      {diffView && (
+        <div className="docviewer" onClick={(e) => { if (e.target === e.currentTarget) setDiffView(null); }}>
+          <div className="card doc-card diff-card">
+            <div className="card-title">
+              <span className="dv-path">{diffView.path}</span>
+              {(() => { const st = diffStats(diffView.diff); return <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>; })()}
+              <span className="spacer" />
+              {diffView.pendingId !== undefined && (
+                <>
+                  <button className="pill allow" onClick={() => { decideDiff(diffView.pendingId!, "apply"); setDiffView(null); }}>Apply</button>
+                  <button className="pill deny" onClick={() => { decideDiff(diffView.pendingId!, "discard"); setDiffView(null); }}>Discard</button>
+                </>
+              )}
+              <button className="doc-close" aria-label="Close" onClick={() => setDiffView(null)}><X size={14} /></button>
+            </div>
+            <ScrollArea className="doc-body dv-body">
+              <Diff diff={diffView.diff} />
             </ScrollArea>
           </div>
         </div>

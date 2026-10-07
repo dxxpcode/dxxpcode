@@ -1374,3 +1374,35 @@ html[data-theme="dark"] .docviewer { background: rgba(0, 0, 0, 0.7); }
 .doc-body::-webkit-scrollbar { width: 4px; }
 .doc-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
 .doc-body:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
+
+/* Changed-files strip (right edge) */
+.frail {
+  position: absolute; top: 41px; right: 0; bottom: 0; width: 216px; z-index: 10;
+  display: flex; flex-direction: column;
+  background: var(--bg); border-left: 1px solid var(--border);
+  animation: fadein 0.2s var(--ease);
+}
+.frail-head {
+  padding: 12px 14px 8px; flex-shrink: 0;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--faint); opacity: 0.75;
+}
+.frail-list { flex: 1; padding: 0 6px; }
+.frow {
+  width: 100%; display: flex; flex-direction: column; align-items: flex-start;
+  padding: 6px 8px; border: none; border-radius: var(--radius-sm);
+  background: none; cursor: pointer; text-align: left;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text);
+  transition: background 0.15s var(--ease);
+}
+.frow:hover { background: var(--surface2); }
+.frow-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.frow-dir {
+  font-size: 9.5px; color: var(--faint); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+.frow .diffstat { font-size: 9.5px; margin-top: 3px; }
+.diff-card { width: 720px; }
+.dv-path { font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; }
+.dv-body { padding: 10px 14px 14px; }
+.card-title .pill { margin-left: 6px; }
