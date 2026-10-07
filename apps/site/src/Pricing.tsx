@@ -204,6 +204,13 @@ export default function Pricing() {
             The price rises only when a tier sells out — never on a timer.
           </p>
 
+          <p className="mt-4 max-w-xs text-[11px] leading-relaxed text-muted-foreground/70">
+            14-day money-back, no questions —{" "}
+            <a href="mailto:licenses@dxxp.codes" className="underline-offset-2 hover:text-foreground hover:underline">
+              licenses@dxxp.codes
+            </a>
+          </p>
+
           <p className="mt-6 font-mono text-[11px] text-muted-foreground/60">
             lost your key?{" "}
             <button
