@@ -961,6 +961,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         todos: None,
         result: None,
         mode: None,
+        title: None,
+        pinned: false,
     });
     session.mode = Some(if opts.chat { "chat" } else { "code" }.to_string());
 

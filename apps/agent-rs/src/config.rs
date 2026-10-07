@@ -118,6 +118,12 @@ pub struct SessionRecord {
     /// "code" (default) or "chat" — restored on resume.
     #[serde(default)]
     pub mode: Option<String>,
+    /// User-set display name; falls back to the task text when absent.
+    #[serde(default)]
+    pub title: Option<String>,
+    /// Pinned sessions sort first in the sidebar.
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 pub fn sessions_dir() -> PathBuf {
