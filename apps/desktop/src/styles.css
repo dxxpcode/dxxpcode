@@ -952,46 +952,70 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .gear:hover svg { transform: rotate(45deg); }
 .settings {
   position: fixed; inset: 0; z-index: 50;
-  display: flex; align-items: center; justify-content: center;
-  background: rgb(0 0 0 / 0.35);
+  background: var(--bg);
   animation: fadein 0.15s var(--ease);
 }
-.settings-dialog {
-  display: flex; overflow: hidden;
-  width: min(640px, calc(100vw - 48px));
-  height: min(440px, calc(100vh - 64px));
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+.settings-page {
+  display: flex; width: 100%; height: 100%;
 }
 .settings-nav {
-  width: 176px; flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 16px 10px;
-  background: var(--surface);
+  width: 220px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 18px 12px;
+  background: var(--bg);
   border-right: 1px solid var(--border);
 }
+.settings-back {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 14px; padding: 5px 10px;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; color: var(--dim);
+  border-radius: 7px;
+  transition: color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.settings-back:hover { color: var(--text); background: var(--surface); }
+.settings-back kbd {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--faint);
+}
 .settings-nav-title {
-  font-size: 13px; font-weight: 600; color: var(--text);
-  padding: 4px 10px 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--faint);
+  padding: 4px 10px 10px;
 }
 .settings-navitem {
   justify-content: flex-start !important;
   font-weight: 450 !important;
+  border-radius: 7px !important;
 }
 .settings-navitem[data-active="true"],
 button.settings-navitem.bg-\[var\(--surface2\)\] {
-  background: color-mix(in srgb, var(--accent) 9%, transparent) !important;
+  background: var(--surface2) !important;
   color: var(--text) !important;
 }
 .settings-pane {
   flex: 1; min-width: 0;
-  padding: 20px 22px;
+  padding: 40px 48px 48px;
 }
 .settings-pane .setgroup {
-  max-width: 420px;
+  max-width: 640px;
+  margin: 0 auto;
 }
+.setpage { margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.setpage-title { font-size: 17px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+.setpage-desc { margin-top: 4px; font-size: 13px; color: var(--dim); }
+.setcard {
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.setcard > .setlist > * + * { border-top: 1px solid var(--border); margin-top: 0; }
+.setcard .setrow { padding: 10px 14px; min-height: 0; }
+.setcard .setrow.link:hover { background: var(--surface); }
+.setcard .artgrid { padding: 4px 14px 14px; }
+.setgroup .setcard + .setgroup-title { margin-top: 20px; }
 .setlist { display: flex; flex-direction: column; }
 .setlist > * + * { margin-top: 2px; }
 .settings-col {
@@ -1001,7 +1025,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .setgroup-title {
   font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--faint);
-  padding: 0 14px; margin-bottom: 6px;
+  padding: 0 4px; margin-bottom: 8px;
 }
 .setrow {
   display: flex; align-items: center; gap: 12px;
