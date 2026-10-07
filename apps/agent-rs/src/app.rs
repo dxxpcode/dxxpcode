@@ -1333,7 +1333,7 @@ fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
             let mut s = sh.session.lock().unwrap();
             match s.as_mut() {
                 Some(sess) if !sess.messages.is_empty() => {
-                    match compact_messages(&mut sess.messages, 60_000, true) {
+                    match compact_messages(&mut sess.messages, 60_000, true, None) {
                         Some((before, after, blocks)) => {
                             save_session(sess);
                             emit_note(format!(

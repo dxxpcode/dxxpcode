@@ -152,6 +152,10 @@ fn post_error(e: ureq::Error, provider: &str) -> ProviderError {
 fn read_sse<R: Read>(reader: R, aborted: &Arc<AtomicBool>, mut on_event: impl FnMut(&str, &str)) {
     let mut reader = std::io::BufReader::with_capacity(16 * 1024, reader);
     let mut buf = String::new();
+    // Events are consumed from the front via a cursor; the consumed prefix
+    // is dropped only when it crosses 64KB, so each event doesn't reallocate
+    // and copy the whole remaining buffer.
+    let mut pos = 0usize;
     let mut chunk = [0u8; 16384];
     loop {
         if aborted.load(Ordering::Relaxed) {
@@ -161,9 +165,9 @@ fn read_sse<R: Read>(reader: R, aborted: &Arc<AtomicBool>, mut on_event: impl Fn
             Ok(0) | Err(_) => break,
             Ok(n) => {
                 buf.push_str(&String::from_utf8_lossy(&chunk[..n]));
-                while let Some(idx) = buf.find("\n\n") {
-                    let raw = buf[..idx].to_string();
-                    buf = buf[idx + 2..].to_string();
+                while let Some(idx) = buf[pos..].find("\n\n") {
+                    let raw = &buf[pos..pos + idx];
+                    pos += idx + 2;
                     let mut event = String::new();
                     let mut data_lines: Vec<String> = vec![];
                     for line in raw.split('\n') {
@@ -176,6 +180,10 @@ fn read_sse<R: Read>(reader: R, aborted: &Arc<AtomicBool>, mut on_event: impl Fn
                     if !data_lines.is_empty() {
                         on_event(&event, &data_lines.join("\n"));
                     }
+                }
+                if pos > 64 * 1024 {
+                    buf = buf.split_off(pos);
+                    pos = 0;
                 }
             }
         }
@@ -978,6 +986,41 @@ mod tests {
         .unwrap_err();
         assert_eq!(n.load(Ordering::Relaxed), MAX_ATTEMPTS as usize);
         assert!(err.to_string().contains("503"));
+    }
+
+    #[test]
+    fn sse_parses_events_across_boundaries() {
+        // Fragmented delivery: a reader that yields a few bytes per read.
+        struct Frag<'a> {
+            data: &'a [u8],
+            pos: usize,
+        }
+        impl<'a> Read for Frag<'a> {
+            fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+                let n = (self.data.len() - self.pos).min(3).min(out.len());
+                out[..n].copy_from_slice(&self.data[self.pos..self.pos + n]);
+                self.pos += n;
+                Ok(n)
+            }
+        }
+        let payload =
+            "event: message_start\ndata: {\"a\":1}\n\ndata: [DONE]\n\ndata: {\"b\":\"x\\ny\"}\n\n";
+        let mut got: Vec<(String, String)> = vec![];
+        read_sse(
+            Frag {
+                data: payload.as_bytes(),
+                pos: 0,
+            },
+            &flag(),
+            |e, d| got.push((e.to_string(), d.to_string())),
+        );
+        assert_eq!(got.len(), 3);
+        assert_eq!(
+            got[0],
+            ("message_start".to_string(), "{\"a\":1}".to_string())
+        );
+        assert_eq!(got[1], ("".to_string(), "[DONE]".to_string()));
+        assert_eq!(got[2].1, "{\"b\":\"x\\ny\"}");
     }
 
     #[test]

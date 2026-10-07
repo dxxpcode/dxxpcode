@@ -426,8 +426,8 @@ fn exec_read_file(input: &Value, ctx: &Ctx) -> ToolResult {
     let offset = (opt_num(input, "offset").unwrap_or(1.0) as usize).max(1);
     let limit =
         (opt_num(input, "limit").unwrap_or(MAX_READ_LINES as f64) as usize).min(MAX_READ_LINES);
-    let end = (offset - 1 + limit).min(all.len());
     let start = (offset - 1).min(all.len());
+    let end = start.saturating_add(limit).min(all.len());
     let slice = &all[start..end];
     let numbered: String = slice
         .iter()
@@ -518,17 +518,32 @@ fn find_matches(raw: &str, old: &str) -> (Vec<(usize, usize)>, &'static str) {
     if old_lines.is_empty() || old_lines.iter().all(|l| l.is_empty()) {
         return (vec![], "exact");
     }
+    // Real byte offset of each line start — `lines()` strips a trailing
+    // '\r' as well as '\n', so line.len()+1 undercounts CRLF files and a
+    // missing trailing newline; using it here would splice at wrong bytes.
     let raw_lines: Vec<&str> = raw.lines().collect();
+    let mut line_starts: Vec<usize> = Vec::with_capacity(raw_lines.len() + 1);
+    {
+        let mut pos = 0usize;
+        for l in &raw_lines {
+            line_starts.push(pos);
+            pos += l.len();
+            pos += raw[pos..].chars().next().map(|c| c.len_utf8()).unwrap_or(0);
+            if raw.as_bytes().get(pos.wrapping_sub(1)) == Some(&b'\r')
+                && raw.as_bytes().get(pos) == Some(&b'\n')
+            {
+                pos += 1;
+            }
+        }
+        line_starts.push(pos.min(raw.len()));
+    }
     let n = old_lines.len();
     for (i, w) in raw_lines.windows(n).enumerate() {
         if w.iter().zip(&old_lines).all(|(a, b)| a.trim() == *b) {
-            let start: usize = raw_lines[..i].iter().map(|l| l.len() + 1).sum();
-            let end: usize = raw_lines[..i + n]
-                .iter()
-                .map(|l| l.len() + 1)
-                .sum::<usize>()
-                .saturating_sub(1)
-                .min(raw.len());
+            let start = line_starts[i];
+            // End of the last matched line's content — the line's own
+            // terminator stays outside the replaced region.
+            let end = (line_starts[i + n - 1] + raw_lines[i + n - 1].len()).min(raw.len());
             hits.push((start, end));
         }
     }
@@ -2046,6 +2061,58 @@ mod tests {
         let raw = "alpha\nbeta\ngamma\n";
         let err = apply_edits(raw, &[e("beta\nomitted", "z")], false, "f").unwrap_err();
         assert!(err.contains("closest match at line"), "{err}");
+    }
+
+    #[test]
+    fn whitespace_tolerant_crlf() {
+        // CRLF file: tolerant match must splice at real byte offsets —
+        // line.len()+1 undercounts by one per line and would corrupt text.
+        let raw = "fn f() {\r\n    let x = 1;\r\n    let y = 2;\r\n}\r\n";
+        let (out, tol) =
+            apply_edits(raw, &[e("\tlet x = 1;", "    let x = 9;")], false, "f").unwrap();
+        assert!(tol);
+        assert_eq!(out, "fn f() {\r\n    let x = 9;\r\n    let y = 2;\r\n}\r\n");
+        // Multi-line match mid-file keeps surrounding CRLF lines intact.
+        let (out, _) = apply_edits(
+            raw,
+            &[e(
+                "let x = 1;\nlet y = 2;",
+                "    let x = 8;\r\n    let y = 3;",
+            )],
+            false,
+            "f",
+        )
+        .unwrap();
+        assert_eq!(out, "fn f() {\r\n    let x = 8;\r\n    let y = 3;\r\n}\r\n");
+    }
+
+    #[test]
+    fn whitespace_tolerant_no_trailing_newline() {
+        let raw = "a\nlast line";
+        let (out, tol) = apply_edits(raw, &[e("  last line", "LAST")], false, "f").unwrap();
+        assert!(tol);
+        assert_eq!(out, "a\nLAST");
+    }
+
+    #[test]
+    fn read_file_huge_offset_no_panic() {
+        let dir = std::env::temp_dir().join(format!("dxxp-read-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("f.txt"), "one\ntwo\nthree\n").unwrap();
+        let ctx = Ctx {
+            root: dir.to_string_lossy().to_string(),
+            aborted: Default::default(),
+            procs: Default::default(),
+            live_out: Default::default(),
+            browser: Default::default(),
+        };
+        // A pathological offset saturates the f64→usize cast to usize::MAX;
+        // the old `offset - 1 + limit` then overflowed and panicked.
+        let r = exec_read_file(&json!({"path": "f.txt", "offset": 1e300}), &ctx);
+        assert!(!r.is_error, "{}", r.content);
+        assert!(!r.content.contains("one"), "{}", r.content);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
