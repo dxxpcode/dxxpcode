@@ -156,7 +156,10 @@ pub struct Shared {
     pub pending_diffs: Mutex<HashMap<u64, Sender<String>>>,
     pub diff_apply_all: AtomicBool,
     pub steer_queue: Mutex<VecDeque<String>>,
-    pub task_queue: Mutex<VecDeque<String>>,
+    pub task_queue: Mutex<VecDeque<QueuedTask>>,
+    /// Plan saved by a plan-only run, waiting for the user's "Build".
+    /// (task text, approved plan)
+    pub pending_build: Mutex<Option<(String, Value)>>,
     pub running: AtomicBool,
     pub aborted: Arc<AtomicBool>,
     pub turn_tokens: Mutex<usize>,
@@ -225,9 +228,6 @@ impl Shared {
             "type": "approval", "id": id, "kind": kind, "summary": summary,
             "reason": reason, "allowAlways": kind == "tool",
         });
-        if kind == "plan" {
-            ev["extraChoice"] = json!({"choice": "s", "label": "Approve + save plan"});
-        }
         if let Some(t) = tool {
             ev["tool"] = json!(t);
         }
@@ -256,7 +256,6 @@ impl Shared {
             "steps": plan.get("steps").cloned().unwrap_or(json!([])),
             "editable": true,
             "allowAlways": false,
-            "extraChoice": {"choice": "s", "label": "Approve + save plan"},
         }));
         let reply = rx.recv().unwrap_or_else(|_| json!({"choice": "n"}));
         let choice = reply
@@ -1445,9 +1444,29 @@ struct DepsInfo {
     max_iterations: Option<u32>,
 }
 
+/// A queued submit: the task text plus how it should run. `plan_only` stops
+/// after the (editable) plan approval; `approved_plan` skips planning and
+/// executes a previously approved plan ("Build").
+struct QueuedTask {
+    text: String,
+    plan_only: bool,
+    approved_plan: Option<Value>,
+}
+
+impl QueuedTask {
+    fn plain(text: String) -> Self {
+        QueuedTask {
+            text,
+            plan_only: false,
+            approved_plan: None,
+        }
+    }
+}
+
 /* ------------------------------- task runs ------------------------------- */
 
-fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
+fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, spec: &QueuedTask) {
+    let task = spec.text.as_str();
     emit(json!({"type": "user", "text": task}));
     sh.aborted.store(false, Ordering::Relaxed);
     *sh.turn_tokens.lock().unwrap() = 0;
@@ -1465,31 +1484,8 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         if let Some(steps) = edited_steps {
             approved["steps"] = json!(steps);
         }
-        if choice == "s" {
-            // Persist the approved plan to the repo so it survives sessions and
-            // can be versioned alongside the code.
-            let dir = std::path::Path::new(&deps.root).join(".dxxpcode");
-            let summary = approved
-                .get("summary")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let steps_md: Vec<String> = approved
-                .get("steps")
-                .and_then(|v| v.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|s| s.as_str().map(|s| format!("- [ ] {s}")))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let md = format!("# Plan\n\n{summary}\n\n{}\n", steps_md.join("\n"));
-            match std::fs::create_dir_all(&dir)
-                .and_then(|_| std::fs::write(dir.join("plan.md"), &md))
-            {
-                Ok(()) => emit_note("plan saved to .dxxpcode/plan.md"),
-                Err(e) => emit_note(format!("couldn't save plan: {e}")),
-            }
-        }
+        // plan.md is written by the agent on approval/plan_only so it always
+        // reflects the plan of record (and ticks as steps complete).
         Some(approved)
     };
 
@@ -1596,7 +1592,8 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
         provider: &mut provider,
         model: sh.model.lock().unwrap().clone(),
         project_root: deps.root.clone(),
-        plan_only: deps.plan_only,
+        plan_only: deps.plan_only || spec.plan_only,
+        approved_plan: spec.approved_plan.clone(),
         max_iterations: deps.max_iterations,
         approve_plan: &mut approve_plan,
         approve_tool: &mut approve_tool,
@@ -1619,6 +1616,11 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, task: &str) {
                     as usize;
         }
         if ev.get("type").and_then(|t| t.as_str()) == Some("done") {
+            if ev.pointer("/result/status").and_then(|v| v.as_str()) == Some("plan_only") {
+                if let Some(p) = ev.pointer("/result/plan").cloned() {
+                    *sh.pending_build.lock().unwrap() = Some((spec.text.clone(), p));
+                }
+            }
             if let Some(sid) = ev.pointer("/result/sessionId").and_then(|v| v.as_str()) {
                 if !sid.is_empty() {
                     if let Some(s) = load_session(sid) {
@@ -1646,7 +1648,7 @@ fn pump(sh: Arc<Shared>, deps: Arc<DepsInfo>) {
             run_once(&sh, &deps, &task);
             // Steering text queued as the run wound down becomes the next task.
             while let Some(next) = sh.steer_queue.lock().unwrap().pop_front() {
-                run_once(&sh, &deps, &next);
+                run_once(&sh, &deps, &QueuedTask::plain(next));
             }
         }
         sh.running.store(false, Ordering::SeqCst);
@@ -1698,6 +1700,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         diff_apply_all: AtomicBool::new(false),
         steer_queue: Mutex::new(VecDeque::new()),
         task_queue: Mutex::new(VecDeque::new()),
+        pending_build: Mutex::new(None),
         running: AtomicBool::new(false),
         aborted: Arc::new(AtomicBool::new(false)),
         turn_tokens: Mutex::new(0),
@@ -1788,9 +1791,33 @@ pub fn run_app(deps: AppDeps) -> i32 {
                         sh.steer_queue.lock().unwrap().push_back(text.clone());
                         emit(json!({"type": "steer", "text": text}));
                     } else {
-                        sh.task_queue.lock().unwrap().push_back(text);
+                        *sh.pending_build.lock().unwrap() = None;
+                        let plan_only = cmd
+                            .get("planOnly")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        sh.task_queue.lock().unwrap().push_back(QueuedTask {
+                            text,
+                            plan_only,
+                            approved_plan: None,
+                        });
                         pump(Arc::clone(&sh), Arc::clone(&dinfo));
                     }
+                }
+            }
+            // "Build" on the plan a plan-only run left behind — executes the
+            // approved steps directly, skipping a fresh proposal.
+            "build" => {
+                let taken = sh.pending_build.lock().unwrap().take();
+                if let Some((text, plan)) = taken {
+                    sh.task_queue.lock().unwrap().push_back(QueuedTask {
+                        text,
+                        plan_only: false,
+                        approved_plan: Some(plan),
+                    });
+                    pump(Arc::clone(&sh), Arc::clone(&dinfo));
+                } else {
+                    emit_note("nothing to build — no saved plan");
                 }
             }
             "command" => {

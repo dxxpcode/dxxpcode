@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -61,6 +61,7 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState("");
   const [chatMode, setChatMode] = useState(false);
+  const [planMode, setPlanMode] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [promptReq, setPromptReq] = useState<PromptState | null>(null);
   const [promptVal, setPromptVal] = useState("");
@@ -343,6 +344,8 @@ export default function App() {
         break;
       }
       case "user":
+        // A new run supersedes any leftover "Build this plan" cue.
+        setItems((prev) => prev.filter((it) => it.k !== "build"));
         push({ k: "user", text: String(ev.text) });
         setRunning(true);
         runStart.current = Date.now();
@@ -636,6 +639,8 @@ export default function App() {
           secs: runStart.current ? Math.round((Date.now() - runStart.current) / 1000) : undefined,
           tokens: r.usage ? (r.usage.inputTokens ?? 0) + (r.usage.outputTokens ?? 0) : undefined,
         });
+        // Plan-only runs park here — the saved plan waits for "Build".
+        if (r.status === "plan_only") push({ k: "build" });
         break;
       }
       case "idle": {
@@ -895,7 +900,7 @@ export default function App() {
       void send({ type: "submit", text: text.slice(6).trim() });
       return;
     }
-    void send({ type: "submit", text });
+    void send({ type: "submit", text, planOnly: planMode });
   };
 
   const pickMenu = (index: number) => {
@@ -907,6 +912,10 @@ export default function App() {
   };
 
   const cmd = (name: string) => {
+    if (name === "build") {
+      void send({ type: "build" });
+      return;
+    }
     setSettingsOpen(false);
     if (name === "/settings") {
       setSettingsOpen(true);
@@ -2006,7 +2015,7 @@ export default function App() {
             autoFocus
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
             aria-describedby="composer-hints"
-            placeholder={chatMode ? "Ask about this codebase…" : "Ask dxxpcode anything…"}
+            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : "Ask dxxpcode anything…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -2018,6 +2027,10 @@ export default function App() {
               } else if (rows > 0 && e.key === "ArrowUp") {
                 e.preventDefault();
                 setCmdSel((s) => (s - 1 + rows) % rows);
+              } else if (e.key === "Tab" && e.shiftKey) {
+                // ⇧Tab cycles plan mode (plan → approve → build).
+                e.preventDefault();
+                setPlanMode((v) => !v);
               } else if (e.key === "Tab" && files.length > 0) {
                 e.preventDefault();
                 completeMention(files[Math.min(cmdSel, files.length - 1)].name);
@@ -2050,6 +2063,14 @@ export default function App() {
                     onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
                   />
                   {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
+                  <button
+                    type="button"
+                    className={`plan-toggle${planMode ? " on" : ""}`}
+                    title={planMode ? "Plan mode on (⇧Tab to cycle)" : "Plan mode (⇧Tab to cycle)"}
+                    aria-pressed={planMode}
+                    disabled={running || onboarding}
+                    onClick={() => setPlanMode((v) => !v)}
+                  ><ListChecks size={11} strokeWidth={2} />plan</button>
                 </>
               )}
             </div>

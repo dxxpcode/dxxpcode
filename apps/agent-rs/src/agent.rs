@@ -496,6 +496,9 @@ pub struct RunOpts<'a> {
     pub model: String,
     pub project_root: String,
     pub plan_only: bool,
+    /// A previously approved plan to execute directly ("Build") — skips the
+    /// plan phase entirely and treats the plan as the plan of record.
+    pub approved_plan: Option<Value>,
     pub max_iterations: Option<u32>,
     /// Returns `Some(plan)` when approved — the plan may carry user-edited
     /// `steps` — or `None` when denied.
@@ -633,6 +636,43 @@ fn parse_todos(input: &Value) -> Result<Vec<Value>, String> {
         items.push(item);
     }
     Ok(items)
+}
+
+/// `.dxxpcode/plan.md` — the approved plan as a markdown checklist. Each
+/// `- [ ]` box ticks when the matching `step-N` todo completes, so the file is
+/// the canonical artifact of both intent and progress.
+pub fn persist_plan_file(root: &str, plan: &Value, todos: Option<&[Value]>) {
+    let Some(steps) = plan.get("steps").and_then(|v| v.as_array()) else {
+        return;
+    };
+    let lines: Vec<String> = steps
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| {
+            let s = s.as_str()?;
+            let done = todos
+                .map(|items| {
+                    items.iter().any(|t| {
+                        let matches = t.get("id").and_then(|v| v.as_str())
+                            == Some(format!("step-{}", i + 1).as_str())
+                            || t.get("content")
+                                .and_then(|v| v.as_str())
+                                .map(|c| c.trim() == s.trim())
+                                .unwrap_or(false);
+                        matches && t.get("status").and_then(|v| v.as_str()) == Some("completed")
+                    })
+                })
+                .unwrap_or(false);
+            Some(format!("- [{}] {s}", if done { "x" } else { " " }))
+        })
+        .collect();
+    if lines.is_empty() {
+        return;
+    }
+    let summary = plan.get("summary").and_then(|v| v.as_str()).unwrap_or("");
+    let md = format!("# Plan\n\n{summary}\n\n{}\n", lines.join("\n"));
+    let dir = Path::new(root).join(".dxxpcode");
+    let _ = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(dir.join("plan.md"), md));
 }
 
 /// Mirrors the checklist to `.dxxpcode/todo.md` so it survives the session.
@@ -1028,8 +1068,20 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     let mut approved = opts.chat;
     let mut plan: Option<Value> = None;
     let mut plan_amended = false;
+    // True when the plan comes from the user (edited steps, or a saved plan
+    // being built) rather than the agent's own proposal — the handoff message
+    // then pins the agent to the plan of record instead of its draft.
+    let mut plan_locked = false;
     let mut iterations = 0u32;
     let mut done_checks = 0u32;
+
+    if let Some(p) = opts.approved_plan.take() {
+        // "Build" on a saved plan: skip proposal, go straight to execution.
+        approved = true;
+        plan_locked = true;
+        emit(json!({"type": "plan", "plan": p}));
+        plan = Some(p);
+    }
 
     while !approved {
         if opts.aborted.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1104,15 +1156,42 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
             emit(json!({"type": "plan", "plan": p}));
             if p.get("trivial").and_then(|v| v.as_bool()) == Some(true) {
                 approved = true;
+                if opts.plan_only {
+                    persist_plan_file(&opts.project_root, &p, None);
+                    let mut r = base("plan_only", &session, &stats);
+                    r["summary"] = p.get("summary").cloned().unwrap_or(json!(""));
+                    r["plan"] = p.clone();
+                    emit(finish(r, &usage, &mut session));
+                    return;
+                }
             } else if opts.plan_only {
-                let mut r = base("plan_only", &session, &stats);
-                r["summary"] = p.get("summary").cloned().unwrap_or(json!(""));
-                r["plan"] = p.clone();
-                emit(finish(r, &usage, &mut session));
-                return;
+                // Plan-only still runs the approval card (it's editable in the
+                // app) — approving ends the run with the plan saved to
+                // .dxxpcode/plan.md; denying rejects it like a normal plan.
+                match (opts.approve_plan)(&p) {
+                    Some(final_plan) => {
+                        if final_plan != p {
+                            emit(json!({"type": "plan", "plan": final_plan, "amended": true}));
+                        }
+                        persist_plan_file(&opts.project_root, &final_plan, None);
+                        let mut r = base("plan_only", &session, &stats);
+                        r["summary"] = final_plan.get("summary").cloned().unwrap_or(json!(""));
+                        r["plan"] = final_plan;
+                        emit(finish(r, &usage, &mut session));
+                        return;
+                    }
+                    None => {
+                        let mut r = base("denied", &session, &stats);
+                        r["summary"] = json!("Plan not approved");
+                        r["plan"] = p.clone();
+                        emit(finish(r, &usage, &mut session));
+                        return;
+                    }
+                }
             } else if let Some(final_plan) = (opts.approve_plan)(&p) {
                 approved = true;
                 plan_amended = final_plan != p;
+                plan_locked = plan_amended;
                 plan = Some(final_plan.clone());
                 if plan_amended {
                     emit(json!({"type": "plan", "plan": final_plan, "amended": true}));
@@ -1209,9 +1288,8 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         return;
     }
     if let Some(p) = &plan {
-        let msg = if plan_amended {
-            let steps: Vec<String> = p
-                .get("steps")
+        let steps = || -> Vec<String> {
+            p.get("steps")
                 .and_then(|v| v.as_array())
                 .map(|a| {
                     a.iter()
@@ -1219,10 +1297,17 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                         .filter_map(|(i, s)| s.as_str().map(|s| format!("{}. {}", i + 1, s)))
                         .collect()
                 })
-                .unwrap_or_default();
+                .unwrap_or_default()
+        };
+        let msg = if plan_amended {
             format!(
                 "The user edited the plan before approving. Execute this amended plan exactly:\n{}",
-                steps.join("\n")
+                steps().join("\n")
+            )
+        } else if plan_locked {
+            format!(
+                "Execute this approved plan exactly:\n{}",
+                steps().join("\n")
             )
         } else {
             "Plan approved. Execute it now.".to_string()
@@ -1247,6 +1332,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                     .collect()
             })
             .unwrap_or_default();
+        persist_plan_file(&opts.project_root, p, None);
         if !items.is_empty() {
             session.todos = Some(items.clone());
             persist_todos_file(&opts.project_root, &items);
@@ -1525,6 +1611,9 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                         session.todos = Some(items.clone());
                         persist(&mut session);
                         persist_todos_file(&opts.project_root, &items);
+                        if let Some(p) = &plan {
+                            persist_plan_file(&opts.project_root, p, Some(&items));
+                        }
                         emit(json!({"type": "todo", "items": items}));
                         results.push(tool_result_block(id, &render_todos(&items), false));
                     }

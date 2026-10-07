@@ -308,6 +308,7 @@ fn spawn_task(srv: &Arc<Serve>, body: &Value) -> Result<Arc<TaskState>, String> 
             model,
             project_root: cwd.clone(),
             plan_only: false,
+            approved_plan: None,
             max_iterations: max_iter,
             approve_plan: &mut approve_plan,
             approve_tool: &mut approve_tool,

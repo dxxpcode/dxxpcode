@@ -47,6 +47,13 @@ export function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: n
           </div>
         </section>
       );
+    case "build":
+      return (
+        <div className="build-cue row">
+          <button className="build-btn" onClick={() => onCmd?.("build")}>Build this plan</button>
+          <span className="build-hint">runs the approved steps · saved to .dxxpcode/plan.md</span>
+        </div>
+      );
     case "todos":
       return (
         <section className="reply reply-section todos row">
