@@ -36,7 +36,7 @@ export function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: n
     case "plan":
       return (
         <section className="reply reply-section plan row">
-          <h2 className="reply-title">Plan</h2>
+          <h2 className="reply-title">Plan{item.plan.amended && <span className="plan-amended">edited by you</span>}</h2>
           <div className="reply-body">
             {item.plan.summary && <p className="reply-intro">{item.plan.summary}</p>}
             <ol className="plan-steps">
@@ -325,6 +325,60 @@ export function groupItems(items: Item[]): (Grouped | Grouped[])[] {
 }
 
 const SUMMARY_CLAMP_LINES = 6;
+
+// Plan approval body: summary + editable step list. Steps are borderless
+// inputs (rail-rename style); the user's edited steps ride back on the
+// approve message.
+export function PlanApproval({
+  summary,
+  steps,
+  extraChoice,
+  onAnswer,
+}: {
+  summary: string;
+  steps: string[];
+  extraChoice?: { choice: string; label: string };
+  onAnswer: (choice: string, steps: string[]) => void;
+}) {
+  const [edited, setEdited] = useState<string[]>(steps);
+  const finalSteps = () => edited.map((s) => s.trim()).filter(Boolean);
+  return (
+    <>
+      {summary && <div className="plan-summary text" dangerouslySetInnerHTML={md(summary)} />}
+      <ol className="plan-edit">
+        {edited.map((s, i) => (
+          <li className="plan-edit-row" key={i}>
+            <input
+              className="plan-edit-input"
+              value={s}
+              placeholder="Describe the step…"
+              aria-label={`Plan step ${i + 1}`}
+              onChange={(e) => setEdited((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
+            />
+            <button
+              className="plan-edit-del"
+              aria-label={`Remove step ${i + 1}`}
+              title="Remove step"
+              onClick={() => setEdited((cur) => cur.filter((_, j) => j !== i))}
+            >
+              ✕
+            </button>
+          </li>
+        ))}
+      </ol>
+      <button className="plan-edit-add" onClick={() => setEdited((cur) => [...cur, ""])}>+ add step</button>
+      <div className="dec-acts">
+        <button className="pill allow" onClick={() => onAnswer("y", finalSteps())}>Approve</button>
+        <button className="pill deny" onClick={() => onAnswer("n", [])}>Deny</button>
+        {extraChoice && (
+          <button className="pill ghost" onClick={() => onAnswer(extraChoice.choice, finalSteps())}>
+            {extraChoice.label}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
 
 export function ApprovalSummary({ text, kind }: { text: string; kind: "plan" | "tool" }) {
   const [open, setOpen] = useState(false);

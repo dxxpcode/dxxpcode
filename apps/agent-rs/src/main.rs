@@ -219,7 +219,7 @@ fn run_task_once(root: &str, task: String) {
                 std::process::exit(1);
             }
         };
-    let mut approve_plan = |_plan: &serde_json::Value| true;
+    let mut approve_plan = |plan: &serde_json::Value| Some(plan.clone());
     let mut approve_tool = |_t: &str, _i: &serde_json::Value, _r: &str, _m: Option<&str>| true;
     let mut review_change = |_t: &str, _i: &serde_json::Value, _d: &str| true;
     let mut steer = || None;

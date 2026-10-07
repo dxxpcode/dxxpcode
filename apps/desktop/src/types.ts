@@ -29,7 +29,7 @@ export interface PromptState {
 }
 
 export interface Todo { status: string; content: string; activeForm?: string }
-export interface Plan { summary: string; steps: string[]; trivial?: boolean }
+export interface Plan { summary: string; steps: string[]; trivial?: boolean; amended?: boolean }
 
 export type Item =
   | { k: "user"; text: string }
@@ -56,6 +56,7 @@ export interface Approval {
   reason?: string;
   allowAlways: boolean;
   extraChoice?: { choice: string; label: string };
+  steps?: string[];
   answered?: string;
 }
 

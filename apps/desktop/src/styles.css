@@ -693,6 +693,38 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .plan-steps { margin: 0; padding-left: 1.5em; list-style: decimal; }
 .plan-step { padding: 3px 0 3px 0.2em; }
 .plan-step::marker { color: var(--dim); font-variant-numeric: tabular-nums; }
+.plan-amended { font-weight: 400; font-size: 10.5px; color: var(--faint); margin-left: 8px; letter-spacing: 0.02em; }
+.plan-summary { font-family: var(--font-sans); font-size: 12.5px; line-height: 1.45; color: var(--text); margin: 8px 0 4px; }
+.plan-summary p { margin: 0; }
+.plan-edit { margin: 6px 0 2px; padding-left: 0; list-style: none; counter-reset: pedit; }
+.plan-edit-row {
+  position: relative; display: flex; align-items: baseline; gap: 4px;
+  counter-increment: pedit; padding: 1px 0;
+}
+.plan-edit-row::before {
+  content: counter(pedit) ".";
+  flex-shrink: 0; width: 20px; text-align: right;
+  color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px;
+}
+.plan-edit-input {
+  flex: 1; min-width: 0; font: inherit; font-size: 12.5px; color: var(--text);
+  background: transparent; border: none; border-bottom: 1px solid transparent;
+  padding: 2px 0; outline: none;
+}
+.plan-edit-input:focus { border-bottom-color: var(--border-strong); }
+.plan-edit-del {
+  flex-shrink: 0; border: none; background: none; color: var(--faint);
+  font-size: 10px; padding: 2px 4px; cursor: pointer; border-radius: 4px;
+  opacity: 0; transition: opacity 0.15s var(--ease);
+}
+.plan-edit-row:hover .plan-edit-del, .plan-edit-row:focus-within .plan-edit-del { opacity: 1; }
+.plan-edit-del:hover { color: var(--text); }
+.plan-edit-add {
+  border: none; background: none; color: var(--faint);
+  font: inherit; font-size: 11.5px; padding: 3px 0 3px 24px;
+  cursor: pointer; letter-spacing: 0.01em;
+}
+.plan-edit-add:hover { color: var(--text); }
 .todo-list { margin: 0; padding: 0; list-style: none; }
 .todo-item { display: flex; gap: 10px; padding: 3px 0; align-items: baseline; }
 .todo-item .mark { width: 14px; flex: none; color: var(--faint); }

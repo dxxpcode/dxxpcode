@@ -497,7 +497,9 @@ pub struct RunOpts<'a> {
     pub project_root: String,
     pub plan_only: bool,
     pub max_iterations: Option<u32>,
-    pub approve_plan: &'a mut dyn FnMut(&Value) -> bool,
+    /// Returns `Some(plan)` when approved — the plan may carry user-edited
+    /// `steps` — or `None` when denied.
+    pub approve_plan: &'a mut dyn FnMut(&Value) -> Option<Value>,
     pub approve_tool: &'a mut dyn FnMut(&str, &Value, &str, Option<&str>) -> bool,
     /// Pre-write diff review for write-family tools: (tool, input, unified
     /// diff) -> apply?. Called before every write/edit/delete; return false to
@@ -1025,6 +1027,7 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
     // Chat mode skips plan/approval entirely — there is nothing to approve.
     let mut approved = opts.chat;
     let mut plan: Option<Value> = None;
+    let mut plan_amended = false;
     let mut iterations = 0u32;
     let mut done_checks = 0u32;
 
@@ -1107,8 +1110,13 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
                 r["plan"] = p.clone();
                 emit(finish(r, &usage, &mut session));
                 return;
-            } else if (opts.approve_plan)(&p) {
+            } else if let Some(final_plan) = (opts.approve_plan)(&p) {
                 approved = true;
+                plan_amended = final_plan != p;
+                plan = Some(final_plan.clone());
+                if plan_amended {
+                    emit(json!({"type": "plan", "plan": final_plan, "amended": true}));
+                }
             } else {
                 let mut r = base("denied", &session, &stats);
                 r["summary"] = json!("Plan not approved");
@@ -1200,11 +1208,50 @@ pub fn run_task(opts: &mut RunOpts, emit: &mut Emit<'_>) {
         emit(finish(r, &usage, &mut session));
         return;
     }
-    if plan.is_some() {
+    if let Some(p) = &plan {
+        let msg = if plan_amended {
+            let steps: Vec<String> = p
+                .get("steps")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .enumerate()
+                        .filter_map(|(i, s)| s.as_str().map(|s| format!("{}. {}", i + 1, s)))
+                        .collect()
+                })
+                .unwrap_or_default();
+            format!(
+                "The user edited the plan before approving. Execute this amended plan exactly:\n{}",
+                steps.join("\n")
+            )
+        } else {
+            "Plan approved. Execute it now.".to_string()
+        };
         session.messages.push(Message {
             role: "user".into(),
-            content: vec![text_block("Plan approved. Execute it now.")],
+            content: vec![text_block(&msg)],
         });
+        // The approved plan becomes the live checklist — the user watches their
+        // plan tick, not a second list the agent invents.
+        let items: Vec<Value> = p
+            .get("steps")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .enumerate()
+                    .filter_map(|(i, s)| {
+                        s.as_str().map(|s| {
+                            json!({"id": format!("step-{}", i + 1), "content": s, "status": "pending"})
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !items.is_empty() {
+            session.todos = Some(items.clone());
+            persist_todos_file(&opts.project_root, &items);
+            emit(json!({"type": "todo", "items": items}));
+        }
     }
 
     /* ----------------------------- EXECUTE PHASE ---------------------------- */
