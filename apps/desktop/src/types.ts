@@ -28,8 +28,8 @@ export interface PromptState {
   secret?: boolean;
 }
 
-export interface Todo { status: string; content: string; activeForm?: string }
-export interface Plan { summary: string; steps: string[]; trivial?: boolean; amended?: boolean }
+export interface Todo { id?: string; status: string; content: string; activeForm?: string }
+export interface Plan { summary: string; steps: string[]; trivial?: boolean; amended?: boolean; collapsed?: boolean; stepStatus?: string[] }
 
 export type Item =
   | { k: "user"; text: string }
@@ -39,6 +39,8 @@ export type Item =
   | { k: "plan"; plan: Plan }
   // Plan-only runs leave a saved plan behind that "Build" executes.
   | { k: "build" }
+  // A denied plan approval leaves a "Re-plan" cue that resubmits the task.
+  | { k: "replan" }
   | { k: "todos"; items: Todo[] }
   | { k: "note"; text: string; steer?: boolean }
   | { k: "error"; text: string; hint?: string; detail?: string; code?: string }
