@@ -23,9 +23,9 @@
   --radius: 14px;
   --radius-sm: 9px;
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  /* Cursor's chat stack: proprietary CursorGothic first, then the public
-     fallbacks they ship (Inter → SF Pro → system-ui). */
-  --font-chat: "CursorGothic", "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Chat/transcript face: the platform's own sans — SF Pro on macOS — so
+     prose reads as native UI rather than a bundled web font. */
+  --font-chat: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", "JetBrains Mono", Menlo, monospace;
   --shadow-sm: 0 1px 2px rgba(10, 10, 11, 0.05);
   --shadow-md: 0 4px 16px rgba(10, 10, 11, 0.08), 0 1px 3px rgba(10, 10, 11, 0.05);
@@ -416,7 +416,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   margin-bottom: 6px;
   white-space: pre-wrap; overflow-wrap: anywhere;
   font-size: 15px;
-  font-weight: 500; line-height: 1.5;
+  font-weight: 400; line-height: 1.5;
 }
 
 /* Live per-turn activity line: sits under the prompt while a run is in
@@ -428,12 +428,14 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 }
 .workline-tool { font-family: var(--font-mono); font-size: 11.5px; color: var(--dim); }
 
-/* Cursor renders agent prose at 500; body copy follows. */
-.reply { min-width: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 500; line-height: 1.6; }
-.reply-title { margin: 0 0 10px; font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
+/* Native chat prose: regular weight, system rhythm. */
+.reply { min-width: 0; overflow-wrap: anywhere; font-size: 14.5px; font-weight: 400; line-height: 1.55; }
+.reply-title { margin: 0 0 10px; font-size: 15px; line-height: 1.3; font-weight: 500; letter-spacing: -0.005em; }
 .reply-intro { margin: 0 0 12px; color: var(--dim); }
 .reply-body { min-width: 0; }
-.text { line-height: 1.6; font-size: 15px; }
+/* No weight emphasis in transcript prose: **bold** reads as plain text. */
+:is(.text, .reply) strong { font-weight: inherit; }
+.text { line-height: 1.55; font-size: 14.5px; font-weight: 400; }
 /* Reply as document: real structure, generous rhythm. */
 .text p { margin: 0.45em 0; }
 .text h1, .text h2, .text h3, .text h4 {
@@ -449,7 +451,6 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   border-left: 2px solid var(--border); color: var(--dim);
 }
 .text hr { border: none; border-top: 1px solid var(--border); margin: 0.9em 0; }
-.text strong { font-weight: 600; }
 .text code {
   background: var(--surface2);
   border-radius: var(--radius-sm); padding: 1px 5px; font-size: 0.88em;
