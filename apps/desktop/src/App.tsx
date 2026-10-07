@@ -1291,6 +1291,7 @@ export default function App() {
               <span>Settings</span>
               <kbd className="rail-shortcut">{IS_MAC ? "⌘," : "Ctrl ,"}</kbd>
             </Button>
+            {ready && <span className="rail-version">v{ready.version}</span>}
           </div>
           <div
             className="rail-resize"

@@ -252,7 +252,9 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   animation: railpulse 1.4s var(--ease) infinite;
 }
 .rail-toggle { color: var(--faint); }
-.rail-footer { padding: 8px 10px 12px; flex-shrink: 0; }
+.rail-footer { padding: 8px 10px 12px; flex-shrink: 0; display: flex; align-items: center; }
+.rail-footer .rail-navrow { flex: 1; }
+.rail-version { font-size: 10.5px; color: var(--faint); padding: 0 8px; font-variant-numeric: tabular-nums; }
 .rail button:focus-visible {
   outline: 1px solid var(--border-strong); outline-offset: -1px; box-shadow: none;
 }
