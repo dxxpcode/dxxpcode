@@ -693,6 +693,21 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .plan-steps { margin: 0; padding-left: 1.5em; list-style: decimal; }
 .plan-step { padding: 3px 0 3px 0.2em; }
 .plan-step::marker { color: var(--dim); font-variant-numeric: tabular-nums; }
+.plan-step.done { color: var(--faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--faint) 60%, transparent); }
+.plan-step.done::marker { color: var(--faint); }
+.plan-step.active { color: var(--text); }
+.plan-fold summary {
+  font-size: 12px; font-weight: 600; cursor: pointer; user-select: none;
+  color: var(--faint); transition: color 0.15s var(--ease);
+  display: flex; align-items: baseline; gap: 8px; min-width: 0;
+}
+.plan-fold summary:hover { color: var(--dim); }
+.plan-fold summary .plan-fold-title { color: var(--dim); font-weight: 600; }
+.plan-fold summary .plan-fold-meta {
+  font-weight: 400; font-size: 11.5px; color: var(--faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.plan-fold[open] summary { margin-bottom: 2px; }
 .plan-amended { font-weight: 400; font-size: 10.5px; color: var(--faint); margin-left: 8px; letter-spacing: 0.02em; }
 .plan-summary { font-family: var(--font-sans); font-size: 12.5px; line-height: 1.45; color: var(--text); margin: 8px 0 4px; }
 .plan-summary p { margin: 0; }

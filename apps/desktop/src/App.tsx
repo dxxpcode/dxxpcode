@@ -94,6 +94,8 @@ export default function App() {
   const [queue, setQueue] = useState<string[]>([]);
   const queueRef = useRef<string[]>([]);
   const lastDone = useRef<string | null>(null);
+  // Last submitted task — the "Re-plan" cue resubmits it after a denied plan.
+  const lastSubmit = useRef<{ text: string; planOnly: boolean } | null>(null);
   const [wtasks, setWtasks] = useState<WTask[]>([]);
   const wbuf = useRef<Record<number, string>>({});
   const wPending = useRef<Record<number, string>>({});
@@ -345,7 +347,7 @@ export default function App() {
       }
       case "user":
         // A new run supersedes any leftover "Build this plan" cue.
-        setItems((prev) => prev.filter((it) => it.k !== "build"));
+        setItems((prev) => prev.filter((it) => it.k !== "build" && it.k !== "replan"));
         push({ k: "user", text: String(ev.text) });
         setRunning(true);
         runStart.current = Date.now();
@@ -546,11 +548,28 @@ export default function App() {
             const it = next[i];
             if (it.k === "todos") {
               next[i] = { ...it, items };
-              return next;
+              break;
             }
             if (it.k === "user" || it.k === "done") break;
           }
-          return [...next, { k: "todos", items }];
+          if (!next.some((it) => it.k === "todos" && it.items === items)) next.push({ k: "todos", items });
+          // Tick the plan card's steps from the same checklist (same matching
+          // as persist_plan_file: step-N id or identical content).
+          for (let i = next.length - 1; i >= 0; i--) {
+            const it = next[i];
+            if (it.k === "plan") {
+              const stepStatus = it.plan.steps.map((s, si) => {
+                const t = items.find((t) => t.id === `step-${si + 1}` || t.content.trim() === s.trim());
+                return t ? t.status : "pending";
+              });
+              if (stepStatus.some((s) => s !== "pending")) {
+                next[i] = { k: "plan", plan: { ...it.plan, stepStatus } };
+              }
+              break;
+            }
+            if (it.k === "user" || it.k === "done") break;
+          }
+          return next;
         });
         break;
       }
@@ -658,7 +677,10 @@ export default function App() {
           setTimeout(() => {
             cmd("/new");
             push({ k: "note", text: `queued: ${next}` });
-            setTimeout(() => void send({ type: "submit", text: next }), 120);
+            setTimeout(() => {
+              lastSubmit.current = { text: next, planOnly: false };
+              void send({ type: "submit", text: next });
+            }, 120);
           }, 120);
         }
         break;
@@ -900,6 +922,7 @@ export default function App() {
       void send({ type: "submit", text: text.slice(6).trim() });
       return;
     }
+    lastSubmit.current = { text, planOnly: planMode };
     void send({ type: "submit", text, planOnly: planMode });
   };
 
@@ -914,6 +937,11 @@ export default function App() {
   const cmd = (name: string) => {
     if (name === "build") {
       void send({ type: "build" });
+      return;
+    }
+    if (name === "replan") {
+      const ls = lastSubmit.current;
+      if (ls) void send({ type: "submit", text: ls.text, planOnly: ls.planOnly });
       return;
     }
     setSettingsOpen(false);
@@ -950,8 +978,25 @@ export default function App() {
   };
 
   const answer = (id: number, choice: string, steps?: string[]) => {
+    const ap = approvals.find((a) => a.id === id);
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, answered: choice } : a)));
     void send({ type: "approve", id, choice, plan: steps ? { steps } : undefined });
+    if (ap?.kind === "plan") {
+      // Answered plans fold into a summary line; a denial adds a "Re-plan" cue.
+      setItems((prev) => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          const it = next[i];
+          if (it.k === "plan") {
+            next[i] = { k: "plan", plan: { ...it.plan, collapsed: true } };
+            break;
+          }
+          if (it.k === "user" || it.k === "done") break;
+        }
+        if (choice === "n") next.push({ k: "replan" });
+        return next;
+      });
+    }
   };
 
   const decideDiff = (id: number, decision: string) => {

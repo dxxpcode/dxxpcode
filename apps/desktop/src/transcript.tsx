@@ -33,19 +33,48 @@ export function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: n
       );
     case "tool":
       return <ToolRow item={item} />;
-    case "plan":
-      return (
+    case "plan": {
+      const st = item.plan.stepStatus;
+      const doneCount = st ? st.filter((s) => s === "completed").length : 0;
+      const card = (
         <section className="reply reply-section plan row">
           <h2 className="reply-title">Plan{item.plan.amended && <span className="plan-amended">edited by you</span>}</h2>
           <div className="reply-body">
             {item.plan.summary && <p className="reply-intro">{item.plan.summary}</p>}
             <ol className="plan-steps">
-              {item.plan.steps.map((s, i) => (
-                <li className="plan-step" key={i}>{s}</li>
-              ))}
+              {item.plan.steps.map((s, i) => {
+                const status = st?.[i];
+                return (
+                  <li
+                    className={`plan-step${status === "completed" ? " done" : status === "in_progress" ? " active" : ""}`}
+                    key={i}
+                  >{s}</li>
+                );
+              })}
             </ol>
           </div>
         </section>
+      );
+      if (!item.plan.collapsed) return card;
+      return (
+        <details className="plan-fold row">
+          <summary>
+            <span className="plan-fold-title">Plan{item.plan.amended && <span className="plan-amended">edited by you</span>}</span>
+            <span className="plan-fold-meta">
+              {st ? `${doneCount}/${item.plan.steps.length} steps` : `${item.plan.steps.length} step${item.plan.steps.length === 1 ? "" : "s"}`}
+              {item.plan.summary ? ` — ${item.plan.summary}` : ""}
+            </span>
+          </summary>
+          {card}
+        </details>
+      );
+    }
+    case "replan":
+      return (
+        <div className="build-cue row">
+          <button className="build-btn" onClick={() => onCmd?.("replan")}>Re-plan</button>
+          <span className="build-hint">runs the same task through planning again</span>
+        </div>
       );
     case "build":
       return (
