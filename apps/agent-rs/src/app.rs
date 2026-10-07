@@ -8,11 +8,10 @@ use crate::config::{
 use crate::project::{detect_git, ProjectInfo};
 use crate::provider::{jev_route_effort, resolve_provider, smart_approve, Provider};
 use crate::tools::{self, CtxProcTable};
-use crate::util::{expand_mentions, file_suggestions, list_project_files, FileIndex};
+use crate::util::{expand_mentions, file_suggestions, git_stdout, list_project_files, FileIndex};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{BufRead, BufReader, Write};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -82,17 +81,6 @@ fn fmt_tokens(n: usize) -> String {
     } else {
         n.to_string()
     }
-}
-
-fn git_out(root: &str, args: &[&str]) -> String {
-    Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .env("GIT_PAGER", "cat")
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default()
 }
 
 fn describe(tool: &str, input: &Value) -> String {
@@ -421,17 +409,19 @@ fn model_options(sh: &Arc<Shared>) -> Vec<String> {
     list
 }
 
+const EFFORT_LEVELS: &[&str] = &[
+    "default",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+    "auto (Jev)",
+];
+
 fn open_effort_menu(sh: &Arc<Shared>) {
-    let opts = [
-        "default",
-        "minimal",
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max",
-        "auto (Jev)",
-    ];
+    let opts = EFFORT_LEVELS;
     let descs = [
         "provider default",
         "fastest — quick lookups, simple formatting",
@@ -465,17 +455,7 @@ fn open_effort_menu(sh: &Arc<Shared>) {
 }
 
 fn set_effort(sh: &Arc<Shared>, next: &str) {
-    let valid = [
-        "default",
-        "minimal",
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max",
-        "auto (Jev)",
-    ];
-    if !valid.contains(&next) {
+    if !EFFORT_LEVELS.contains(&next) {
         emit_note(format!("unknown effort level: {next}"));
         return;
     }
@@ -1062,8 +1042,8 @@ fn show_status(sh: &Arc<Shared>, deps_root: &str, project: &ProjectInfo, version
 /// (`--task`), so the review runs in its own session with a fresh context
 /// and reports back as a transcript card. Full output stays observable.
 fn run_agent_review(deps: &DepsInfo) {
-    let diff = git_out(&deps.root, &["diff"]) + &git_out(&deps.root, &["diff", "--cached"]);
-    let untracked = git_out(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
+    let diff = git_stdout(&deps.root, &["diff"]) + &git_stdout(&deps.root, &["diff", "--cached"]);
+    let untracked = git_stdout(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
     let mut body = diff.trim().to_string();
     if !untracked.trim().is_empty() {
         body += &format!("\n\nuntracked files (not shown): {}", untracked.trim());
@@ -1108,307 +1088,309 @@ fn run_agent_review(deps: &DepsInfo) {
     });
 }
 
-fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
+/// The text after a slash command's name, trimmed; `name` is the word the
+/// user actually typed so aliases like `/providers` don't mis-slice.
+fn cmd_arg<'a>(raw: &'a str, name: &str) -> Option<&'a str> {
+    raw.trim()
+        .get(name.len()..)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
+/// `/cmd <arg>` → apply the arg directly; bare `/cmd` → open the picker menu.
+fn cmd_or_menu(sh: &Arc<Shared>, raw: &str, set: fn(&Arc<Shared>, &str), menu: fn(&Arc<Shared>)) {
     let name = raw.split_whitespace().next().unwrap_or("");
-    match name {
-        "/review" => {
-            let arg = raw.split_whitespace().nth(1);
-            if arg == Some("agent") {
-                run_agent_review(deps);
-            } else {
-                let diff =
-                    git_out(&deps.root, &["diff"]) + &git_out(&deps.root, &["diff", "--cached"]);
-                let untracked =
-                    git_out(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
-                let untracked = untracked.trim();
-                if !diff.trim().is_empty() {
-                    emit(json!({"type": "diff_card", "title": "working tree", "diff": diff}));
-                    if !untracked.is_empty() {
-                        emit_note(format!("untracked: {} file(s)", untracked.lines().count()));
-                    }
-                } else {
-                    emit_note(if untracked.is_empty() {
-                        "No changes.".to_string()
-                    } else {
-                        format!("untracked: {} file(s)", untracked.lines().count())
-                    });
-                }
-            }
+    match cmd_arg(raw, name) {
+        Some(v) => set(sh, v),
+        None => menu(sh),
+    }
+}
+
+fn cmd_review(_sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
+    if raw.split_whitespace().nth(1) == Some("agent") {
+        run_agent_review(deps);
+        return;
+    }
+    let diff = git_stdout(&deps.root, &["diff"]) + &git_stdout(&deps.root, &["diff", "--cached"]);
+    let untracked = git_stdout(&deps.root, &["ls-files", "--others", "--exclude-standard"]);
+    let untracked = untracked.trim();
+    if !diff.trim().is_empty() {
+        emit(json!({"type": "diff_card", "title": "working tree", "diff": diff}));
+        if !untracked.is_empty() {
+            emit_note(format!("untracked: {} file(s)", untracked.lines().count()));
         }
-        "/status" => show_status(sh, &deps.root, &deps.project, &deps.version),
-        "/license" => {
-            let arg = raw
-                .trim()
-                .get("/license".len()..)
-                .map(str::trim)
-                .filter(|s| !s.is_empty());
-            let mut cfg = load_config();
-            match arg {
-                Some("clear") => {
-                    cfg.license_key = None;
-                    save_config(&cfg);
-                    emit_note("license removed".to_string());
-                }
-                Some(key) if key.starts_with("dxxp-live-") => {
-                    cfg.license_key = Some(key.to_string());
-                    save_config(&cfg);
-                    emit_note("license saved — lifetime access".to_string());
-                }
-                Some(_) => emit_note(
-                    "that doesn't look like a license key — keys start with dxxp-live-".to_string(),
-                ),
-                None => emit_note(match &cfg.license_key {
-                    Some(k) => format!("license: {k}"),
-                    None => "no license saved — paste a dxxp-live- key to add one".to_string(),
-                }),
-            }
+    } else {
+        emit_note(if untracked.is_empty() {
+            "No changes.".to_string()
+        } else {
+            format!("untracked: {} file(s)", untracked.lines().count())
+        });
+    }
+}
+
+fn cmd_license(_sh: &Arc<Shared>, _deps: &DepsInfo, raw: &str) {
+    let arg = cmd_arg(raw, "/license");
+    let mut cfg = load_config();
+    match arg {
+        Some("clear") => {
+            cfg.license_key = None;
+            save_config(&cfg);
+            emit_note("license removed".to_string());
         }
-        "/settings" => open_settings_menu(sh),
-        "/approval" => match raw
-            .trim()
-            .get("/approval".len()..)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            Some(mode) => set_approval_mode_by_name(sh, mode),
-            None => open_approval_menu(sh),
-        },
-        "/model" => match raw
-            .trim()
-            .get("/model".len()..)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            Some(m) => set_model(sh, m),
-            None => open_model_menu(sh),
-        },
-        "/models" => emit(json!({"type": "models", "items": model_options(sh)})),
-        "/effort" => match raw
-            .trim()
-            .get("/effort".len()..)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            Some(level) => set_effort(sh, level),
-            None => open_effort_menu(sh),
-        },
-        "/variant" => match raw
-            .trim()
-            .get("/variant".len()..)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            Some(name) => set_variant(sh, name),
-            None => open_variant_menu(sh),
-        },
-        "/provider" | "/providers" => match raw
-            .trim()
-            .get("/provider".len()..)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            Some(name) => switch_provider(sh, name),
-            None => open_provider_menu(sh),
-        },
-        "/setup" => run_onboarding(sh),
-        "/undo" => {
-            let out = {
-                let s = sh.session.lock().unwrap();
-                s.as_ref().and_then(|s| undo_checkpoint(&deps.root, &s.id))
+        Some(key) if key.starts_with("dxxp-live-") => {
+            cfg.license_key = Some(key.to_string());
+            save_config(&cfg);
+            emit_note("license saved — lifetime access".to_string());
+        }
+        Some(_) => emit_note(
+            "that doesn't look like a license key — keys start with dxxp-live-".to_string(),
+        ),
+        None => emit_note(match &cfg.license_key {
+            Some(k) => format!("license: {k}"),
+            None => "no license saved — paste a dxxp-live- key to add one".to_string(),
+        }),
+    }
+}
+
+fn cmd_undo(sh: &Arc<Shared>, deps: &DepsInfo, _raw: &str) {
+    let out = {
+        let s = sh.session.lock().unwrap();
+        s.as_ref().and_then(|s| undo_checkpoint(&deps.root, &s.id))
+    };
+    emit_note(match out {
+        Some(o) => {
+            let seq = o.get("seq").and_then(|v| v.as_i64()).unwrap_or(0);
+            let names = |key: &str| -> Vec<String> {
+                o.get(key)
+                    .and_then(|v| v.as_array())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default()
             };
-            emit_note(match out {
-                Some(o) => {
-                    let seq = o.get("seq").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let restored: Vec<String> = o
-                        .get("restored")
-                        .and_then(|v| v.as_array())
-                        .map(|a| {
-                            a.iter()
-                                .filter_map(|x| x.as_str().map(String::from))
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    let removed: Vec<String> = o
-                        .get("removed")
-                        .and_then(|v| v.as_array())
-                        .map(|a| {
-                            a.iter()
-                                .filter_map(|x| x.as_str().map(String::from))
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    let mut t = format!("restored checkpoint {seq}");
-                    if !restored.is_empty() {
-                        t.push_str(&format!(" — restored {}", restored.join(", ")));
-                    }
-                    if !removed.is_empty() {
-                        t.push_str(&format!(" — removed {}", removed.join(", ")));
-                    }
-                    let unsnapshotted: Vec<String> = o
-                        .get("unsnapshotted")
-                        .and_then(|v| v.as_array())
-                        .map(|a| {
-                            a.iter()
-                                .filter_map(|x| x.as_str().map(String::from))
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    if !unsnapshotted.is_empty() {
-                        t.push_str(&format!(
-                            " — could not restore {} (no snapshot)",
-                            unsnapshotted.join(", ")
-                        ));
-                    }
-                    if let Some(hm) = o.get("headMoved") {
-                        let from = hm.get("from").and_then(|v| v.as_str()).unwrap_or("");
-                        let to = hm.get("to").and_then(|v| v.as_str()).unwrap_or("");
-                        t.push_str(&format!(
-                            " — note: HEAD moved ({} → {}) since this checkpoint",
-                            &from[..from.len().min(7)],
-                            &to[..to.len().min(7)]
-                        ));
-                    }
-                    t
-                }
-                None => "nothing to undo".into(),
-            });
-        }
-        "/tools" => {
-            let sub = raw.split_whitespace().nth(1).unwrap_or("");
-            let target = raw.split_whitespace().nth(2).unwrap_or("");
-            let specs = tools::custom_tools(&deps.root);
-            match sub {
-                "enable" | "disable" => {
-                    let Some(spec) = specs.iter().find(|s| s.name == target) else {
-                        emit_note(format!("no custom tool named \"{target}\""));
-                        return;
-                    };
-                    match tools::set_custom_enabled(&spec.path, sub == "enable") {
-                        Ok(()) => emit_note(format!(
-                            "{} {} — {}",
-                            if sub == "enable" {
-                                "enabled"
-                            } else {
-                                "disabled"
-                            },
-                            spec.name,
-                            spec.command
-                        )),
-                        Err(e) => emit_note(format!("couldn't update {}: {e}", spec.name)),
-                    }
-                }
-                "remove" => {
-                    let Some(spec) = specs.iter().find(|s| s.name == target) else {
-                        emit_note(format!("no custom tool named \"{target}\""));
-                        return;
-                    };
-                    match std::fs::remove_file(&spec.path) {
-                        Ok(()) => emit_note(format!("removed {}", spec.name)),
-                        Err(e) => emit_note(format!("couldn't remove {}: {e}", spec.name)),
-                    }
-                }
-                _ => {
-                    if specs.is_empty() {
-                        emit_note("no custom tools — drop a .toml in ~/.dxxpcode/tools/ or .dxxpcode/tools/");
-                        return;
-                    }
-                    let mut text = String::from("Custom tools\n\n");
-                    for s in &specs {
-                        text.push_str(&format!(
-                            "{} {}  {}\n    {}\n",
-                            if s.enabled { "●" } else { "○" },
-                            s.name,
-                            if s.enabled { "enabled" } else { "disabled" },
-                            s.path.display()
-                        ));
-                    }
-                    text.push_str(
-                        "\n/tools enable <name> · /tools disable <name> · /tools remove <name>",
-                    );
-                    emit_note(text);
-                }
+            let restored = names("restored");
+            let removed = names("removed");
+            let unsnapshotted = names("unsnapshotted");
+            let mut t = format!("restored checkpoint {seq}");
+            if !restored.is_empty() {
+                t.push_str(&format!(" — restored {}", restored.join(", ")));
             }
-        }
-        "/compact" => {
-            let mut s = sh.session.lock().unwrap();
-            match s.as_mut() {
-                Some(sess) if !sess.messages.is_empty() => {
-                    match compact_messages(&mut sess.messages, 60_000, true, None) {
-                        Some((before, after, blocks)) => {
-                            save_session(sess);
-                            emit_note(format!(
-                                "compacted context — {blocks} old result(s) summarized (~{} → ~{} tok)",
-                                fmt_tokens(before),
-                                fmt_tokens(after)
-                            ));
-                        }
-                        None => emit_note(format!(
-                            "context already compact (~{} tok)",
-                            fmt_tokens(estimate_tokens(&sess.messages))
-                        )),
-                    }
-                }
-                _ => emit_note("no session context to compact yet"),
+            if !removed.is_empty() {
+                t.push_str(&format!(" — removed {}", removed.join(", ")));
             }
-        }
-        "/docs" => emit(json!({"type": "markdown", "title": "Docs", "text": DOCS_MD})),
-        "/changelog" => {
-            emit(json!({"type": "markdown", "title": "Changelog", "text": CHANGELOG_MD}))
-        }
-        "/resume" => {
-            let past: Vec<SessionRecord> = list_sessions()
-                .into_iter()
-                .filter(|s| s.project_root == deps.root)
-                .take(12)
-                .collect();
-            if past.is_empty() {
-                emit_note("no sessions for this project yet");
-                return;
-            }
-            let opts: Vec<Value> = past
-                .iter()
-                .map(|s| json!({
-                    "label": format!("{} — {}", s.updated_at.chars().take(16).collect::<String>().replace('T', " "), s.task.chars().take(60).collect::<String>().replace('\n', " ")),
-                    "desc": s.id.chars().take(8).collect::<String>(),
-                }))
-                .collect();
-            let Some(i) = sh.menu("Resume a session", opts, None) else {
-                return;
-            };
-            let Some(picked) = load_session(&past[i].id) else {
-                emit(crate::errors::event(
-                    &format!("session {} is unreadable", past[i].id),
-                    None,
-                    None,
+            if !unsnapshotted.is_empty() {
+                t.push_str(&format!(
+                    " — could not restore {} (no snapshot)",
+                    unsnapshotted.join(", ")
                 ));
+            }
+            if let Some(hm) = o.get("headMoved") {
+                let from = hm.get("from").and_then(|v| v.as_str()).unwrap_or("");
+                let to = hm.get("to").and_then(|v| v.as_str()).unwrap_or("");
+                t.push_str(&format!(
+                    " — note: HEAD moved ({} → {}) since this checkpoint",
+                    &from[..from.len().min(7)],
+                    &to[..to.len().min(7)]
+                ));
+            }
+            t
+        }
+        None => "nothing to undo".into(),
+    });
+}
+
+fn cmd_tools(_sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
+    let sub = raw.split_whitespace().nth(1).unwrap_or("");
+    let target = raw.split_whitespace().nth(2).unwrap_or("");
+    let specs = tools::custom_tools(&deps.root);
+    match sub {
+        "enable" | "disable" => {
+            let Some(spec) = specs.iter().find(|s| s.name == target) else {
+                emit_note(format!("no custom tool named \"{target}\""));
                 return;
             };
-            *sh.session.lock().unwrap() = Some(picked.clone());
-            sh.allowlist.lock().unwrap().clear();
-            sh.emit_session();
-            Shared::emit_history(&picked);
-            emit_note(format!(
-                "resumed session {} — {} message(s) restored",
-                picked.id.chars().take(8).collect::<String>(),
-                picked.messages.len()
-            ));
+            match tools::set_custom_enabled(&spec.path, sub == "enable") {
+                Ok(()) => emit_note(format!(
+                    "{} {} — {}",
+                    if sub == "enable" {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    },
+                    spec.name,
+                    spec.command
+                )),
+                Err(e) => emit_note(format!("couldn't update {}: {e}", spec.name)),
+            }
         }
-        "/new" => {
-            *sh.session.lock().unwrap() = None;
-            sh.allowlist.lock().unwrap().clear();
-            emit(json!({"type": "session", "id": null, "tokens": 0}));
-            emit_note("new session — context and session approvals reset");
+        "remove" => {
+            let Some(spec) = specs.iter().find(|s| s.name == target) else {
+                emit_note(format!("no custom tool named \"{target}\""));
+                return;
+            };
+            match std::fs::remove_file(&spec.path) {
+                Ok(()) => emit_note(format!("removed {}", spec.name)),
+                Err(e) => emit_note(format!("couldn't remove {}: {e}", spec.name)),
+            }
         }
-        "/help" => emit(json!({
+        _ => {
+            if specs.is_empty() {
+                emit_note(
+                    "no custom tools — drop a .toml in ~/.dxxpcode/tools/ or .dxxpcode/tools/",
+                );
+                return;
+            }
+            let mut text = String::from("Custom tools\n\n");
+            for s in &specs {
+                text.push_str(&format!(
+                    "{} {}  {}\n    {}\n",
+                    if s.enabled { "●" } else { "○" },
+                    s.name,
+                    if s.enabled { "enabled" } else { "disabled" },
+                    s.path.display()
+                ));
+            }
+            text.push_str("\n/tools enable <name> · /tools disable <name> · /tools remove <name>");
+            emit_note(text);
+        }
+    }
+}
+
+fn cmd_compact(sh: &Arc<Shared>, _deps: &DepsInfo, _raw: &str) {
+    let mut s = sh.session.lock().unwrap();
+    match s.as_mut() {
+        Some(sess) if !sess.messages.is_empty() => {
+            match compact_messages(&mut sess.messages, 60_000, true, None) {
+                Some((before, after, blocks)) => {
+                    save_session(sess);
+                    emit_note(format!(
+                        "compacted context — {blocks} old result(s) summarized (~{} → ~{} tok)",
+                        fmt_tokens(before),
+                        fmt_tokens(after)
+                    ));
+                }
+                None => emit_note(format!(
+                    "context already compact (~{} tok)",
+                    fmt_tokens(estimate_tokens(&sess.messages))
+                )),
+            }
+        }
+        _ => emit_note("no session context to compact yet"),
+    }
+}
+
+fn cmd_resume(sh: &Arc<Shared>, deps: &DepsInfo, _raw: &str) {
+    let past: Vec<SessionRecord> = list_sessions()
+        .into_iter()
+        .filter(|s| s.project_root == deps.root)
+        .take(12)
+        .collect();
+    if past.is_empty() {
+        emit_note("no sessions for this project yet");
+        return;
+    }
+    let opts: Vec<Value> = past
+        .iter()
+        .map(|s| json!({
+            "label": format!("{} — {}", s.updated_at.chars().take(16).collect::<String>().replace('T', " "), s.task.chars().take(60).collect::<String>().replace('\n', " ")),
+            "desc": s.id.chars().take(8).collect::<String>(),
+        }))
+        .collect();
+    let Some(i) = sh.menu("Resume a session", opts, None) else {
+        return;
+    };
+    let Some(picked) = load_session(&past[i].id) else {
+        emit(crate::errors::event(
+            &format!("session {} is unreadable", past[i].id),
+            None,
+            None,
+        ));
+        return;
+    };
+    *sh.session.lock().unwrap() = Some(picked.clone());
+    sh.allowlist.lock().unwrap().clear();
+    sh.emit_session();
+    Shared::emit_history(&picked);
+    emit_note(format!(
+        "resumed session {} — {} message(s) restored",
+        picked.id.chars().take(8).collect::<String>(),
+        picked.messages.len()
+    ));
+}
+
+fn cmd_new(sh: &Arc<Shared>, _deps: &DepsInfo, _raw: &str) {
+    *sh.session.lock().unwrap() = None;
+    sh.allowlist.lock().unwrap().clear();
+    emit(json!({"type": "session", "id": null, "tokens": 0}));
+    emit_note("new session — context and session approvals reset");
+}
+
+fn cmd_exit(_sh: &Arc<Shared>, _deps: &DepsInfo, _raw: &str) {
+    emit(json!({"type": "exit"}));
+    std::process::exit(0);
+}
+
+type Cmd = fn(&Arc<Shared>, &DepsInfo, &str);
+
+/// Slash-command dispatch. Descriptions live in `COMMAND_LIST` (shown by
+/// /help and sent to the desktop); this table maps words to handlers.
+const COMMAND_HANDLERS: &[(&[&str], Cmd)] = &[
+    (&["/review"], cmd_review),
+    (&["/status"], |sh, deps, _| {
+        show_status(sh, &deps.root, &deps.project, &deps.version)
+    }),
+    (&["/license"], cmd_license),
+    (&["/settings"], |sh, _, _| open_settings_menu(sh)),
+    (&["/approval"], |sh, _deps, raw| {
+        cmd_or_menu(sh, raw, set_approval_mode_by_name, open_approval_menu)
+    }),
+    (&["/model"], |sh, _deps, raw| {
+        cmd_or_menu(sh, raw, set_model, open_model_menu)
+    }),
+    (&["/models"], |sh, _, _| {
+        emit(json!({"type": "models", "items": model_options(sh)}))
+    }),
+    (&["/effort"], |sh, _deps, raw| {
+        cmd_or_menu(sh, raw, set_effort, open_effort_menu)
+    }),
+    (&["/variant"], |sh, _deps, raw| {
+        cmd_or_menu(sh, raw, set_variant, open_variant_menu)
+    }),
+    (&["/provider", "/providers"], |sh, _deps, raw| {
+        cmd_or_menu(sh, raw, switch_provider, open_provider_menu)
+    }),
+    (&["/setup"], |sh, _, _| run_onboarding(sh)),
+    (&["/undo"], cmd_undo),
+    (&["/tools"], cmd_tools),
+    (&["/compact"], cmd_compact),
+    (&["/docs"], |_, _, _| {
+        emit(json!({"type": "markdown", "title": "Docs", "text": DOCS_MD}))
+    }),
+    (&["/changelog"], |_, _, _| {
+        emit(json!({"type": "markdown", "title": "Changelog", "text": CHANGELOG_MD}))
+    }),
+    (&["/resume"], cmd_resume),
+    (&["/new"], cmd_new),
+    (&["/help"], |_, _, _| {
+        emit(json!({
             "type": "markdown",
             "title": "Commands",
             "text": COMMAND_LIST.iter().map(|(n, d)| format!("**`{n}`** — {d}")).collect::<Vec<_>>().join("\n"),
-        })),
-        "/exit" | "exit" | "quit" => {
-            emit(json!({"type": "exit"}));
-            std::process::exit(0);
-        }
-        _ => emit_note(format!("unknown command {name} — /help lists commands")),
+        }))
+    }),
+    (&["/exit", "exit", "quit"], cmd_exit),
+];
+
+fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
+    let name = raw.split_whitespace().next().unwrap_or("");
+    match COMMAND_HANDLERS
+        .iter()
+        .find(|(names, _)| names.contains(&name))
+    {
+        Some((_, f)) => f(sh, deps, raw),
+        None => emit_note(format!("unknown command {name} — /help lists commands")),
     }
 }
 
