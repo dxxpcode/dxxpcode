@@ -433,6 +433,7 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
 .reply-title { margin: 0 0 10px; font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
 .reply-intro { margin: 0 0 12px; color: var(--dim); }
 .reply-body { min-width: 0; }
+.reply strong { font-weight: 600; }
 .text { line-height: 1.6; font-size: 15px; }
 /* Reply as document: real structure, generous rhythm. */
 .text p { margin: 0.45em 0; }
