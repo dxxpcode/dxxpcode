@@ -994,17 +994,56 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .composer-controls { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-.composer-select { min-width: 0; }
-.composer-select:first-child { max-width: 240px; }
-.composer-select .setdd { position: static; }
-.composer-select .setdd-btn { max-width: 100%; min-height: 30px; font-size: 12px; }
-.composer-select .setdd-menu {
-  top: auto; bottom: calc(100% + 8px); left: 0; right: auto;
-  width: min(320px, 100%); min-width: 0; border-radius: var(--radius-sm);
+/* model + effort: bare text pair, one combined popover */
+.mp { position: relative; display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+.mp-word {
+  background: none; border: none; padding: 2px 0;
+  font: inherit; font-size: 12px; color: var(--dim); cursor: pointer;
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: color 0.15s var(--ease);
 }
-.composer-select .setdd-item { overflow-wrap: anywhere; }
-.composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
-.composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
+.mp-word:hover { color: var(--text); }
+.mp-word:focus-visible { outline: none; color: var(--text); }
+.mp-word:disabled { opacity: 0.45; cursor: default; }
+.mp-word-effort { color: var(--faint); }
+.mp-word-effort:hover, .mp-word-effort:focus-visible { color: var(--text); }
+.mp-sep { color: var(--faint); font-size: 12px; user-select: none; }
+.mp-menu {
+  position: absolute; top: auto; bottom: calc(100% + 10px); left: -6px;
+  width: 236px; max-height: min(460px, 74vh); overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-lg);
+  padding: 6px; z-index: 60;
+}
+.mp-sec {
+  padding: 5px 8px 3px; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint);
+}
+.mp-models { padding-bottom: 2px; }
+.mp-opt {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 5px 8px; border: none; border-radius: 6px;
+  background: none; font: inherit; font-size: 12px; color: var(--dim);
+  text-align: left; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mp-opt:hover, .mp-opt:focus-visible { background: var(--surface2); color: var(--text); outline: none; }
+.mp-opt.cur { color: var(--text); }
+.mp-opt-dim { color: var(--faint); }
+.mp-check { width: 12px; flex-shrink: 0; display: inline-flex; color: var(--text); }
+.mp-seg { display: flex; gap: 2px; padding: 2px 4px 4px; }
+.mp-seg-btn {
+  flex: 1; background: none; border: none; border-radius: 5px;
+  padding: 4px 0; font: inherit; font-size: 11px; color: var(--faint); cursor: pointer;
+  transition: color 0.12s var(--ease), background-color 0.12s var(--ease);
+}
+.mp-seg-btn:hover, .mp-seg-btn:focus-visible { color: var(--dim); outline: none; }
+.mp-seg-btn.cur { color: var(--text); background: var(--surface2); }
+.mp-auto { color: var(--purple); }
+.mp-auto:not(.cur) { opacity: 0.75; }
+.mp-auto:hover, .mp-auto:focus-visible { color: var(--purple); }
+.mp-auto .mp-check { color: var(--purple); }
+.mp-foot { padding: 5px 8px 3px; font-size: 10px; color: var(--faint); border-top: 1px solid var(--border); margin-top: 4px; }
 .plan-toggle {
   display: inline-flex; align-items: center; gap: 4px;
   background: none; font: inherit; font-size: 11px;
