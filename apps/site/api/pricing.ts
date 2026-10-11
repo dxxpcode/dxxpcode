@@ -1,8 +1,9 @@
-import { activeTier, getTiers, seedTiersIfMissing, upstashReady } from "./pricing-lib.js";
+import { activeTier, getTiers, licensingEnabled, seedTiersIfMissing, upstashReady } from "./pricing-lib.js";
 
 // GET /api/pricing → data-driven pricing state for the /pricing card.
 // sold counts are authoritative — "0 of 49" until real purchases confirm.
 export async function GET() {
+  if (!licensingEnabled()) return Response.json({ error: "licensing_disabled" }, { status: 403 });
   if (!upstashReady()) return Response.json({ error: "pricing unavailable" }, { status: 503 });
   try {
     await seedTiersIfMissing();
