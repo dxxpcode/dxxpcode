@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
@@ -11,7 +11,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
-import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo } from "./transcript";
+import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { SetSelect } from "./settings";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
@@ -235,21 +235,25 @@ export default function App() {
   // Per-turn stats for the Codex-style activity line: tools run since the
   // last user prompt (for "Worked for Ns · M tools") and the most recent
   // tool label for the live "Working…" row.
-  const turnTools = new Map<number, number>();
-  {
+  const turnTools = useMemo(() => {
+    const m = new Map<number, number>();
     let n = 0;
     items.forEach((it, i) => {
       if (it.k === "user") n = 0;
       else if (it.k === "tool") n++;
-      else if (it.k === "done") turnTools.set(i, n);
+      else if (it.k === "done") m.set(i, n);
     });
-  }
-  let lastTool: string | null = null;
-  for (let i = items.length - 1; i >= 0; i--) {
-    const it = items[i];
-    if (it.k === "user") break;
-    if (it.k === "tool") { lastTool = `${TOOL_DISPLAY[it.tool] ?? it.tool}${it.arg ? ` ${it.arg}` : ""}`; break; }
-  }
+    return m;
+  }, [items]);
+  const lastTool = useMemo(() => {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.k === "user") break;
+      if (it.k === "tool") return `${TOOL_DISPLAY[it.tool] ?? it.tool}${it.arg ? ` ${it.arg}` : ""}`;
+    }
+    return null;
+  }, [items]);
+  const turns = useMemo(() => groupTurns(groupItems(items)), [items]);
   const palette = input.startsWith("/")
     ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
     : [];
@@ -934,7 +938,8 @@ export default function App() {
     void send({ type: "select", id: m.id, index });
   };
 
-  const cmd = (name: string) => {
+  // Stable identity: memoized transcript rows take `cmd` as a prop.
+  const cmd = useCallback((name: string) => {
     if (name === "build") {
       void send({ type: "build" });
       return;
@@ -951,7 +956,7 @@ export default function App() {
     }
     if (name === "/docs" || name === "/changelog" || name === "/help") setDocView({ title: "…", text: "" });
     void send({ type: "command", name });
-  };
+  }, []);
 
   useEffect(() => {
     if (settingsOpen) void send({ type: "command", name: "/models" });
@@ -1626,7 +1631,7 @@ export default function App() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <div className="doc-body text" dangerouslySetInnerHTML={md(docView.text)} />
+            <Md className="doc-body text" text={docView.text} />
           </div>
         </div>
       )}
@@ -1821,7 +1826,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {groupTurns(groupItems(items)).map((turn, ti) => (
+        {turns.map((turn, ti) => (
           <div className="turn" key={ti}>
             {turn.map((seg, si) =>
               Array.isArray(seg) ? (
