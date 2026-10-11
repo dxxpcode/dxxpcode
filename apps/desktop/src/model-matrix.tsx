@@ -161,7 +161,7 @@ export const ModelMatrix = memo(function ModelMatrix({
         return (
           <button
             type="button"
-            className={`mmx-cell${selected ? " mmx-selected" : ""}${specialEffort ? " mmx-no-dot" : ""}`}
+            className={`mmx-cell${selected ? " mmx-selected" : ""}`}
             key={tier}
             ref={(element) => {
               const key = cellKey(row, column);
@@ -173,7 +173,7 @@ export const ModelMatrix = memo(function ModelMatrix({
             aria-pressed={selected}
             onMouseEnter={() => setCrosshair({ model: row, column })}
             onMouseLeave={() => setCrosshair(focusCell)}
-            onFocus={() => setCrosshair({ model: row, column })}
+            onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setCrosshair({ model: row, column }); }}
             onBlur={(event) => {
               if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) setCrosshair(null);
             }}
