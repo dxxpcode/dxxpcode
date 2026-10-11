@@ -889,12 +889,25 @@ fn stream_turn(
     // (no tokens/events for 15s+) surfaces a status line instead of
     // looking hung.
     let emit_cell = Mutex::new(&mut *emit);
+    // Text deltas are coalesced before emission (~30ms / 4KB) so the UI gets
+    // one JSON line per batch instead of one per token.
+    let pending_text: Mutex<(String, Instant)> = Mutex::new((String::new(), Instant::now()));
+    let flush_text = || {
+        let mut p = pending_text.lock().unwrap();
+        if !p.0.is_empty() {
+            let chunk = std::mem::take(&mut p.0);
+            p.1 = Instant::now();
+            drop(p);
+            (*emit_cell.lock().unwrap())(json!({"type": "text", "text": chunk}));
+        }
+    };
     let last_ev = Arc::new(Mutex::new(Instant::now()));
     let wd_stop = Arc::new(AtomicBool::new(false));
     let res = std::thread::scope(|s| {
         let last_ev2 = Arc::clone(&last_ev);
         let wd_stop2 = Arc::clone(&wd_stop);
         let emit_cell = &emit_cell;
+        let flush_text = &flush_text;
         s.spawn(move || {
             let mut n = 0u64;
             loop {
@@ -905,6 +918,7 @@ fn stream_turn(
                 let quiet = last_ev2.lock().unwrap().elapsed().as_secs();
                 while quiet >= 15 * (n + 1) {
                     n += 1;
+                    flush_text();
                     (*emit_cell.lock().unwrap())(json!({
                         "type": "status",
                         "message": format!("Waiting on model — no output for {}s…", 15 * n),
@@ -925,9 +939,16 @@ fn stream_turn(
                 match ev {
                     ProviderEvent::Text(t) => {
                         text_parts.push(t.clone());
-                        (*emit_cell.lock().unwrap())(json!({"type": "text", "text": t}));
+                        let mut p = pending_text.lock().unwrap();
+                        p.0.push_str(&t);
+                        let full = p.0.len() >= 4096 || p.1.elapsed() >= Duration::from_millis(30);
+                        drop(p);
+                        if full {
+                            flush_text();
+                        }
                     }
                     ProviderEvent::Thinking(t) => {
+                        flush_text();
                         (*emit_cell.lock().unwrap())(json!({"type": "think", "text": t}));
                     }
                     ProviderEvent::ToolUse { id, name, input } => {
@@ -935,11 +956,13 @@ fn stream_turn(
                     }
                     ProviderEvent::Done { usage: u, .. } => usage = u,
                     ProviderEvent::Status(m) => {
+                        flush_text();
                         (*emit_cell.lock().unwrap())(json!({"type": "status", "message": m}));
                     }
                 }
             },
         );
+        flush_text();
         wd_stop.store(true, std::sync::atomic::Ordering::Relaxed);
         res
     });

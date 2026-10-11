@@ -174,8 +174,8 @@ pub fn new_session_id(root: &str) -> String {
 pub fn save_session(rec: &SessionRecord) {
     let dir = sessions_dir();
     let _ = fs::create_dir_all(&dir);
-    if let Ok(mut raw) = serde_json::to_string_pretty(rec) {
-        raw.push('\n');
+    if let Ok(mut raw) = serde_json::to_vec(rec) {
+        raw.push(b'\n');
         let _ = fs::write(dir.join(format!("{}.json", rec.id)), raw);
     }
 }
