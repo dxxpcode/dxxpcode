@@ -69,12 +69,13 @@ export function ModelPicker({
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
 
   const frac = effortFraction(effort);
-  const dialStyle = auto
-    ? { background: "conic-gradient(var(--purple) 0deg 360deg)" }
-    : { background: `conic-gradient(var(--text) 0deg ${Math.round(frac * 360)}deg, var(--border-strong) ${Math.round(frac * 360)}deg 360deg)` };
+  const dialStyle = {
+    "--mp-a": `${Math.round((auto ? 1 : frac) * 360)}deg`,
+    "--mp-c": auto ? "var(--purple)" : "var(--text)",
+  } as React.CSSProperties;
 
   return (
-    <div className="mpicker" ref={ref}
+    <div className={`mpicker${open ? " open" : ""}`} ref={ref}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
       onKeyDown={(e) => {
         if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); closeMenu(); }
@@ -103,7 +104,7 @@ export function ModelPicker({
         <span className="mp-sep" aria-hidden />
         <button
           type="button"
-          className="mp-eff"
+          className={`mp-eff${auto ? " auto" : ""}`}
           aria-label={`Reasoning effort: ${effort}. Activate to cycle.`}
           title={`Effort: ${effort} — click to cycle`}
           disabled={disabled}
@@ -152,6 +153,7 @@ export function ModelPicker({
             <span className="mp-jev-text">auto — Jev routes effort</span>
             <span className={`mp-switch${auto ? " on" : ""}`}><span className="mp-switch-dot" /></span>
           </button>
+          <div className="mp-hr" />
           <div className="mp-sec">Model</div>
           <div className="mp-models" role="listbox" aria-label="Model">
             {opts.map((o, i) => (

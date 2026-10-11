@@ -995,14 +995,14 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 .composer-controls { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 /* ---------- model picker (split-zone chip) ---------- */
-.mpicker { position: relative; min-width: 0; }
+.mpicker { position: relative; min-width: 0; user-select: none; -webkit-user-select: none; }
 .mp-chip {
   display: inline-flex; align-items: stretch; height: 30px; max-width: 100%;
   border: 1px solid var(--border); border-radius: 999px;
   background: var(--surface2); overflow: hidden;
   transition: border-color 0.15s var(--ease);
 }
-.mp-chip:hover { border-color: var(--border-strong); }
+.mp-chip:hover, .mpicker.open .mp-chip { border-color: var(--border-strong); }
 .mp-chip.off { opacity: 0.5; }
 .mp-model, .mp-eff {
   display: inline-flex; align-items: center; gap: 7px;
@@ -1020,9 +1020,16 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .mp-caret { flex-shrink: 0; color: var(--faint); transition: transform 0.15s var(--ease); }
 .mp-caret.flip { transform: rotate(180deg); }
 .mp-sep { width: 1px; align-self: stretch; margin: 6px 0; background: var(--border); flex-shrink: 0; }
-.mp-dial { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; }
-.mp-dial-core { width: 8px; height: 8px; border-radius: 50%; background: var(--surface2); }
+@property --mp-a { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.mp-dial {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+  background: conic-gradient(var(--mp-c, var(--text)) var(--mp-a, 0deg), var(--border-strong) 0deg);
+  transition: --mp-a 0.25s var(--ease);
+}
+.mp-dial-core { width: 8px; height: 8px; border-radius: 50%; background: var(--surface2); transition: background-color 0.12s var(--ease); }
+.mp-eff:hover .mp-dial-core, .mp-eff:focus-visible .mp-dial-core { background: var(--border); }
 .mp-eff-label { font-size: 11.5px; }
+.mp-eff.auto .mp-eff-label { color: var(--purple); }
 .mp-pop {
   position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 50;
   width: 300px; max-width: calc(100vw - 32px);
@@ -1065,6 +1072,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .mp-jev:hover { background: var(--surface2); color: var(--text); }
 .mp-jev-ico { flex-shrink: 0; color: var(--purple); }
 .mp-jev-text { flex: 1; min-width: 0; }
+.mp-hr { height: 1px; margin: 3px 4px 0; background: var(--border); }
 .mp-switch {
   width: 26px; height: 15px; border-radius: 999px; flex-shrink: 0;
   background: var(--border-strong); position: relative;
