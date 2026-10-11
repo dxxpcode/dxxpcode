@@ -1,17 +1,24 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Folder } from "lucide-react";
 import type { Item } from "./types";
 import { TOOL_DISPLAY } from "./types";
 import { md } from "./lib/markdown";
 
-export function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: number; onCmd?: (name: string) => void }) {
+// Markdown is expensive (marked + highlight.js) — parse once per text value
+// and let memo skip re-renders when the string hasn't changed.
+export const Md = memo(function Md({ text, className }: { text: string; className?: string }) {
+  const html = useMemo(() => md(text), [text]);
+  return <div className={className} dangerouslySetInnerHTML={html} />;
+});
+
+function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: number; onCmd?: (name: string) => void }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row">{item.text}</div>;
     case "text":
       return (
         <div className="reply row">
-          <div className="reply-body text" dangerouslySetInnerHTML={md(item.text)} />
+          <Md className="reply-body text" text={item.text} />
           {item.interrupted && <span className="interrupted">— interrupted</span>}
         </div>
       );
@@ -116,7 +123,7 @@ export function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: n
       return (
         <section className="reply reply-section row">
           {item.title && <h2 className="reply-title">{item.title}</h2>}
-          <div className="reply-body text" dangerouslySetInnerHTML={md(item.text)} />
+          <Md className="reply-body text" text={item.text} />
         </section>
       );
     case "diffcard":
@@ -190,6 +197,10 @@ export function ItemView({ item, toolCount, onCmd }: { item: Item; toolCount?: n
   }
 }
 
+// Item objects keep their identity across `setItems` appends, so memo
+// skips every row except the one still streaming.
+export const ItemView = memo(ItemViewImpl);
+
 const Chevron = (
   <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
 );
@@ -228,7 +239,7 @@ function toolLabel(it: Extract<Item, { k: "tool" }>): string {
   return `${name} ${tail.length > 26 ? tail.slice(0, 25) + "…" : tail}`;
 }
 
-export function TGroup({ seg, running, lastIdx, onCmd }: { seg: Grouped[]; running: boolean; lastIdx: number; onCmd?: (name: string) => void }) {
+function TGroupImpl({ seg, running, lastIdx, onCmd }: { seg: Grouped[]; running: boolean; lastIdx: number; onCmd?: (name: string) => void }) {
   const anyPending = seg.some((g) => g.item.k === "tool" && g.item.pending);
   const [open, setOpen] = useState(true);
   useEffect(() => {
@@ -263,6 +274,16 @@ export function TGroup({ seg, running, lastIdx, onCmd }: { seg: Grouped[]; runni
     </div>
   );
 }
+
+// Grouped wrappers are rebuilt on every render — compare by item identity
+// so finished groups don't re-render while siblings stream.
+export const TGroup = memo(TGroupImpl, (a, b) =>
+  a.running === b.running &&
+  a.lastIdx === b.lastIdx &&
+  a.onCmd === b.onCmd &&
+  a.seg.length === b.seg.length &&
+  a.seg.every((g, i) => g.idx === b.seg[i].idx && g.item === b.seg[i].item),
+);
 
 function FileChip({ path }: { path: string }) {
   const base = path.split("/").pop() ?? path;
@@ -380,7 +401,7 @@ export function PlanApproval({
   const finalSteps = () => edited.map((s) => s.trim()).filter(Boolean);
   return (
     <>
-      {summary && <div className="plan-summary text" dangerouslySetInnerHTML={md(summary)} />}
+      {summary && <Md className="plan-summary text" text={summary} />}
       <ol className="plan-edit">
         {edited.map((s, i) => (
           <li className="plan-edit-row" key={i}>
@@ -422,7 +443,7 @@ export function ApprovalSummary({ text, kind }: { text: string; kind: "plan" | "
   return (
     <div className={`summary-md${long && !open ? " clamped" : ""}`}>
       <div className="summary-cap">{kind === "plan" ? "Plan" : "Command"}</div>
-      <div className="text" dangerouslySetInnerHTML={md(text)} />
+      <Md className="text" text={text} />
       {long && (
         <button className="summary-more" onClick={() => setOpen((v) => !v)}>
           {open ? "show less" : `show ${text.split("\n").length - SUMMARY_CLAMP_LINES} more lines`}
@@ -467,7 +488,7 @@ function wordChanges(rows: DiffRow[]) {
   }
 }
 
-export function Diff({ diff }: { diff: string }) {
+function DiffImpl({ diff }: { diff: string }) {
   const [expanded, setExpanded] = useState(false);
   const rows: DiffRow[] = [];
   let oldN = 0, newN = 0;
@@ -535,6 +556,8 @@ export function Diff({ diff }: { diff: string }) {
     </div>
   );
 }
+
+export const Diff = memo(DiffImpl);
 
 const SYN_RE = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\/\/.*|\/\*.*\*\/|#(?!include)[^\n]*)|\b(\d[\d_]*(?:\.\d+)?)\b|\b(const|let|var|function|return|if|else|elif|for|while|do|switch|case|break|continue|import|from|export|default|class|extends|new|this|self|struct|enum|fn|pub|use|impl|trait|def|print|None|True|False|null|undefined|async|await|try|catch|except|finally|match|mod|type|interface|static|void|int|float|str|bool|mut|ref|move|where|in|is|and|or|not)\b/g;
 
