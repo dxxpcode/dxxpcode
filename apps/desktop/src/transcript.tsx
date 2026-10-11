@@ -401,32 +401,35 @@ export function PlanApproval({
   const finalSteps = () => edited.map((s) => s.trim()).filter(Boolean);
   return (
     <>
-      {summary && <Md className="plan-summary text" text={summary} />}
-      <ol className="plan-edit">
-        {edited.map((s, i) => (
-          <li className="plan-edit-row" key={i}>
-            <input
-              className="plan-edit-input"
-              value={s}
-              placeholder="Describe the step…"
-              aria-label={`Plan step ${i + 1}`}
-              onChange={(e) => setEdited((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
-            />
-            <button
-              className="plan-edit-del"
-              aria-label={`Remove step ${i + 1}`}
-              title="Remove step"
-              onClick={() => setEdited((cur) => cur.filter((_, j) => j !== i))}
-            >
-              ✕
-            </button>
-          </li>
-        ))}
-      </ol>
-      <button className="plan-edit-add" onClick={() => setEdited((cur) => [...cur, ""])}>+ add step</button>
+      <div className="dec-body">
+        {summary && <Md className="plan-summary text" text={summary} />}
+        <ol className="plan-edit">
+          {edited.map((s, i) => (
+            <li className="plan-edit-row" key={i}>
+              <input
+                className="plan-edit-input"
+                value={s}
+                placeholder="Describe the step…"
+                aria-label={`Plan step ${i + 1}`}
+                onChange={(e) => setEdited((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
+              />
+              <button
+                className="plan-edit-del"
+                aria-label={`Remove step ${i + 1}`}
+                title="Remove step"
+                onClick={() => setEdited((cur) => cur.filter((_, j) => j !== i))}
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ol>
+        <button className="plan-edit-add" onClick={() => setEdited((cur) => [...cur, ""])}>+ add step</button>
+      </div>
       <div className="dec-acts">
-        <button className="pill allow" onClick={() => onAnswer("y", finalSteps())}>Approve</button>
+        <button className="pill allow" onClick={() => onAnswer("y", finalSteps())}>Approve plan</button>
         <button className="pill deny" onClick={() => onAnswer("n", [])}>Deny</button>
+        {extraChoice && <span className="dec-sep" />}
         {extraChoice && (
           <button className="pill ghost" onClick={() => onAnswer(extraChoice.choice, finalSteps())}>
             {extraChoice.label}

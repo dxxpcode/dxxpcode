@@ -1976,10 +1976,14 @@ export default function App() {
               {a.tool && <span className="dres-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
           ) : (
-            <div className="row decision" key={`ap${a.id}`}>
+            <div className="row decision decision-card" key={`ap${a.id}`}>
               <div className="dec-head">
-                <span className="dres-dot" />Approval required
-                {a.tool && <span className="dec-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
+                <span className="dec-mark"><ListChecks size={12} /></span>
+                <span className="dec-titleblock">
+                  <span className="dec-title">Approval required</span>
+                  {a.tool && <span className="dec-meta">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
+                </span>
+                <span className="dec-status">Waiting</span>
               </div>
               {a.kind === "plan" && a.steps ? (
                 <PlanApproval
@@ -1990,11 +1994,14 @@ export default function App() {
                 />
               ) : (
                 <>
-                  <ApprovalSummary text={a.summary} kind={a.kind} />
-                  {a.reason && <div className="reason">Reason: {a.reason}</div>}
+                  <div className="dec-body">
+                    <ApprovalSummary text={a.summary} kind={a.kind} />
+                    {a.reason && <div className="reason">Reason: {a.reason}</div>}
+                  </div>
                   <div className="dec-acts">
-                    <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow</button>
+                    <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow once</button>
                     <button className="pill deny" onClick={() => answer(a.id, "n")}>Deny</button>
+                    {(a.allowAlways || a.extraChoice) && <span className="dec-sep" />}
                     {a.allowAlways && <button className="pill ghost" onClick={() => answer(a.id, "a")}>Always allow</button>}
                     {a.extraChoice && <button className="pill ghost" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
                   </div>
@@ -2015,14 +2022,21 @@ export default function App() {
             );
           }
           return (
-            <div className="row decision" key={`df${d.id}`}>
+            <div className="row decision decision-card" key={`df${d.id}`}>
               <div className="dec-head">
-                <span className="dres-dot" />Review change <span className="dec-tool">{d.path}</span> <span className="diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
+                <span className="dec-mark"><Files size={12} /></span>
+                <span className="dec-titleblock">
+                  <span className="dec-title">Review change</span>
+                  <span className="dec-meta" title={d.path}>{d.path}</span>
+                </span>
+                <span className="diffstat dec-diffstat"><span className="ds-add">+{st.add}</span><span className="ds-del">−{st.del}</span></span>
+                <span className="dec-status">Pending</span>
               </div>
-              <Diff diff={d.diff} />
+              <div className="dec-body dec-diff"><Diff diff={d.diff} /></div>
               <div className="dec-acts">
                 <button className="pill allow" onClick={() => decideDiff(d.id, "apply")}>Apply</button>
                 <button className="pill deny" onClick={() => decideDiff(d.id, "discard")}>Discard</button>
+                <span className="dec-sep" />
                 <button className="pill ghost" onClick={() => decideDiff(d.id, "apply_all")}>Apply all</button>
               </div>
             </div>
