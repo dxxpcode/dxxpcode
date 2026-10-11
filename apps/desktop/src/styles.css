@@ -994,17 +994,107 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .composer-controls { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-.composer-select { min-width: 0; }
-.composer-select:first-child { max-width: 240px; }
-.composer-select .setdd { position: static; }
-.composer-select .setdd-btn { max-width: 100%; min-height: 30px; font-size: 12px; }
-.composer-select .setdd-menu {
-  top: auto; bottom: calc(100% + 8px); left: 0; right: auto;
-  width: min(320px, 100%); min-width: 0; border-radius: var(--radius-sm);
+/* ---------- model picker (split-zone chip) ---------- */
+.mpicker { position: relative; min-width: 0; }
+.mp-chip {
+  display: inline-flex; align-items: stretch; height: 30px; max-width: 100%;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface2); overflow: hidden;
+  transition: border-color 0.15s var(--ease);
 }
-.composer-select .setdd-item { overflow-wrap: anywhere; }
-.composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
-.composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
+.mp-chip:hover { border-color: var(--border-strong); }
+.mp-chip.off { opacity: 0.5; }
+.mp-model, .mp-eff {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: inherit; font-size: 12.5px; color: var(--text);
+  background: none; border: none; cursor: pointer;
+  transition: background-color 0.12s var(--ease);
+}
+.mp-model { padding: 0 10px 0 11px; min-width: 0; }
+.mp-eff { padding: 0 12px 0 10px; color: var(--dim); }
+.mp-model:hover, .mp-eff:hover { background: var(--border); }
+.mp-model:focus-visible, .mp-eff:focus-visible { outline: none; background: var(--border); }
+.mp-model:disabled, .mp-eff:disabled { cursor: default; }
+.mp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mp-name { min-width: 0; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-caret { flex-shrink: 0; color: var(--faint); transition: transform 0.15s var(--ease); }
+.mp-caret.flip { transform: rotate(180deg); }
+.mp-sep { width: 1px; align-self: stretch; margin: 6px 0; background: var(--border); flex-shrink: 0; }
+.mp-dial { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; }
+.mp-dial-core { width: 8px; height: 8px; border-radius: 50%; background: var(--surface2); }
+.mp-eff-label { font-size: 11.5px; }
+.mp-pop {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 50;
+  width: 300px; max-width: calc(100vw - 32px);
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  animation: mp-in 0.16s var(--ease);
+}
+@keyframes mp-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.mp-sec {
+  padding: 8px 10px 4px; font-size: 10.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint);
+}
+.mp-slider { padding: 2px 10px 6px; }
+.mp-slider.auto { opacity: 0.45; pointer-events: none; }
+.mp-track { position: relative; height: 20px; display: flex; align-items: center; }
+.mp-rail { position: absolute; left: 7px; right: 7px; height: 3px; border-radius: 2px; background: var(--surface2); }
+.mp-fill { position: absolute; left: 7px; height: 3px; border-radius: 2px; background: var(--dim); transition: width 0.15s var(--ease); }
+.mp-stops { position: relative; display: flex; justify-content: space-between; width: 100%; }
+.mp-stop {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--surface2); border: 1.5px solid var(--border-strong);
+  cursor: pointer; padding: 0;
+  transition: border-color 0.12s var(--ease), background-color 0.12s var(--ease);
+}
+.mp-stop:hover { border-color: var(--dim); }
+.mp-stop.on { background: var(--text); border-color: var(--text); }
+.mp-stoplabels { display: flex; justify-content: space-between; padding: 3px 2px 0; font-size: 9.5px; color: var(--faint); }
+.mp-stoplabels span { width: 14px; text-align: center; }
+.mp-stoplabels span.on { color: var(--text); }
+.mp-jev {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  padding: 7px 10px; margin-top: 2px;
+  font: inherit; font-size: 12px; color: var(--dim); text-align: left;
+  background: none; border: none; border-radius: 6px; cursor: pointer;
+  transition: background-color 0.1s var(--ease), color 0.1s var(--ease);
+}
+.mp-jev:hover { background: var(--surface2); color: var(--text); }
+.mp-jev-ico { flex-shrink: 0; color: var(--purple); }
+.mp-jev-text { flex: 1; min-width: 0; }
+.mp-switch {
+  width: 26px; height: 15px; border-radius: 999px; flex-shrink: 0;
+  background: var(--border-strong); position: relative;
+  transition: background-color 0.15s var(--ease);
+}
+.mp-switch.on { background: var(--text); }
+.mp-switch-dot {
+  position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--surface);
+  transition: transform 0.15s var(--ease);
+}
+.mp-switch.on .mp-switch-dot { transform: translateX(11px); }
+.mp-models { max-height: 190px; overflow-y: auto; }
+.mp-mrow {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 10px;
+  font: inherit; font-size: 12.5px; text-align: left; color: var(--dim);
+  background: none; border: none; border-radius: 6px; cursor: pointer;
+  transition: background-color 0.1s var(--ease), color 0.1s var(--ease);
+}
+.mp-mrow:hover, .mp-mrow:focus-visible { background: var(--surface2); color: var(--text); outline: none; }
+.mp-mrow.cur { color: var(--text); font-weight: 500; }
+.mp-mrow.custom { color: var(--faint); }
+.mp-mname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-check { width: 14px; flex-shrink: 0; display: inline-flex; justify-content: center; color: var(--text); }
+.mp-foot {
+  padding: 7px 10px 5px; margin-top: 2px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--faint);
+}
 .plan-toggle {
   display: inline-flex; align-items: center; gap: 4px;
   background: none; font: inherit; font-size: 11px;
