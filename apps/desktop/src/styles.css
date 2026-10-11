@@ -208,26 +208,76 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 4px 4px 8px; margin-top: 8px;
 }
-.rail-proj {
-  width: 100%; min-height: 42px; justify-content: flex-start; gap: 8px;
-  padding: 0 8px; font-size: 13px; font-weight: 500; color: var(--text);
-  border-radius: var(--radius-sm);
+.rail-workspace {
+  display: flex; align-items: center; gap: 4px;
+  margin: 2px 0 8px; padding: 5px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
-.rail-proj svg { color: var(--dim); }
-.rail-projmain {
+.rail-workspace:hover { border-color: var(--border-strong); }
+.rail-workspace-main {
+  flex: 1; min-width: 0; height: auto; min-height: 38px;
+  justify-content: flex-start; gap: 9px; padding: 3px 4px;
+  font-size: 13px; color: var(--text); text-align: left;
+}
+.rail-workspace-main:hover { background: transparent; }
+.rail-workspace-icon {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--dim); background: var(--surface2);
+  border-radius: 8px;
+}
+.rail-workspace-copy {
   display: flex; flex-direction: column; gap: 1px;
-  min-width: 0; flex: 1; text-align: left;
+  min-width: 0; flex: 1;
 }
-.rail-projmeta {
-  font-size: 11px; font-weight: 400; line-height: 1.25;
-  color: var(--faint); white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
+.rail-workspace-title { font-weight: 500; line-height: 1.25; }
+.rail-workspace-meta {
+  font-size: 11px; line-height: 1.25; color: var(--faint);
 }
-.rail-projchev { margin-left: auto; color: var(--faint); }
-.rail-project-sessions {
-  margin: 2px 0 0 8px; padding-left: 8px;
-  border-left: 1px solid var(--border);
+.rail-workspace-main > svg { color: var(--faint); flex-shrink: 0; }
+.rail-workspace-open {
+  width: 28px; height: 28px; flex-shrink: 0;
+  color: var(--faint); border-radius: 7px;
 }
+.rail-workspace-open:hover { color: var(--text); background: var(--surface2); }
+.rail-inbox-head { margin-top: 2px; }
+.rail-inbox-count {
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--faint); background: var(--surface2);
+  border-radius: 9px; font-size: 10.5px;
+}
+.rail-inbox {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 6px;
+}
+.rail-inbox-item {
+  width: 100%; height: auto; min-height: 40px;
+  justify-content: flex-start; gap: 8px;
+  padding: 6px 7px; border-radius: var(--radius-sm);
+  text-align: left; color: var(--text);
+}
+.rail-inbox-icon {
+  width: 26px; height: 26px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+}
+.rail-inbox-item.warn .rail-inbox-icon {
+  color: var(--amber); background: color-mix(in srgb, var(--amber) 11%, transparent);
+}
+.rail-inbox-item.bad .rail-inbox-icon {
+  color: var(--red); background: color-mix(in srgb, var(--red) 11%, transparent);
+}
+.rail-inbox-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rail-inbox-title { font-size: 12.5px; font-weight: 500; line-height: 1.25; }
+.rail-inbox-detail {
+  font-size: 11px; line-height: 1.25; color: var(--faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rail-inbox-item:hover { background: var(--rail-row); }
+.rail-sessions { margin-top: 2px; }
 .rail-sess { position: relative; }
 .rail-sessrow {
   display: flex; align-items: center;
