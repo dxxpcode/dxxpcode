@@ -465,7 +465,7 @@ export function diffStats(diff: string): { add: number; del: number } {
   return { add, del };
 }
 
-type DiffRow = { cls: string; gutter: string; text: string; chg?: [number, number] };
+type DiffRow = { cls: string; oldLine: string; newLine: string; sign: string; text: string; chg?: [number, number] };
 
 // Pair each run of deletions with the following run of additions and highlight
 // the differing infix inside each paired line (common prefix/suffix trimmed).
@@ -479,13 +479,13 @@ function wordChanges(rows: DiffRow[]) {
     while (k < rows.length && rows[k].cls === "add") k++;
     const dels = rows.slice(i, j), adds = rows.slice(j, k);
     for (let n = 0; n < Math.min(dels.length, adds.length); n++) {
-      const a = dels[n].text.slice(1), b = adds[n].text.slice(1);
+      const a = dels[n].text, b = adds[n].text;
       let pre = 0;
       while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
       let suf = 0;
       while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
-      if (a.length - pre - suf > 0) dels[n].chg = [pre + 1, a.length - suf + 1];
-      if (b.length - pre - suf > 0) adds[n].chg = [pre + 1, b.length - suf + 1];
+      if (a.length - pre - suf > 0) dels[n].chg = [pre, a.length - suf];
+      if (b.length - pre - suf > 0) adds[n].chg = [pre, b.length - suf];
     }
     i = k;
   }
@@ -499,19 +499,19 @@ function DiffImpl({ diff }: { diff: string }) {
     const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@\s*(.*)$/.exec(l);
     if (h) {
       oldN = Number(h[1]); newN = Number(h[2]);
-      rows.push({ cls: "hunk", gutter: "", text: h[3]?.trim() ? `in ${h[3].trim()}` : "" });
+      rows.push({ cls: "hunk", oldLine: "", newLine: "", sign: "", text: h[3]?.trim() ? `in ${h[3].trim()}` : "Changes" });
+    } else if (l.startsWith("@@")) {
+      rows.push({ cls: "hunk", oldLine: "", newLine: "", sign: "", text: "Changes" });
     } else if (l.startsWith("+++") || l.startsWith("---") || l.startsWith("diff ") || l.startsWith("index ")) {
-      rows.push({ cls: "meta", gutter: "", text: l });
+      continue;
     } else if (l.startsWith("+")) {
-      rows.push({ cls: "add", gutter: String(newN++), text: l });
+      rows.push({ cls: "add", oldLine: "", newLine: newN ? String(newN++) : "", sign: "+", text: l.slice(1) });
     } else if (l.startsWith("-")) {
-      rows.push({ cls: "del", gutter: String(oldN++), text: l });
+      rows.push({ cls: "del", oldLine: oldN ? String(oldN++) : "", newLine: "", sign: "−", text: l.slice(1) });
     } else if (l.startsWith("\\")) {
-      rows.push({ cls: "ctx", gutter: "", text: l });
+      rows.push({ cls: "note", oldLine: "", newLine: "", sign: "", text: l });
     } else if (oldN > 0 || newN > 0) {
-      rows.push({ cls: "ctx", gutter: String(newN++), text: l }); oldN++;
-    } else {
-      rows.push({ cls: "ctx", gutter: "", text: l });
+      rows.push({ cls: "ctx", oldLine: oldN ? String(oldN++) : "", newLine: newN ? String(newN++) : "", sign: "", text: l.startsWith(" ") ? l.slice(1) : l });
     }
   }
   wordChanges(rows);
@@ -520,9 +520,9 @@ function DiffImpl({ diff }: { diff: string }) {
   const view: (DiffRow | { fold: number })[] = [];
   let n = 0;
   while (n < rows.length) {
-    if (rows[n].cls === "ctx" && rows[n].gutter !== "") {
+    if (rows[n].cls === "ctx" && (rows[n].oldLine || rows[n].newLine)) {
       let m = n;
-      while (m < rows.length && rows[m].cls === "ctx" && rows[m].gutter !== "") m++;
+      while (m < rows.length && rows[m].cls === "ctx" && (rows[m].oldLine || rows[m].newLine)) m++;
       const run = m - n;
       if (!expanded && run > FOLD_KEEP * 2 + 1) {
         view.push(...rows.slice(n, n + FOLD_KEEP), { fold: run - FOLD_KEEP * 2 }, ...rows.slice(m - FOLD_KEEP, m));
@@ -535,25 +535,27 @@ function DiffImpl({ diff }: { diff: string }) {
     }
   }
   const renderText = (r: DiffRow) => {
-    const hasSign = r.cls === "add" || r.cls === "del";
-    const off = hasSign ? 1 : 0;
     const body = r.chg
-      ? <span>{syntaxSpans(r.text.slice(off, r.chg[0]))}<mark className="chg">{syntaxSpans(r.text.slice(r.chg[0], r.chg[1]))}</mark>{syntaxSpans(r.text.slice(r.chg[1]))}</span>
-      : <span>{syntaxSpans(r.text.slice(off))}</span>;
-    return hasSign ? <><span className="sign">{r.text[0]}</span>{body}</> : body;
+      ? <>{syntaxSpans(r.text.slice(0, r.chg[0]))}<mark className="chg">{syntaxSpans(r.text.slice(r.chg[0], r.chg[1]))}</mark>{syntaxSpans(r.text.slice(r.chg[1]))}</>
+      : syntaxSpans(r.text);
+    return <span className="code">{body}</span>;
   };
-  let hunkN = 0;
   return (
     <div className="diff">
       {view.map((r, i) =>
         "fold" in r ? (
           <button className="ln fold" key={i} onClick={() => setExpanded(true)}>
-            <span className="gutter" /><span>⋮ {r.fold} unchanged lines</span>
+            <span className="gutter" /><span className="gutter" /><span className="sign" /><span>⋮ {r.fold} unchanged lines</span>
           </button>
         ) : r.cls === "hunk" ? (
-          <div className="ln hunk" key={i}><span className="gutter" /><span className="hunkchip">{r.text || `hunk ${++hunkN}`}</span></div>
+          <div className="ln hunk" key={i}><span className="gutter" /><span className="gutter" /><span className="hunkchip">{r.text}</span></div>
         ) : (
-          <div className={`ln ${r.cls}`} key={i}><span className="gutter">{r.gutter}</span>{renderText(r)}</div>
+          <div className={`ln ${r.cls}`} key={i}>
+            <span className="gutter old">{r.oldLine}</span>
+            <span className="gutter new">{r.newLine}</span>
+            <span className="sign">{r.sign}</span>
+            {renderText(r)}
+          </div>
         ),
       )}
     </div>
