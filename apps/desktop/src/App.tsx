@@ -14,7 +14,7 @@ import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { SetSelect } from "./settings";
 import { TOOL_DISPLAY, toolArg } from "./types";
-import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
+import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
 import { ONBOARDING_PHASES, ONBOARDING_PROVIDERS, onboardingBack, onboardingPhase, onboardingSetup } from "./lib/onboarding-layout";
 import type { OnboardingStep } from "./lib/onboarding-layout";
@@ -1107,8 +1107,8 @@ export default function App() {
   const sessionGroups = groupSessions(palQuery);
   const railGroups = groupSessions("");
   // Something in the rail needs the user — a pending approval/diff decision or
-  // a parallel task awaiting merge/discard. Surfaces as a dot on the rail
-  // toggle when the sidebar is hidden.
+  // a parallel task awaiting merge/discard. Surfaces as a badge on the
+  // expand control when the sidebar is collapsed.
   const needsAttention =
     approvals.some((a) => !a.answered) ||
     diffs.some((d) => !d.decided) ||
@@ -1270,13 +1270,15 @@ export default function App() {
           </div>
         </div>
       )}
-      {ready && !onboarding && railOpen && (
-        <aside className="rail" id="sessions-sidebar" aria-label="Sessions" style={{ width: displayedRailWidth }}>
+      {ready && !onboarding && (
+        <aside className={`rail${railOpen ? "" : " rail-collapsed"}`} id="sessions-sidebar" aria-label="Sessions" style={{ width: railOpen ? displayedRailWidth : COLLAPSED_RAIL_WIDTH }}>
           <div className="rail-brand" data-tauri-drag-region>
             <Logo className="logo-mark" />
-            <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Hide sidebar" title={IS_MAC ? "Hide sidebar (⌘B)" : "Hide sidebar (Ctrl B)"} onClick={() => setRailOpen(false)}>
-              <PanelLeft size={15} />
-            </Button>
+            {railOpen && (
+              <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Collapse sidebar" title={IS_MAC ? "Collapse sidebar (⌘B)" : "Collapse sidebar (Ctrl B)"} onClick={() => setRailOpen(false)}>
+                <PanelLeft size={15} />
+              </Button>
+            )}
           </div>
           <nav className="rail-head" aria-label="Session actions">
             <Button variant="ghost" className="rail-navrow rail-new" onClick={() => cmd("/new")}>
@@ -1289,6 +1291,29 @@ export default function App() {
               <kbd className="rail-shortcut">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
             </Button>
           </nav>
+          {!railOpen && (
+            <nav className="rail-strip" aria-label="Session actions">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`rail-strip-btn rail-strip-expand${needsAttention ? " attn" : ""}`}
+                aria-label="Expand sidebar"
+                aria-expanded={false}
+                aria-controls="sessions-sidebar"
+                title={`${IS_MAC ? "Expand sidebar (⌘B)" : "Expand sidebar (Ctrl B)"}${needsAttention ? " — attention needed" : ""}`}
+                onClick={() => setRailOpen(true)}
+              >
+                <PanelLeft size={15} />
+                {needsAttention && <span className="rail-attn" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="New session" title="New session" onClick={() => cmd("/new")}>
+                <Plus size={15} />
+              </Button>
+              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Search sessions" title={IS_MAC ? "Search sessions (⌘K)" : "Search sessions (Ctrl K)"} onClick={() => setPalOpen(true)}>
+                <Search size={15} />
+              </Button>
+            </nav>
+          )}
           <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
             {queue.length > 0 && (
               <div>
@@ -1500,6 +1525,13 @@ export default function App() {
             ))}
             </div>
           </ScrollArea>
+          {!railOpen && (
+            <div className="rail-strip-footer">
+              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Settings" title={IS_MAC ? "Settings (⌘,)" : "Settings (Ctrl ,)"} onClick={() => cmd("/settings")}>
+                <SlidersHorizontal size={15} />
+              </Button>
+            </div>
+          )}
           <div className="rail-footer">
             <Button variant="ghost" className="rail-navrow" onClick={() => cmd("/settings")}>
               <SlidersHorizontal size={15} />
@@ -1552,28 +1584,9 @@ export default function App() {
       <div className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
-          {!onboarding && (!ready || !railOpen) && <Logo className="logo-mark" />}
-          {ready && !onboarding && !railOpen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`rail-toggle${needsAttention ? " attn" : ""}`}
-              aria-label="Show sidebar"
-              aria-expanded={false}
-              aria-controls="sessions-sidebar"
-              title={`${IS_MAC ? "Show sidebar (⌘B)" : "Show sidebar (Ctrl B)"}${needsAttention ? " — attention needed" : ""}`}
-              onClick={() => setRailOpen((v) => !v)}
-            >
-              <PanelLeft size={14} />
-            </Button>
-          )}
+          {!onboarding && !ready && <Logo className="logo-mark" />}
         </div>
         <span className="spacer" />
-        {ready && !onboarding && !railOpen && (
-          <Button variant="ghost" size="icon" aria-label="Settings" title="Settings" onClick={() => cmd("/settings")}>
-            <SlidersHorizontal size={14} />
-          </Button>
-        )}
         {ready && !IS_MAC && (
           <div className="hact">
             <Button variant="ghost" size="icon" title="Minimize" onClick={() => void win.minimize()}>
