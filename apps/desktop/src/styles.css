@@ -891,13 +891,16 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 
 /* ---------- diff ---------- */
 .diff { font-family: var(--font-mono); font-size: 12px; line-height: 1.55; }
-.diff .ln { display: flex; white-space: pre; }
-.diff .gutter { width: 44px; color: var(--faint); text-align: right; padding-right: 10px; flex-shrink: 0; user-select: none; }
-.diff .add, .diff .del { color: var(--dim); }
-.diff .sign { width: 14px; flex-shrink: 0; text-align: center; user-select: none; }
-.diff .add .sign { color: var(--green); }
-.diff .del .sign { color: var(--red); }
-.diff .hunk { color: var(--dim); padding: 3px 0; }
+.diff .ln { display: flex; align-items: baseline; white-space: pre; }
+.diff .gutter {
+  width: 44px; color: var(--faint); text-align: right; padding-right: 10px;
+  flex-shrink: 0; user-select: none; font-size: 10.5px;
+}
+.diff .add, .diff .del { color: var(--text); }
+.diff .sign { width: 16px; flex-shrink: 0; text-align: center; user-select: none; color: var(--faint); }
+.diff .code { min-width: 0; white-space: pre; }
+.diff .note { color: var(--faint); }
+.diff .hunk { color: var(--dim); padding: 5px 0; }
 .diff .hunkchip {
   display: inline-block; padding: 1px 7px;
   font-size: 10.5px; color: var(--faint);
@@ -931,8 +934,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .syn-com { color: var(--faint); font-style: italic; }
 .diff .meta { color: var(--text); font-weight: 600; }
 .diff .ctx { color: var(--dim); }
-.diff .add mark.chg { background: rgba(22,163,74,0.28); color: inherit; border-radius: 3px; }
-.diff .del mark.chg { background: rgba(220,38,38,0.24); color: inherit; border-radius: 3px; }
+.diff .add mark.chg, .diff .del mark.chg { background: var(--surface2); color: var(--text); border-radius: 3px; }
 .diff .fold { display: flex; width: 100%; background: none; border: none; font: inherit; color: var(--faint); cursor: pointer; padding: 1px 0; }
 .diff .fold:hover { color: var(--dim); }
 .diffstat { display: inline-flex; gap: 8px; margin-left: 10px; font-size: 11px; font-family: var(--font-mono); }
@@ -981,7 +983,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .decision .summary-more:hover { color: var(--dim); }
 
 /* ---------- decision cards ---------- */
-.decision { animation: rise 0.25s var(--ease); }
+.decision { animation: rise 0.25s var(--ease); flex-shrink: 0; }
 .decision-card {
   position: relative; overflow: hidden; border-radius: 14px;
   border: 1px solid var(--border); background: var(--surface);
@@ -1014,6 +1016,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   text-transform: uppercase;
 }
 .dec-diffstat { display: inline-flex; gap: 7px; flex-shrink: 0; font-size: 10.5px; }
+.dec-diffstat .ds-add, .dec-diffstat .ds-del { color: var(--dim); }
 .dec-body { padding: 12px 14px; }
 .dec-body > :first-child { margin-top: 0; }
 .dec-body > :last-child { margin-bottom: 0; }
@@ -1021,6 +1024,9 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   max-height: 340px; overflow: auto; padding: 8px 0;
   background: color-mix(in srgb, var(--surface2) 48%, transparent);
 }
+.dec-diff .syn-kw { color: var(--text); }
+.dec-diff .syn-str, .dec-diff .syn-num { color: var(--dim); }
+.dec-diff .syn-com { color: var(--faint); font-style: italic; }
 .dec-acts {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   padding: 9px 12px; border-top: 1px solid var(--border);
@@ -1645,8 +1651,7 @@ html[data-theme="dark"] {
 html[data-theme="dark"] .app:not(.has-art) .rail { --rail-bg: var(--bg); background: var(--rail-bg); }
 html[data-theme="dark"] .app:not(.has-art) .inputbox { background: var(--bg); }
 html[data-theme="dark"] ::selection { background: rgba(96, 165, 250, 0.3); }
-html[data-theme="dark"] .diff .add mark.chg { background: rgba(74, 222, 128, 0.22); }
-html[data-theme="dark"] .diff .del mark.chg { background: rgba(248, 113, 113, 0.20); }
+html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
 html[data-theme="dark"] .btn:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
 html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #d5d5d9; }
