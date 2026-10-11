@@ -1004,10 +1004,10 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 .composer-select .setdd-item { overflow-wrap: anywhere; }
 .composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
-.msel { min-width: 0; max-width: 300px; }
+.msel { min-width: 0; width: max-content; max-width: 300px; margin-left: -7px; }
 .msel-btn {
-  display: flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px;
-  padding: 4px 7px; margin-left: -7px; border: none; border-radius: var(--radius-sm);
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 30px;
+  padding: 4px 7px; border: none; border-radius: var(--radius-sm);
   background: none; color: var(--dim); font: inherit; font-size: 12px; cursor: pointer;
   transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
 }
