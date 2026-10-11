@@ -359,13 +359,17 @@ const SEARCH_SKIP: &[&str] = &[
 const MAX_FILE_BYTES: u64 = 512 * 1024;
 const MAX_MATCHES: usize = 100;
 
-fn walk_search(root: &Path, rel: &str, out: &mut Vec<String>) {
+/// Walks `root/rel` depth-first, invoking `visit` on each non-restricted file.
+/// `visit` returns false to stop the traversal early.
+fn walk_search(root: &Path, rel: &str, visit: &mut impl FnMut(&str) -> bool) -> bool {
     let dir = if rel.is_empty() {
         root.to_path_buf()
     } else {
         root.join(rel)
     };
-    let Ok(rd) = fs::read_dir(&dir) else { return };
+    let Ok(rd) = fs::read_dir(&dir) else {
+        return true;
+    };
     for e in rd.flatten() {
         let name = e.file_name().to_string_lossy().to_string();
         let p = if rel.is_empty() {
@@ -375,13 +379,17 @@ fn walk_search(root: &Path, rel: &str, out: &mut Vec<String>) {
         };
         let Ok(ft) = e.file_type() else { continue };
         if ft.is_dir() {
-            if !SEARCH_SKIP.contains(&name.as_str()) && !crate::perm::is_restricted_path(&p) {
-                walk_search(root, &p, out);
+            if !SEARCH_SKIP.contains(&name.as_str())
+                && !crate::perm::is_restricted_path(&p)
+                && !walk_search(root, &p, visit)
+            {
+                return false;
             }
-        } else if ft.is_file() && !crate::perm::is_restricted_path(&p) {
-            out.push(p);
+        } else if ft.is_file() && !crate::perm::is_restricted_path(&p) && !visit(&p) {
+            return false;
         }
     }
+    true
 }
 
 fn glob_to_re(glob: &str) -> Option<regex::Regex> {
@@ -423,33 +431,26 @@ pub(super) fn exec_search_files(input: &Value, ctx: &Ctx) -> ToolResult {
     };
     let glob_re = opt_str(input, "glob").and_then(|g| glob_to_re(&g));
 
-    let files = if abs.is_dir() {
-        let mut v = vec![];
-        walk_search(Path::new(&ctx.root), &rel, &mut v);
-        v
-    } else {
-        vec![rel.clone()]
-    };
     let mut matches = vec![];
-    'outer: for file in files {
+    let mut scan_file = |file: &str| -> bool {
         if let Some(gr) = &glob_re {
-            let base_name = file.rsplit('/').next().unwrap_or(&file);
+            let base_name = file.rsplit('/').next().unwrap_or(file);
             if !gr.is_match(base_name) {
-                continue;
+                return true;
             }
         }
-        let absf = Path::new(&ctx.root).join(&file);
+        let absf = Path::new(&ctx.root).join(file);
         let Ok(meta) = fs::metadata(&absf) else {
-            continue;
+            return true;
         };
         if meta.len() > MAX_FILE_BYTES {
-            continue;
+            return true;
         }
         let Ok(text) = fs::read_to_string(&absf) else {
-            continue;
+            return true;
         };
         if text.contains('\0') {
-            continue;
+            return true;
         }
         for (i, line) in text.lines().enumerate() {
             if re.is_match(line) {
@@ -459,10 +460,16 @@ pub(super) fn exec_search_files(input: &Value, ctx: &Ctx) -> ToolResult {
                     line.chars().take(200).collect::<String>()
                 ));
                 if matches.len() >= MAX_MATCHES {
-                    break 'outer;
+                    return false;
                 }
             }
         }
+        true
+    };
+    if abs.is_dir() {
+        walk_search(Path::new(&ctx.root), &rel, &mut scan_file);
+    } else {
+        scan_file(&rel);
     }
     ToolResult::ok(if matches.is_empty() {
         "no matches".into()
