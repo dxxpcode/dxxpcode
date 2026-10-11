@@ -58,6 +58,8 @@ pub fn redact_secrets(text: &str) -> String {
 
 const MAX_BYTES: usize = 200 * 1024;
 const MAX_DIR_ENTRIES: usize = 400;
+const MAX_BRANCH_COMMITS: usize = 50;
+const MAX_BRANCH_STAT_LINES: usize = 100;
 const MAX_INDEX_ENTRIES: usize = 8000;
 const SKIP_DIRS: &[&str] = &[
     ".git",
@@ -147,7 +149,14 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
         }
         let abs = rootp.join(&rel);
         if !abs.exists() {
-            skipped.push((p.to_string(), "not found".into()));
+            // Not a path — try a git branch: attach what the branch adds over
+            // HEAD (commits + diff stat), like Cursor's @Branch.
+            if let Some((label, block)) = branch_context(root, p) {
+                attached.push(label);
+                blocks.push(block);
+            } else {
+                skipped.push((p.to_string(), "not found".into()));
+            }
             continue;
         }
         if abs.is_dir() {
@@ -208,6 +217,49 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
     }
 }
 
+/// `@<branch>` context: commits the branch adds over HEAD plus the diff stat
+/// against the merge base — the "what would change if this landed" view.
+/// `None` when `name` isn't a local branch (callers try path resolution first,
+/// so a file/dir named like a branch always wins).
+fn branch_context(root: &str, name: &str) -> Option<(String, String)> {
+    git_stdout_ok(
+        root,
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("refs/heads/{name}"),
+        ],
+    )?;
+    let log = git_stdout(
+        root,
+        &[
+            "log",
+            "--oneline",
+            "--no-decorate",
+            &format!("HEAD..{name}"),
+        ],
+    );
+    let stat = git_stdout(root, &["diff", "--stat", &format!("HEAD...{name}")]);
+    let commits: Vec<&str> = log.lines().take(MAX_BRANCH_COMMITS).collect();
+    let stat_lines: Vec<&str> = stat.lines().take(MAX_BRANCH_STAT_LINES).collect();
+    let label = format!(
+        "{name} (branch: {} commits, {} files changed)",
+        commits.len(),
+        stat_lines.len().saturating_sub(1).max(0)
+    );
+    let block = format!(
+        "\n\n<branch name=\"{name}\">\ncommits ahead of HEAD:\n{}\n\ndiff stat vs merge-base:\n{}\n</branch>",
+        if commits.is_empty() {
+            "(none — branch is at or behind HEAD)".to_string()
+        } else {
+            commits.join("\n")
+        },
+        stat_lines.join("\n")
+    );
+    Some((label, block))
+}
+
 /* ------------------------------- git helpers ------------------------------ */
 
 /// Raw stdout of `git <args>` run in `root`; empty when git can't run.
@@ -260,6 +312,7 @@ pub fn git_result(root: &str, args: &[&str]) -> (i32, String) {
 pub struct FileIndex {
     pub files: Vec<String>,
     pub dirs: Vec<String>,
+    pub branches: Vec<String>,
 }
 
 fn git_files(root: &str) -> Option<Vec<String>> {
@@ -295,7 +348,17 @@ pub fn list_project_files(root: &str) -> FileIndex {
     }
     let mut dirs: Vec<String> = dirs.into_iter().collect();
     dirs.sort();
-    FileIndex { files, dirs }
+    let branches = git_stdout_ok(
+        root,
+        &["for-each-ref", "--format=%(refname:short)", "refs/heads"],
+    )
+    .map(|t| t.lines().map(String::from).collect())
+    .unwrap_or_default();
+    FileIndex {
+        files,
+        dirs,
+        branches,
+    }
 }
 
 fn path_basename(p: &str) -> &str {
@@ -325,23 +388,41 @@ pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static st
         }
     };
     let mut seen = HashSet::new();
-    let mut entries: Vec<(String, i32, bool)> = vec![];
+    // kind: 2 = dir, 1 = branch, 0 = file (dirs rank ahead on equal scores).
+    let mut entries: Vec<(String, i32, u8)> = vec![];
     for d in &idx.dirs {
         let s = score(&format!("{d}/"));
         if s >= 0 && seen.insert(d.clone()) {
-            entries.push((format!("{d}/"), s, true));
+            entries.push((format!("{d}/"), s, 2));
         }
     }
     for p in &idx.files {
         let s = score(p);
         if s >= 0 && seen.insert(p.clone()) {
-            entries.push((p.clone(), s, false));
+            entries.push((p.clone(), s, 0));
+        }
+    }
+    for b in &idx.branches {
+        let s = score(b);
+        if s >= 0 && seen.insert(b.clone()) {
+            entries.push((b.clone(), s, 1));
         }
     }
     entries.sort_by(|a, b| a.1.cmp(&b.1).then(b.2.cmp(&a.2)).then(a.0.cmp(&b.0)));
     entries
         .into_iter()
         .take(8)
-        .map(|(p, _, dir)| (p, if dir { "dir" } else { "file" }))
+        .map(|(p, _, kind)| {
+            (
+                p,
+                if kind == 2 {
+                    "dir"
+                } else if kind == 1 {
+                    "branch"
+                } else {
+                    "file"
+                },
+            )
+        })
         .collect()
 }
