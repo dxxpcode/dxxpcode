@@ -1085,6 +1085,7 @@ export default function App() {
     else if (current && approvals.some((a) => !a.answered)) bits.push("Needs approval");
     else if (s.files && s.files.length > 0) bits.push(`${s.files.length} changed file${s.files.length === 1 ? "" : "s"}`);
     else if (s.status) bits.push(prettyStatus(s.status));
+    if (current && kind !== "running") bits.unshift("Current");
     const detail = s.desc.split("·")[1]?.trim();
     if (detail) bits.push(detail);
     return { kind, label: bits.join(" · ") };
@@ -1106,13 +1107,45 @@ export default function App() {
   };
   const sessionGroups = groupSessions(palQuery);
   const railGroups = groupSessions("");
-  // Something in the rail needs the user — a pending approval/diff decision or
-  // a parallel task awaiting merge/discard. Surfaces as a badge on the
-  // expand control when the sidebar is collapsed.
-  const needsAttention =
-    approvals.some((a) => !a.answered) ||
-    diffs.some((d) => !d.decided) ||
-    wtasks.some((w) => w.phase === "done" || w.phase === "failed");
+  // Inbox-style rail items for anything waiting on the user: approvals,
+  // diffs, or finished parallel work. The same signal badges the collapsed
+  // expand control.
+  const pendingApprovals = approvals.filter((a) => !a.answered);
+  const pendingDiffs = diffs.filter((d) => !d.decided);
+  const doneWorkers = wtasks.filter((w) => w.phase === "done");
+  const failedWorkers = wtasks.filter((w) => w.phase === "failed");
+  const scrollTranscriptBottom = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  };
+  const scrollRailWorkers = () => document.getElementById("rail-workers")?.scrollIntoView({ block: "nearest" });
+  const attentionItems = [
+    ...(pendingApprovals.length ? [{
+      id: "approvals", icon: ListChecks, tone: "warn",
+      title: "Approval needed",
+      detail: `${pendingApprovals.length} action${pendingApprovals.length === 1 ? "" : "s"} waiting`,
+      action: scrollTranscriptBottom,
+    }] : []),
+    ...(pendingDiffs.length ? [{
+      id: "diffs", icon: Files, tone: "warn",
+      title: "Review changes",
+      detail: `${pendingDiffs.length} diff${pendingDiffs.length === 1 ? "" : "s"} waiting`,
+      action: scrollTranscriptBottom,
+    }] : []),
+    ...(doneWorkers.length ? [{
+      id: "workers-done", icon: GitBranch, tone: "warn",
+      title: "Parallel task ready",
+      detail: `${doneWorkers.length} done — merge or discard`,
+      action: scrollRailWorkers,
+    }] : []),
+    ...(failedWorkers.length ? [{
+      id: "workers-failed", icon: GitBranch, tone: "bad",
+      title: "Parallel task failed",
+      detail: `${failedWorkers.length} failed — review output`,
+      action: scrollRailWorkers,
+    }] : []),
+  ];
+  const needsAttention = attentionItems.length > 0;
   // Settings palette: every setting is a searchable row. Select rows expand
   // their options inline under the row; action rows run immediately.
   type SetEntry = {
@@ -1315,6 +1348,43 @@ export default function App() {
             </nav>
           )}
           <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
+            <div className="rail-workspace">
+              <Button variant="ghost" className="rail-workspace-main" aria-expanded={projectExpanded} aria-controls="workspace-sessions" onClick={() => setProjectExpanded((v) => !v)}>
+                <span className="rail-workspace-icon"><Folder size={15} /></span>
+                <span className="rail-workspace-copy">
+                  <span className="rail-workspace-title truncate">{ready.project.name}</span>
+                  <span className="rail-workspace-meta truncate">
+                    {ready.project.git ? `${ready.project.git.branch}${ready.project.git.dirty ? "*" : ""} · ` : ""}{sessions.length} session{sessions.length === 1 ? "" : "s"} · {ready.model}
+                  </span>
+                </span>
+                {projectExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              </Button>
+              <Button variant="ghost" size="icon" className="rail-workspace-open" aria-label="Open a project" title="Open a project" onClick={openProject}>
+                <ExternalLink size={13} />
+              </Button>
+            </div>
+            {attentionItems.length > 0 && (
+              <>
+                <div className="rail-section-head rail-inbox-head">
+                  <span>Attention</span>
+                  <span className="rail-inbox-count">{attentionItems.length}</span>
+                </div>
+                <div className="rail-inbox">
+                  {attentionItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Button key={item.id} variant="ghost" className={`rail-inbox-item ${item.tone}`} onClick={item.action}>
+                        <span className="rail-inbox-icon"><Icon size={14} /></span>
+                        <span className="rail-inbox-copy">
+                          <span className="rail-inbox-title">{item.title}</span>
+                          <span className="rail-inbox-detail">{item.detail}</span>
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
             {queue.length > 0 && (
               <div>
                 <div className="pal-group-label">Queued</div>
@@ -1333,7 +1403,7 @@ export default function App() {
               </div>
             )}
             {wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded") && (
-              <div>
+              <div id="rail-workers">
                 <div className="pal-group-label">Parallel tasks</div>
                 {wtasks
                   .filter((w) => w.phase !== "merged" && w.phase !== "discarded")
@@ -1364,22 +1434,12 @@ export default function App() {
               </div>
             )}
             <div className="rail-section-head">
-              <span>Projects</span>
-              <Button variant="ghost" size="icon" aria-label="Open a project" title="Open a project" onClick={openProject}>
+              <span>Sessions</span>
+              <Button variant="ghost" size="icon" aria-label="New session" title="New session" onClick={() => cmd("/new")}>
                 <Plus size={14} />
               </Button>
             </div>
-            <Button variant="ghost" className="rail-proj" aria-expanded={projectExpanded} aria-controls="project-sessions" onClick={() => setProjectExpanded((v) => !v)}>
-              <Folder size={15} />
-              <span className="rail-projmain">
-                <span className="truncate">{ready.project.name}</span>
-                <span className="rail-projmeta">
-                  {sessions.length} session{sessions.length === 1 ? "" : "s"}{ready.project.git ? ` · ${ready.project.git.branch}${ready.project.git.dirty ? "*" : ""}` : ""}
-                </span>
-              </span>
-              {projectExpanded ? <ChevronDown size={13} className="rail-projchev" /> : <ChevronRight size={13} className="rail-projchev" />}
-            </Button>
-            <div id="project-sessions" className="rail-project-sessions" hidden={!projectExpanded}>
+            <div id="workspace-sessions" className="rail-sessions" hidden={!projectExpanded}>
             {railGroups.length === 0 && (
               <div className="rail-empty">
                 <p>No sessions yet</p>
