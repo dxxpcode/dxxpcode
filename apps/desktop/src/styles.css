@@ -980,14 +980,53 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 .decision .summary-more:hover { color: var(--dim); }
 
-/* ---------- decision prompts ---------- */
-.decision { animation: rise 0.25s var(--ease); padding: 6px 0; }
-.dec-head {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; color: var(--dim); margin-bottom: 6px;
+/* ---------- decision cards ---------- */
+.decision { animation: rise 0.25s var(--ease); }
+.decision-card {
+  position: relative; overflow: hidden; border-radius: 14px;
+  border: 1px solid var(--border); background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
-.dec-tool { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); }
-.dec-acts { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.decision-card::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0;
+  width: 2px; background: color-mix(in srgb, var(--amber) 68%, transparent);
+}
+.dec-head {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 11px 12px 10px 14px; border-bottom: 1px solid var(--border);
+}
+.dec-mark {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 7px;
+  color: var(--amber); background: color-mix(in srgb, var(--amber) 11%, transparent);
+}
+.dec-titleblock { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
+.dec-title { font-size: 12.5px; font-weight: 600; line-height: 1.25; color: var(--text); }
+.dec-meta {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--faint);
+}
+.dec-status {
+  flex-shrink: 0; padding: 3px 7px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+  color: var(--amber); font-size: 9.5px; font-weight: 650; letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dec-diffstat { display: inline-flex; gap: 7px; flex-shrink: 0; font-size: 10.5px; }
+.dec-body { padding: 12px 14px; }
+.dec-body > :first-child { margin-top: 0; }
+.dec-body > :last-child { margin-bottom: 0; }
+.dec-diff {
+  max-height: 340px; overflow: auto; padding: 8px 0;
+  background: color-mix(in srgb, var(--surface2) 48%, transparent);
+}
+.dec-acts {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 9px 12px; border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface2) 36%, transparent);
+}
+.dec-sep { width: 1px; height: 18px; margin: 0 2px; background: var(--border-strong); }
 .pill {
   padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border);
   background: var(--surface); cursor: pointer; font-size: 12px; color: var(--text);
@@ -1001,7 +1040,6 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .pill.deny, .pill.ghost { border-color: transparent; background: none; color: var(--faint); }
 .pill.deny:hover { color: var(--red); }
 .pill.ghost:hover { color: var(--text); }
-.decision .dres-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
 .dresolved {
   display: flex; align-items: baseline; gap: 7px;
   font-size: 12.5px; color: var(--dim); padding: 2px 0;
