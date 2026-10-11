@@ -1,3 +1,4 @@
+export const COLLAPSED_RAIL_WIDTH = 52;
 export const MIN_RAIL_WIDTH = 232;
 export const MAX_RAIL_WIDTH = 360;
 export const DEFAULT_RAIL_WIDTH = 272;
