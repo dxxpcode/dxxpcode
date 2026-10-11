@@ -1005,6 +1005,17 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .composer-select .setdd-item { overflow-wrap: anywhere; }
 .composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
 .composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
+/* merged model · effort control */
+.msel-ico { flex-shrink: 0; color: var(--faint); transition: color 0.12s var(--ease); }
+.msel-btn:hover .msel-ico, .msel-btn[aria-expanded="true"] .msel-ico { color: var(--dim); }
+.msel-var { color: var(--faint); }
+.msel-dot { color: var(--faint); }
+.setdd-caret { transition: transform 0.15s var(--ease), color 0.12s var(--ease); }
+.setdd-caret.open { transform: rotate(180deg); }
+.msel-head { padding: 6px 8px 3px; font-size: 10px; letter-spacing: 0.05em; color: var(--faint); }
+.msel-head:first-child { padding-top: 3px; }
+div.msel-sep { height: 1px; margin: 4px 6px; background: var(--border); }
+.msel-item.cur { background: var(--surface2); }
 .plan-toggle {
   display: inline-flex; align-items: center; gap: 4px;
   background: none; font: inherit; font-size: 11px;

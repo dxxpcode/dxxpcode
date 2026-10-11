@@ -12,7 +12,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo } from "./transcript";
-import { SetSelect } from "./settings";
+import { ModelSelect, SetSelect } from "./settings";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
@@ -2095,19 +2095,15 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
-                  <SetSelect
-                    compact label="Model" value={ready.model}
-                    options={modelOpts.length ? modelOpts : [ready.model]} extra={["custom…"]}
+                  <ModelSelect
+                    model={ready.model} effort={ready.effort ?? "default"} variant={ready.variant}
+                    models={modelOpts.length ? modelOpts : [ready.model]} efforts={EFFORT_LEVELS}
                     disabled={running || onboarding}
                     onOpen={() => void send({ type: "command", name: "/models" })}
-                    onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
+                    onModel={(v) => void send({ type: "command", name: `/model ${v}` })}
+                    onEffort={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                    onCustom={() => cmd("/model")}
                   />
-                  <SetSelect
-                    compact label="Reasoning effort" value={ready.effort ?? "default"}
-                    options={EFFORT_LEVELS} disabled={running || onboarding}
-                    onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
-                  />
-                  {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
                   <button
                     type="button"
                     className={`plan-toggle${planMode ? " on" : ""}`}
