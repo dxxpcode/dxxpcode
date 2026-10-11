@@ -12,7 +12,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
-import { ModelMatrix } from "./model-matrix";
+import { SetSelect } from "./settings";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
@@ -37,7 +37,6 @@ const ART_PIECES = [
 
 
 const EFFORT_LEVELS = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
-const EMPTY_VARIANTS: string[] = [];
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
 const win = getCurrentWindow();
@@ -958,19 +957,6 @@ export default function App() {
     if (name === "/docs" || name === "/changelog" || name === "/help") setDocView({ title: "…", text: "" });
     void send({ type: "command", name });
   }, []);
-  const openModels = useCallback(() => {
-    void send({ type: "command", name: "/models" });
-  }, []);
-  const selectModel = useCallback((model: string) => {
-    void send({ type: "command", name: `/model ${model}` });
-  }, []);
-  const selectEffort = useCallback((effort: string) => {
-    void send({ type: "command", name: `/effort ${effort}` });
-  }, []);
-  const selectVariant = useCallback((variant: string) => {
-    void send({ type: "command", name: `/variant ${variant}` });
-  }, []);
-  const selectCustomModel = useCallback(() => cmd("/model"), [cmd]);
 
   useEffect(() => {
     if (settingsOpen) void send({ type: "command", name: "/models" });
@@ -2114,20 +2100,19 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
-                  <ModelMatrix
-                    model={ready.model}
-                    effort={ready.effort ?? "default"}
-                    efforts={EFFORT_LEVELS}
-                    models={modelOpts}
-                    variant={ready.variant ?? "default"}
-                    variants={ready.variants ?? EMPTY_VARIANTS}
+                  <SetSelect
+                    compact label="Model" value={ready.model}
+                    options={modelOpts.length ? modelOpts : [ready.model]} extra={["custom…"]}
                     disabled={running || onboarding}
-                    onOpen={openModels}
-                    onModel={selectModel}
-                    onEffort={selectEffort}
-                    onVariant={selectVariant}
-                    onCustom={selectCustomModel}
+                    onOpen={() => void send({ type: "command", name: "/models" })}
+                    onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
                   />
+                  <SetSelect
+                    compact label="Reasoning effort" value={ready.effort ?? "default"}
+                    options={EFFORT_LEVELS} disabled={running || onboarding}
+                    onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                  />
+                  {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
                   <button
                     type="button"
                     className={`plan-toggle${planMode ? " on" : ""}`}
@@ -2156,3 +2141,4 @@ export default function App() {
     </div>
   );
 }
+
