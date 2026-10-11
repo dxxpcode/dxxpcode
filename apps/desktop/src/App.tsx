@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -1023,11 +1023,13 @@ export default function App() {
         if (ready) setSettingsOpen((v) => !v);
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
+      } else if (e.key === "Escape" && sessMenu) {
+        setSessMenu(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ready, palOpen]);
+  }, [ready, palOpen, sessMenu]);
 
   // Boot hand-off: when ready lands, the boot mark fades/scales out over
   // ~300ms while the hero fades in, then unmounts.
@@ -1066,6 +1068,26 @@ export default function App() {
     if (v.includes("fail") || v.includes("error") || v.includes("denied") || v.includes("cancel")) return "bad";
     if (v) return "ok";
     return "none";
+  };
+  const prettyStatus = (value: string) => value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+  const sessionState = (s: { title: string; desc: string; files?: string[]; status?: string; pinned?: boolean }, current: boolean) => {
+    const kind = current && running
+      ? "running"
+      : current && approvals.some((a) => !a.answered)
+        ? "warn"
+        : sessGlyph(s.status) === "bad"
+          ? "bad"
+          : s.files && s.files.length > 0
+            ? "warn"
+            : "none";
+    const bits: string[] = [];
+    if (kind === "running") bits.push(status || "Running");
+    else if (current && approvals.some((a) => !a.answered)) bits.push("Needs approval");
+    else if (s.files && s.files.length > 0) bits.push(`${s.files.length} changed file${s.files.length === 1 ? "" : "s"}`);
+    else if (s.status) bits.push(prettyStatus(s.status));
+    const detail = s.desc.split("·")[1]?.trim();
+    if (detail) bits.push(detail);
+    return { kind, label: bits.join(" · ") };
   };
   const groupSessions = (query: string) => {
     const q = query.trim().toLowerCase();
@@ -1257,13 +1279,13 @@ export default function App() {
             </Button>
           </div>
           <nav className="rail-head" aria-label="Session actions">
-            <Button variant="ghost" className="rail-navrow" onClick={() => cmd("/new")}>
+            <Button variant="ghost" className="rail-navrow rail-new" onClick={() => cmd("/new")}>
               <Plus size={15} />
               <span>New session</span>
             </Button>
-            <Button variant="ghost" className="rail-navrow" onClick={() => setPalOpen(true)}>
-              <Search size={15} />
-              <span>Search sessions</span>
+            <Button variant="ghost" className="rail-search" onClick={() => setPalOpen(true)}>
+              <Search size={14} />
+              <span>Search</span>
               <kbd className="rail-shortcut">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
             </Button>
           </nav>
@@ -1323,17 +1345,31 @@ export default function App() {
               </Button>
             </div>
             <Button variant="ghost" className="rail-proj" aria-expanded={projectExpanded} aria-controls="project-sessions" onClick={() => setProjectExpanded((v) => !v)}>
-              {projectExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              <Folder size={14} />
-              <span className="truncate">{ready.project.name}</span>
+              <Folder size={15} />
+              <span className="rail-projmain">
+                <span className="truncate">{ready.project.name}</span>
+                <span className="rail-projmeta">
+                  {sessions.length} session{sessions.length === 1 ? "" : "s"}{ready.project.git ? ` · ${ready.project.git.branch}${ready.project.git.dirty ? "*" : ""}` : ""}
+                </span>
+              </span>
+              {projectExpanded ? <ChevronDown size={13} className="rail-projchev" /> : <ChevronRight size={13} className="rail-projchev" />}
             </Button>
             <div id="project-sessions" className="rail-project-sessions" hidden={!projectExpanded}>
-            {railGroups.length === 0 && <p className="pal-empty">No sessions yet.</p>}
+            {railGroups.length === 0 && (
+              <div className="rail-empty">
+                <p>No sessions yet</p>
+                <Button variant="secondary" size="sm" onClick={() => cmd("/new")}>
+                  <Plus size={13} />
+                  Start one
+                </Button>
+              </div>
+            )}
             {railGroups.map(([label, group]) => (
               <div key={label}>
                 <div className="pal-group-label">{label}</div>
                 {group.map((s) => {
                   const current = s.id === sessionInfo.id;
+                  const state = sessionState(s, current);
                   return (
                     <div key={s.id} className="rail-sess">
                       <div
@@ -1352,11 +1388,11 @@ export default function App() {
                           title={s.title}
                           onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
                         >
-                          {current && running ? (
-                            <span className="rail-glyph rail-live" />
-                          ) : !s.status && s.files && s.files.length > 0 ? (
-                            <span className="rail-glyph warn" title="Unreviewed changes" aria-label="Unreviewed changes" />
-                          ) : null}
+                          <span
+                            className={`rail-glyph ${state.kind === "running" ? "rail-live" : state.kind}`}
+                            data-empty={state.kind === "none" || undefined}
+                            title={state.kind === "warn" ? state.label : undefined}
+                          />
                           <span className="rail-sessmain">
                             {renamingSess === s.id ? (
                               <input
@@ -1381,9 +1417,11 @@ export default function App() {
                                 }}
                               />
                             ) : (
-                              <span className={`truncate${sessGlyph(s.status) === "bad" ? " statbad" : ""}`}>{s.pinned && <Pin size={10} className="rail-pin" aria-label="Pinned" />}{s.title || "Untitled"}</span>
+                              <>
+                                <span className="rail-sesstitle truncate">{s.title || "Untitled"}</span>
+                                {state.label && <span className={`rail-sessmeta ${state.kind}`}>{state.label}</span>}
+                              </>
                             )}
-                            {current && approvals.some((a) => !a.answered) && <span className="rail-sessmeta">Needs approval</span>}
                           </span>
                           <span className="rail-time">{sessionAge(s.when)}</span>
                         </Button>
@@ -1391,6 +1429,7 @@ export default function App() {
                           <>
                             <button
                               className="rail-act rail-pinbtn"
+                              data-pinned={s.pinned || undefined}
                               aria-label={s.pinned ? `Unpin ${s.title || "Untitled"}` : `Pin ${s.title || "Untitled"}`}
                               title={s.pinned ? "Unpin" : "Pin"}
                               onClick={(e) => {
@@ -1401,24 +1440,30 @@ export default function App() {
                               <Pin size={12} fill={s.pinned ? "currentColor" : "none"} />
                             </button>
                             <button
-                              className="rail-act"
+                              className="rail-act rail-more"
                               aria-label={`Actions for ${s.title || "Untitled"}`}
                               aria-expanded={sessMenu === s.id}
                               title="Session actions"
                               onClick={(e) => { e.stopPropagation(); setSessMenu((m) => (m === s.id ? null : s.id)); }}
                             >
-                              ⋯
+                              <MoreHorizontal size={14} />
                             </button>
                           </>
                         )}
                       </div>
                       {sessMenu === s.id && (
                         <div className="rail-menu">
-                          {s.status && <div className="rail-menu-info">{s.status}{s.files && s.files.length > 0 ? ` · ${s.files.length} files` : ""}</div>}
+                          {state.label && <div className="rail-menu-info">{state.label}</div>}
                           {s.task && (
-                            <button className="rail-menu-btn" onClick={() => { setInput(s.task ?? ""); setSessMenu(null); taRef.current?.focus(); }}>re-run prompt</button>
+                            <button className="rail-menu-btn" onClick={() => { setInput(s.task ?? ""); setSessMenu(null); taRef.current?.focus(); }}>
+                              <RotateCcw size={13} />
+                              Re-run prompt
+                            </button>
                           )}
-                          <button className="rail-menu-btn" onClick={() => { setRenamingSess(s.id); setSessMenu(null); }}>rename</button>
+                          <button className="rail-menu-btn" onClick={() => { setRenamingSess(s.id); setSessMenu(null); }}>
+                            <Pencil size={13} />
+                            Rename
+                          </button>
                           {s.files && s.files.length > 0 && (
                             <button
                               className="rail-menu-btn"
@@ -1427,16 +1472,23 @@ export default function App() {
                                 setSessMenu(null);
                               }}
                             >
-                              view changed files
+                              <Files size={13} />
+                              View changed files
                             </button>
                           )}
                           {s.task && (
-                            <button className="rail-menu-btn" onClick={() => { void navigator.clipboard.writeText(s.task ?? ""); setSessMenu(null); }}>copy task</button>
+                            <button className="rail-menu-btn" onClick={() => { void navigator.clipboard.writeText(s.task ?? ""); setSessMenu(null); }}>
+                              <Copy size={13} />
+                              Copy task
+                            </button>
                           )}
                           {!current && (
                             <>
                               <div className="rail-menu-divider" role="separator" />
-                              <button className="rail-menu-btn danger" onClick={() => { send({ type: "session_delete", id: s.id }); setSessMenu(null); }}>delete</button>
+                              <button className="rail-menu-btn danger" onClick={() => { send({ type: "session_delete", id: s.id }); setSessMenu(null); }}>
+                                <Trash2 size={13} />
+                                Delete
+                              </button>
                             </>
                           )}
                         </div>

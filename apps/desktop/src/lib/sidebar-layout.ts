@@ -1,6 +1,6 @@
-export const MIN_RAIL_WIDTH = 220;
+export const MIN_RAIL_WIDTH = 232;
 export const MAX_RAIL_WIDTH = 360;
-export const DEFAULT_RAIL_WIDTH = 260;
+export const DEFAULT_RAIL_WIDTH = 272;
 
 export function clampRailWidth(width: number, maximum = MAX_RAIL_WIDTH): number {
   return Number.isFinite(width)
