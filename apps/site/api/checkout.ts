@@ -1,10 +1,13 @@
-import { activeTier, getTiers, upstashReady } from "./pricing-lib.js";
+import { activeTier, getTiers, licensingEnabled, upstashReady } from "./pricing-lib.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 
 // POST /api/checkout → creates a Stripe Checkout Session priced from the
 // authoritative active tier. Never trusts client-supplied price or tier.
 export async function POST(req: Request) {
+  if (!licensingEnabled()) {
+    return Response.json({ error: "licensing_disabled" }, { status: 403 });
+  }
   if (!upstashReady() || !STRIPE_KEY) {
     return Response.json({ error: "checkout unavailable" }, { status: 503 });
   }

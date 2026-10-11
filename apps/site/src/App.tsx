@@ -34,6 +34,10 @@ function detect(): Platform | null {
 
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
+// Downloads are free by default. Set VITE_LICENSING_ENABLED=1 to restore the
+// paid lifetime-license flow without deleting any of it.
+const LICENSING_ENABLED = ["1", "true"].includes(import.meta.env.VITE_LICENSING_ENABLED ?? "");
+
 function DownloadButtons() {
   const [os] = useState(detect);
   const primary = DOWNLOADS.find((d) => d.os === os);
@@ -99,10 +103,14 @@ function DownloadButtons() {
           All releases
         </a>
         {" · "}
-        <a href="/pricing" className={quiet}>
-          Pricing →
-        </a>
-        {" · "}
+        {LICENSING_ENABLED && (
+          <>
+            <a href="/pricing" className={quiet}>
+              Pricing →
+            </a>
+            {" · "}
+          </>
+        )}
         <a href="https://developers.dxxp.codes" className={quiet}>
           Developer API →
         </a>
@@ -218,6 +226,25 @@ function LicenseGate({ children }: { children: ReactNode }) {
   );
 }
 
+function FreeDownload() {
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
+      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        Free download
+      </p>
+      <h1 className="mt-4 text-[28px] font-medium tracking-[-0.02em]">
+        DxxpCode is free
+      </h1>
+      <p className="mt-3 text-[13px] text-muted-foreground">
+        No license key required.
+      </p>
+      <div className="mt-7">
+        <DownloadButtons />
+      </div>
+    </main>
+  );
+}
+
 function Header({ dark, setDark }: { dark: boolean; setDark: (d: boolean) => void }) {
   return (
     <header className="grid h-16 grid-cols-3 items-center px-6">
@@ -265,7 +292,7 @@ export default function App() {
     return (
       <div className="flex min-h-[100svh] flex-col bg-background">
         <Header dark={dark} setDark={setDark} />
-        {path === "/pricing" ? <Pricing /> : <PricingSuccess />}
+        {path === "/pricing" ? (LICENSING_ENABLED ? <Pricing /> : <FreeDownload />) : <PricingSuccess />}
       </div>
     );
   }
@@ -283,9 +310,13 @@ export default function App() {
         </h1>
 
         <div className="mt-7">
-          <LicenseGate>
+          {LICENSING_ENABLED ? (
+            <LicenseGate>
+              <DownloadButtons />
+            </LicenseGate>
+          ) : (
             <DownloadButtons />
-          </LicenseGate>
+          )}
         </div>
       </main>
     </div>

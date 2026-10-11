@@ -18,6 +18,11 @@ export const TIERS: Omit<Tier, "sold">[] = [
   { id: 3, price_cents: 14900, total: 149, label: "final" },
 ];
 
+export function licensingEnabled() {
+  const value = process.env.LICENSING_ENABLED ?? process.env.VITE_LICENSING_ENABLED ?? "";
+  return ["1", "true"].includes(value.toLowerCase());
+}
+
 export function upstashReady() {
   return Boolean(URL_ && TOKEN);
 }
