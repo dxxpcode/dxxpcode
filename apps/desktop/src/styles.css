@@ -1004,18 +1004,66 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 .composer-select .setdd-item { overflow-wrap: anywhere; }
 .composer-select .setdd-btn:disabled { opacity: 0.5; cursor: default; }
-.composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
-/* merged model · effort control */
-.msel-ico { flex-shrink: 0; color: var(--faint); transition: color 0.12s var(--ease); }
-.msel-btn:hover .msel-ico, .msel-btn[aria-expanded="true"] .msel-ico { color: var(--dim); }
-.msel-var { color: var(--faint); }
-.msel-dot { color: var(--faint); }
-.setdd-caret { transition: transform 0.15s var(--ease), color 0.12s var(--ease); }
-.setdd-caret.open { transform: rotate(180deg); }
-.msel-head { padding: 6px 8px 3px; font-size: 10px; letter-spacing: 0.05em; color: var(--faint); }
-.msel-head:first-child { padding-top: 3px; }
-div.msel-sep { height: 1px; margin: 4px 6px; background: var(--border); }
-.msel-item.cur { background: var(--surface2); }
+.msel { min-width: 0; max-width: 300px; }
+.msel-btn {
+  display: flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px;
+  padding: 4px 7px; margin-left: -7px; border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--dim); font: inherit; font-size: 12px; cursor: pointer;
+  transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.msel-btn:hover, .msel-btn[aria-expanded="true"] { background: var(--surface2); color: var(--text); }
+.msel-btn:disabled { opacity: 0.5; cursor: default; }
+.msel-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msel-effort { flex-shrink: 0; color: var(--dim); font-size: 11px; }
+.msel-effort > span { color: var(--faint); margin-right: 3px; }
+.msel-caret { flex-shrink: 0; color: var(--faint); transition: transform 0.15s var(--ease); }
+.msel-btn[aria-expanded="true"] .msel-caret { transform: rotate(180deg); }
+.msel-menu {
+  position: fixed; z-index: 50; display: flex; flex-direction: column; overflow: hidden;
+  padding: 12px 6px 0; border-radius: var(--radius); background: var(--surface);
+  box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--font-chat);
+}
+.msel-heading { flex-shrink: 0; padding: 0 8px 8px; color: var(--dim); font-size: 11px; }
+.msel-variant { flex-shrink: 0; padding: 0 8px 8px; color: var(--dim); font-size: 11px; overflow-wrap: anywhere; }
+.msel-search {
+  display: flex; align-items: center; flex-shrink: 0; gap: 8px; margin: 0 8px 8px;
+  padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--faint);
+}
+.msel-search:focus-within { border-color: var(--border-strong); }
+.msel-search input { min-width: 0; flex: 1; background: none; border: none; outline: none; font: inherit; font-size: 12px; color: var(--text); }
+.msel-search input::placeholder { color: var(--faint); }
+.msel-models { min-height: 0; flex: 0 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+.msel-model {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 34px;
+  padding: 8px; border: none; border-radius: var(--radius-sm); background: none;
+  color: var(--dim); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+.msel-model > span { min-width: 0; overflow-wrap: anywhere; }
+.msel-model > svg { flex-shrink: 0; }
+.msel-model[aria-checked="true"] { color: var(--text); font-weight: 500; }
+.msel-model:hover { background: var(--surface2); color: var(--text); }
+.msel-custom {
+  flex-shrink: 0; min-height: 34px; margin-top: 4px; padding: 8px; border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--dim); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+.msel-custom:hover { background: var(--surface2); color: var(--text); }
+.msel-empty { padding: 14px 8px; font-size: 12px; color: var(--dim); }
+.msel-footer { flex-shrink: 0; margin: 8px -6px 0; padding: 12px 14px; border-top: 1px solid var(--border); }
+.msel-footer .msel-heading { padding: 0 0 9px; }
+.msel-segments {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: 3px;
+  padding: 3px; border-radius: var(--radius-sm); background: var(--surface2);
+}
+.msel-segments button {
+  min-width: 0; min-height: 28px; padding: 4px 3px; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--dim); font: inherit; font-size: 11px; cursor: pointer;
+}
+.msel-segments button:hover { color: var(--text); border-color: var(--border); }
+.msel-segments button[aria-checked="true"] { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
+.msel-hint { margin: 9px 0 0; color: var(--dim); font-size: 11px; line-height: 1.4; }
+.msel-btn:focus-visible, .msel-model:focus-visible, .msel-custom:focus-visible, .msel-segments button:focus-visible {
+  outline: 1px solid var(--border-strong); outline-offset: -1px; box-shadow: none;
+}
 .plan-toggle {
   display: inline-flex; align-items: center; gap: 4px;
   background: none; font: inherit; font-size: 11px;
