@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Search, Sparkles } from "lucide-react";
+import { Check, Search, Sparkles } from "lucide-react";
 
 export const EFFORT_AUTO = "auto (Jev)";
 const EFFORTS: { id: string; label: string; bars: 1 | 2 | 3; hint: string }[] = [
@@ -27,12 +27,23 @@ function effortOf(effort: string): { bars: number; auto: boolean; label: string 
   return e ? { bars: e.bars, auto: false, label: e.id } : { bars: 1, auto: false, label: effort };
 }
 
-function Bars({ on, auto = false }: { on: number; auto?: boolean }) {
+function Bars({ on, color }: { on: number; color?: string }) {
   return (
-    <span className={`mp-bars${auto ? " auto" : ""}`} aria-hidden="true">
-      {[0, 1, 2].map((i) => <i key={i} className={i < on ? "on" : ""} />)}
+    <span className="mp-bars" aria-hidden="true">
+      {[0, 1, 2].map((i) => <i key={i} className={i < on ? "on" : ""} style={i < on && color ? { background: color } : undefined} />)}
     </span>
   );
+}
+
+function shortModel(model: string): string {
+  const s = model.replace(/^(claude|gpt|gemini|deepseek)-/i, "");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function shortEffort(effort: string): string {
+  if (effort === EFFORT_AUTO) return "Auto";
+  const e = EFFORTS.find((x) => x.id === effort);
+  return e ? e.label : effort;
 }
 
 /** Shared popover behaviour: outside click + Escape close, arrow-key listbox nav. */
@@ -97,9 +108,8 @@ function ModelMenu({ model, modelOpts, variant, disabled, onOpen, onModel }: {
         aria-controls={open ? id : undefined} title={`Model: ${model}`}
         data-open={open || undefined} disabled={disabled}
         onClick={() => { if (open) close(); else { setQuery(""); setOpen(true); onOpen?.(); } }}>
-        <span className="mp-dot" style={{ background: providerOf(model).color }} />
-        <span className="mp-name">{model}</span>
-        <ChevronDown size={11} className="mp-caret" />
+        <Bars on={3} color={providerOf(model).color} />
+        <span className="mp-name">{shortModel(model)}</span>
       </button>
       {open && (
         <div className="mp-menu" id={id} role="listbox" aria-label="Model">
@@ -166,7 +176,8 @@ function EffortMeter({ effort, disabled, onEffort }: {
         aria-controls={open ? id : undefined} title={`Reasoning effort: ${cur.label}`}
         data-open={open || undefined} disabled={disabled}
         onClick={() => open ? close() : setOpen(true)}>
-        <Bars on={cur.bars} auto={cur.auto} />
+        <Bars on={cur.bars} color={cur.auto ? "var(--purple)" : undefined} />
+        <span className="mp-name">{shortEffort(effort)}</span>
       </button>
       {open && (
         <div className="mp-menu mp-effort-menu" id={id} role="listbox" aria-label="Reasoning effort">
@@ -191,7 +202,7 @@ function EffortMeter({ effort, disabled, onEffort }: {
             <span className="mp-check">{effort === EFFORT_AUTO ? <Check size={11} /> : null}</span>
             <Sparkles size={11} className="mp-jev" />
             <span className="mp-row-name">Dynamic<span className="mp-hint">Jev routes effort</span></span>
-            <Bars on={3} auto />
+            <Bars on={3} color="var(--purple)" />
           </button>
         </div>
       )}
