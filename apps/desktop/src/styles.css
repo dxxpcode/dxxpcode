@@ -893,7 +893,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .diff { font-family: var(--font-mono); font-size: 12px; line-height: 1.55; }
 .diff .ln { display: flex; align-items: baseline; white-space: pre; }
 .diff .gutter {
-  width: 30px; color: var(--faint); text-align: right; padding-right: 8px;
+  width: 44px; color: var(--faint); text-align: right; padding-right: 10px;
   flex-shrink: 0; user-select: none; font-size: 10.5px;
 }
 .diff .add, .diff .del { color: var(--text); }

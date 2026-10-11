@@ -465,7 +465,7 @@ export function diffStats(diff: string): { add: number; del: number } {
   return { add, del };
 }
 
-type DiffRow = { cls: string; oldLine: string; newLine: string; sign: string; text: string; chg?: [number, number] };
+type DiffRow = { cls: string; line: string; sign: string; text: string; chg?: [number, number] };
 
 // Pair each run of deletions with the following run of additions and highlight
 // the differing infix inside each paired line (common prefix/suffix trimmed).
@@ -499,19 +499,22 @@ function DiffImpl({ diff }: { diff: string }) {
     const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@\s*(.*)$/.exec(l);
     if (h) {
       oldN = Number(h[1]); newN = Number(h[2]);
-      rows.push({ cls: "hunk", oldLine: "", newLine: "", sign: "", text: h[3]?.trim() ? `in ${h[3].trim()}` : "Changes" });
+      rows.push({ cls: "hunk", line: "", sign: "", text: h[3]?.trim() ? `in ${h[3].trim()}` : "Changes" });
     } else if (l.startsWith("@@")) {
-      rows.push({ cls: "hunk", oldLine: "", newLine: "", sign: "", text: "Changes" });
+      rows.push({ cls: "hunk", line: "", sign: "", text: "Changes" });
     } else if (l.startsWith("+++") || l.startsWith("---") || l.startsWith("diff ") || l.startsWith("index ")) {
       continue;
     } else if (l.startsWith("+")) {
-      rows.push({ cls: "add", oldLine: "", newLine: newN ? String(newN++) : "", sign: "+", text: l.slice(1) });
+      rows.push({ cls: "add", line: newN ? String(newN++) : "", sign: "+", text: l.slice(1) });
     } else if (l.startsWith("-")) {
-      rows.push({ cls: "del", oldLine: oldN ? String(oldN++) : "", newLine: "", sign: "−", text: l.slice(1) });
+      rows.push({ cls: "del", line: oldN ? String(oldN++) : "", sign: "−", text: l.slice(1) });
     } else if (l.startsWith("\\")) {
-      rows.push({ cls: "note", oldLine: "", newLine: "", sign: "", text: l });
+      rows.push({ cls: "note", line: "", sign: "", text: l });
     } else if (oldN > 0 || newN > 0) {
-      rows.push({ cls: "ctx", oldLine: oldN ? String(oldN++) : "", newLine: newN ? String(newN++) : "", sign: "", text: l.startsWith(" ") ? l.slice(1) : l });
+      const line = newN ? String(newN) : String(oldN);
+      if (oldN) oldN++;
+      if (newN) newN++;
+      rows.push({ cls: "ctx", line, sign: "", text: l.startsWith(" ") ? l.slice(1) : l });
     }
   }
   wordChanges(rows);
@@ -520,9 +523,9 @@ function DiffImpl({ diff }: { diff: string }) {
   const view: (DiffRow | { fold: number })[] = [];
   let n = 0;
   while (n < rows.length) {
-    if (rows[n].cls === "ctx" && (rows[n].oldLine || rows[n].newLine)) {
+    if (rows[n].cls === "ctx" && rows[n].line) {
       let m = n;
-      while (m < rows.length && rows[m].cls === "ctx" && (rows[m].oldLine || rows[m].newLine)) m++;
+      while (m < rows.length && rows[m].cls === "ctx" && rows[m].line) m++;
       const run = m - n;
       if (!expanded && run > FOLD_KEEP * 2 + 1) {
         view.push(...rows.slice(n, n + FOLD_KEEP), { fold: run - FOLD_KEEP * 2 }, ...rows.slice(m - FOLD_KEEP, m));
@@ -545,14 +548,13 @@ function DiffImpl({ diff }: { diff: string }) {
       {view.map((r, i) =>
         "fold" in r ? (
           <button className="ln fold" key={i} onClick={() => setExpanded(true)}>
-            <span className="gutter" /><span className="gutter" /><span className="sign" /><span>⋮ {r.fold} unchanged lines</span>
+            <span className="gutter" /><span className="sign" /><span>⋮ {r.fold} unchanged lines</span>
           </button>
         ) : r.cls === "hunk" ? (
-          <div className="ln hunk" key={i}><span className="gutter" /><span className="gutter" /><span className="hunkchip">{r.text}</span></div>
+          <div className="ln hunk" key={i}><span className="gutter" /><span className="hunkchip">{r.text}</span></div>
         ) : (
           <div className={`ln ${r.cls}`} key={i}>
-            <span className="gutter old">{r.oldLine}</span>
-            <span className="gutter new">{r.newLine}</span>
+            <span className="gutter">{r.line}</span>
             <span className="sign">{r.sign}</span>
             {renderText(r)}
           </div>
