@@ -15,6 +15,15 @@ async function hmac(key: string, msg: string): Promise<string> {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function timingSafeEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+const TOLERANCE_SECS = 300; // Stripe's recommended replay window
+
 async function verifyStripeSignature(payload: string, header: string | null): Promise<boolean> {
   if (!WH_SECRET || !header) return false;
   const parts = Object.fromEntries(
@@ -23,8 +32,12 @@ async function verifyStripeSignature(payload: string, header: string | null): Pr
   const ts = parts.t;
   const v1 = parts.v1;
   if (!ts || !v1) return false;
+  const tsNum = Number(ts);
+  if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > TOLERANCE_SECS) {
+    return false;
+  }
   const expected = await hmac(WH_SECRET, `${ts}.${payload}`);
-  return expected === v1;
+  return timingSafeEq(expected, v1);
 }
 
 // POST /api/webhooks/stripe — the ONLY place a license is ever consumed.
