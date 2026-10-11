@@ -150,7 +150,7 @@ export default function App() {
   const [renamingSess, setRenamingSess] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
-    return saved === "light" || saved === "dark" ? saved : "system";
+    return saved === "light" || saved === "dark" || saved === "system" ? saved : "dark";
   });
   const [sysDark, setSysDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
   useEffect(() => {
