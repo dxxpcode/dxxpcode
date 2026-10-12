@@ -119,6 +119,25 @@ button:focus-visible, .menu-opt:focus-visible, .palette-row:focus-visible {
   font-size: 11px; color: var(--text);
 }
 
+/* iPhone companion pairing card */
+.pair-dialog { width: min(296px, calc(100vw - 48px)); }
+.pair-body {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 20px 18px 18px;
+}
+.pair-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.pair-qr {
+  display: block; width: 232px; height: 232px;
+  background: #fff; padding: 8px; border-radius: 8px;
+}
+.pair-url {
+  font-size: 9.5px; color: var(--faint);
+  word-break: break-all; text-align: center;
+  user-select: all; max-height: 44px; overflow: hidden;
+}
+.pair-hint { font-size: 11px; color: var(--faint); text-align: center; }
+.pair-err { font-size: 12px; color: var(--red); text-align: center; }
+
 /* Sessions rail */
 .rail {
   --rail-bg: color-mix(in srgb, var(--bg) 76%, var(--surface));

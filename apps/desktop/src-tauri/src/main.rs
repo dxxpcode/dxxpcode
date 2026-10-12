@@ -17,15 +17,18 @@ struct Outbox {
     buffered: Mutex<Vec<Vec<u8>>>,
 }
 
+/// Returns the buffered early chunks in the invoke response rather than
+/// emitting them: `pty-out` events can be dropped while the webview is between
+/// listener registrations (e.g. StrictMode remount), and losing the `ready`
+/// chunk there wedges the boot on "starting engine…". An invoke response
+/// always reaches its caller. Chunks after this point emit live — `ui_ready`
+/// is only invoked once the listener is attached.
 #[tauri::command]
-fn ui_ready(outbox: State<'_, std::sync::Arc<Outbox>>, app: tauri::AppHandle) {
-    let buffered: Vec<Vec<u8>> = std::mem::take(&mut *outbox.buffered.lock().unwrap());
+fn ui_ready(outbox: State<'_, std::sync::Arc<Outbox>>) -> Vec<Vec<u8>> {
     outbox
         .ready
         .store(true, std::sync::atomic::Ordering::SeqCst);
-    for ev in buffered {
-        let _ = app.emit("pty-out", ev);
-    }
+    std::mem::take(&mut *outbox.buffered.lock().unwrap())
 }
 
 #[tauri::command]
@@ -229,6 +232,123 @@ struct SessionCwd(Mutex<String>);
 #[tauri::command]
 fn session_cwd(cwd: State<'_, SessionCwd>) -> String {
     cwd.0.lock().unwrap().clone()
+}
+
+/// The `dxxpcode serve --lan` child backing the iPhone companion toggle.
+/// Plain spawn (no pty): serve is a TCP listener, not an interactive shell.
+struct Companion(Mutex<Option<std::process::Child>>);
+
+fn dxxpcode_home() -> std::path::PathBuf {
+    if let Ok(d) = std::env::var("DXXPCODE_HOME") {
+        if !d.is_empty() {
+            return d.into();
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    std::path::PathBuf::from(home).join(".dxxpcode")
+}
+
+/// Primary LAN address — same no-packets-sent trick as agent-rs `serve --lan`.
+fn lan_ip() -> Option<String> {
+    let s = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    s.connect("8.8.8.8:80").ok()?;
+    Some(s.local_addr().ok()?.ip().to_string())
+}
+
+/// A serve listener is already answering on the API port (ours or a manual one).
+fn port_serving() -> bool {
+    std::net::TcpStream::connect(("127.0.0.1", 8787)).is_ok()
+}
+
+fn pair_url() -> Result<String, String> {
+    let token = std::fs::read_to_string(dxxpcode_home().join("api-token"))
+        .map_err(|e| format!("read api-token: {e}"))?
+        .trim()
+        .to_string();
+    if token.is_empty() {
+        return Err("api-token is empty".into());
+    }
+    let ip = lan_ip().ok_or("no LAN address found")?;
+    Ok(format!(
+        "dxxpcode://pair?host={ip}&port=8787&token={token}&v=1"
+    ))
+}
+
+fn companion_info(managed: bool) -> serde_json::Value {
+    serde_json::json!({
+        "running": true,
+        "managed": managed,
+        "url": lan_ip().map(|ip| format!("http://{ip}:8787")),
+        "pairUrl": pair_url().ok(),
+    })
+}
+
+/// Async so the spawn + bind poll runs off the main thread — a sync command
+/// would freeze the UI (and the mount-time listener handshake) for up to ~1s.
+#[tauri::command]
+async fn companion_start(
+    app: tauri::AppHandle,
+    comp: State<'_, Companion>,
+    cwd: State<'_, SessionCwd>,
+) -> Result<serde_json::Value, String> {
+    {
+        let mut guard = comp.0.lock().unwrap();
+        if let Some(c) = guard.as_mut() {
+            if matches!(c.try_wait(), Ok(None)) {
+                return Ok(companion_info(true));
+            }
+        }
+        // Reuse a serve someone else launched rather than spawn a dead one.
+        if port_serving() {
+            *guard = None;
+            return Ok(companion_info(false));
+        }
+        let program = cli_binary(&app);
+        let dir = cwd.0.lock().unwrap().clone();
+        let child = std::process::Command::new(program)
+            .args(["serve", "--lan"])
+            .current_dir(if dir.is_empty() { ".".into() } else { dir })
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        *guard = Some(child);
+    }
+    // The listener takes a moment to bind — reflect reality, not the spawn.
+    for _ in 0..20 {
+        if port_serving() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    Ok(companion_info(true))
+}
+
+#[tauri::command]
+fn companion_stop(comp: State<'_, Companion>) -> Result<(), String> {
+    if let Some(mut child) = comp.0.lock().unwrap().take() {
+        let _ = child.kill();
+        let _ = child.wait(); // reap — killed children linger as zombies otherwise
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn companion_status(comp: State<'_, Companion>) -> serde_json::Value {
+    let mut guard = comp.0.lock().unwrap();
+    let managed = guard
+        .as_mut()
+        .map(|c| matches!(c.try_wait(), Ok(None)))
+        .unwrap_or(false);
+    if guard.is_some() && !managed {
+        *guard = None; // our child exited (e.g. port was already taken)
+    }
+    if managed || port_serving() {
+        companion_info(managed)
+    } else {
+        serde_json::json!({ "running": false })
+    }
 }
 
 /// Kill the current sidecar and respawn it rooted at `cwd` — used by
@@ -452,7 +572,7 @@ fn worktree_discard(root: String, dir: String, branch: String) -> Result<(), Str
 }
 
 fn main() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(
@@ -470,6 +590,7 @@ fn main() {
             next: std::sync::atomic::AtomicU32::new(1),
         })
         .manage(SessionCwd(Mutex::new(String::new())))
+        .manage(Companion(Mutex::new(None)))
         .setup(|app| {
             // Spawn dxxpcode: DXXPCODE_BIN overrides for dev; otherwise the
             // bundled sidecar (next to the exe or in the resource dir); finally
@@ -494,8 +615,19 @@ fn main() {
             worker_stop,
             worktree_create,
             worktree_merge,
-            worktree_discard
+            worktree_discard,
+            companion_start,
+            companion_stop,
+            companion_status
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running dxxpcode desktop");
+    app.run(|handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            if let Some(mut child) = handle.state::<Companion>().0.lock().unwrap().take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    });
 }
