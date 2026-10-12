@@ -12,7 +12,10 @@ struct PairView: View {
     var body: some View {
         VStack(spacing: 28) {
             Spacer()
-            VStack(spacing: 6) {
+            VStack(spacing: 10) {
+                XXMark()
+                    .fill(Color.dxText)
+                    .frame(width: 46, height: 46)
                 Text("DxxpCode")
                     .font(.system(size: 26, weight: .semibold))
                 Text("Companion for your local agent")
