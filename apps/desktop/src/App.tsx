@@ -9,6 +9,7 @@ import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, Slid
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import QRCode from "qrcode";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
@@ -74,6 +75,11 @@ export default function App() {
   const [setI, setSetPalIdx] = useState(0);
   const [setPalOpen_, setSetPalOpen_] = useState(-1); // expanded row index within filtered list
   const [setPalOptIdx, setSetPalOptIdx] = useState(0);
+  // iPhone companion: `dxxpcode serve --lan` child + pairing QR card.
+  const [companion, setCompanion] = useState<{ running: boolean; url?: string | null; pairUrl?: string | null } | null>(null);
+  const [pairOpen, setPairOpen] = useState(false);
+  const [pairQr, setPairQr] = useState("");
+  const [pairErr, setPairErr] = useState("");
   // In-app updates: checked once on launch, downloaded in the background,
   // then surfaced as a restart row in Settings → About.
   const [update, setUpdate] = useState<{ version: string; status: "downloading" | "ready" } | null>(null);
@@ -959,8 +965,57 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (settingsOpen) void send({ type: "command", name: "/models" });
+    if (settingsOpen) {
+      void send({ type: "command", name: "/models" });
+      void invoke<typeof companion>("companion_status").then(setCompanion).catch(() => {});
+    }
   }, [settingsOpen]);
+  // Companion autostart: if it was left on last session, relaunch serve once
+  // the app boots (the child dies with the app, so "on" is a persisted intent).
+  useEffect(() => {
+    void invoke<typeof companion>("companion_status")
+      .then(async (i) => {
+        if (i?.running) { setCompanion(i); return; }
+        if (localStorage.getItem("companion") === "1") {
+          await invoke<typeof companion>("companion_start").then(setCompanion).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const openPair = async (info?: typeof companion) => {
+    const i = info ?? (await invoke<typeof companion>("companion_status").catch(() => null));
+    if (i) setCompanion(i);
+    setPairErr("");
+    if (!i?.pairUrl) {
+      setPairQr("");
+      setPairErr("Companion isn't listening — toggle it off and on again.");
+    } else {
+      const qr = await QRCode.toDataURL(i.pairUrl, { margin: 1, width: 440, color: { dark: "#000000", light: "#ffffff" } });
+      setPairQr(qr);
+    }
+    setPairOpen(true);
+  };
+
+  const companionToggle = async (on: boolean) => {
+    if (on) {
+      try {
+        const info = await invoke<typeof companion>("companion_start");
+        setCompanion(info);
+        localStorage.setItem("companion", "1");
+        await openPair(info);
+      } catch (e) {
+        setPairErr(String(e));
+        setPairQr("");
+        setPairOpen(true);
+      }
+    } else {
+      await invoke("companion_stop").catch(() => {});
+      localStorage.setItem("companion", "0");
+      setCompanion({ running: false });
+      setPairOpen(false);
+    }
+  };
   useEffect(() => {
     setModelOpts([]);
     if (ready && !ready.needsSetup) void send({ type: "command", name: "/models" });
@@ -1184,6 +1239,11 @@ export default function App() {
     { id: "compact", label: "Compact context", group: "Session", action: () => cmd("/compact") },
     { id: "undo", label: "Undo checkpoint", group: "Session", action: () => cmd("/undo") },
     { id: "new", label: "New session", group: "Session", action: () => cmd("/new") },
+    { id: "companion", label: "iPhone companion", group: "Companion",
+      value: companion?.running ? "on" : "off",
+      options: ["off", "on"],
+      onPick: (v) => void companionToggle(v === "on") },
+    ...(companion?.running ? [{ id: "pairing", label: "Show pairing code…", group: "Companion", action: () => void openPair() }] : []),
     ...(update?.status === "ready" ? [{ id: "update", label: `Update ready — v${update.version}`, group: "DxxpCode", action: () => void relaunch() }] : []),
     ...(update?.status === "downloading" ? [{ id: "update", label: `Downloading update v${update.version}…`, group: "DxxpCode" }] : []),
     { id: "docs", label: "Documentation", group: "DxxpCode", action: () => cmd("/docs") },
@@ -1193,7 +1253,7 @@ export default function App() {
   ];
   const setPalRows = setEntries.filter((e) => {
     const q = setQ.trim().toLowerCase();
-    return !q || e.label.toLowerCase().includes(q) || (e.value ?? "").toLowerCase().includes(q);
+    return !q || e.label.toLowerCase().includes(q) || (e.value ?? "").toLowerCase().includes(q) || e.group.toLowerCase().includes(q);
   });
   const palRows = sessionGroups.flatMap(([, g]) => g);
   // Queued backlog shows above session history — picking one loads it into the
@@ -1743,6 +1803,24 @@ export default function App() {
                 ));
               })()}
             </ScrollArea>
+          </div>
+        </div>
+      )}
+      {pairOpen && (
+        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPairOpen(false); }}>
+          <div className="sesspal-dialog pair-dialog">
+            <div className="pair-body">
+              <div className="pair-title">iPhone companion</div>
+              {pairErr ? (
+                <div className="pair-err">{pairErr}</div>
+              ) : (
+                <>
+                  <img className="pair-qr" src={pairQr} alt="Pairing code" width={232} height={232} />
+                  <div className="pair-url mono">{companion?.pairUrl}</div>
+                  <div className="pair-hint">Scan with the DxxpCode iOS app — both devices must be on the same network.</div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
