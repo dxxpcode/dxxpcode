@@ -24,7 +24,7 @@ fn latest_session_for_local(root: &str) -> Option<config::SessionRecord> {
 fn main() {
     let argv: Vec<String> = std::env::args().skip(1).collect();
     if argv.first().map(|a| a.as_str()) == Some("serve") {
-        std::process::exit(serve::run());
+        std::process::exit(serve::run(&argv[1..]));
     }
     let mut app_mode = false;
     let mut plan = false;
