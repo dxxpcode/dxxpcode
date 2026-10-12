@@ -703,8 +703,8 @@ export default function App() {
   useEffect(() => {
     let buf = "";
     const dec = new TextDecoder();
-    const un = listen<number[]>("pty-out", (e) => {
-      buf += dec.decode(new Uint8Array(e.payload), { stream: true });
+    const feed = (payload: number[]) => {
+      buf += dec.decode(new Uint8Array(payload), { stream: true });
       let nl: number;
       while ((nl = buf.indexOf("\n")) >= 0) {
         const line = buf.slice(0, nl);
@@ -717,9 +717,13 @@ export default function App() {
           push({ k: "raw", text: t });
         }
       }
-    });
-    // Tell the backend the listener is attached; it replays early output.
-    void un.then(() => invoke("ui_ready"));
+    };
+    const un = listen<number[]>("pty-out", (e) => feed(e.payload));
+    // Tell the backend the listener is attached; buffered early output comes
+    // back in the invoke response so it can't be dropped mid-registration.
+    void un.then(() =>
+      invoke<number[][]>("ui_ready").then((chunks) => chunks.forEach(feed))
+    );
     return () => {
       void un.then((f) => f());
     };
@@ -971,8 +975,13 @@ export default function App() {
     }
   }, [settingsOpen]);
   // Companion autostart: if it was left on last session, relaunch serve once
-  // the app boots (the child dies with the app, so "on" is a persisted intent).
+  // the app is ready (the child dies with the app, so "on" is persisted
+  // intent). Gated on `ready` so the invoke stays clear of the mount-time
+  // listener-registration window.
+  const companionBooted = useRef(false);
   useEffect(() => {
+    if (!ready || companionBooted.current) return;
+    companionBooted.current = true;
     void invoke<typeof companion>("companion_status")
       .then(async (i) => {
         if (i?.running) { setCompanion(i); return; }
@@ -981,7 +990,7 @@ export default function App() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [ready]);
 
   const openPair = async (info?: typeof companion) => {
     const i = info ?? (await invoke<typeof companion>("companion_status").catch(() => null));
@@ -1012,8 +1021,11 @@ export default function App() {
     } else {
       await invoke("companion_stop").catch(() => {});
       localStorage.setItem("companion", "0");
-      setCompanion({ running: false });
-      setPairOpen(false);
+      // Refresh real status rather than assume off — an adopted external
+      // serve can't be killed from here and stays running.
+      const s = await invoke<typeof companion>("companion_status").catch(() => null);
+      setCompanion(s ?? { running: false });
+      if (!s?.running) setPairOpen(false);
     }
   };
   useEffect(() => {

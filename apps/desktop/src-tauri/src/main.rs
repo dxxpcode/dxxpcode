@@ -17,15 +17,18 @@ struct Outbox {
     buffered: Mutex<Vec<Vec<u8>>>,
 }
 
+/// Returns the buffered early chunks in the invoke response rather than
+/// emitting them: `pty-out` events can be dropped while the webview is between
+/// listener registrations (e.g. StrictMode remount), and losing the `ready`
+/// chunk there wedges the boot on "starting engine…". An invoke response
+/// always reaches its caller. Chunks after this point emit live — `ui_ready`
+/// is only invoked once the listener is attached.
 #[tauri::command]
-fn ui_ready(outbox: State<'_, std::sync::Arc<Outbox>>, app: tauri::AppHandle) {
-    let buffered: Vec<Vec<u8>> = std::mem::take(&mut *outbox.buffered.lock().unwrap());
+fn ui_ready(outbox: State<'_, std::sync::Arc<Outbox>>) -> Vec<Vec<u8>> {
     outbox
         .ready
         .store(true, std::sync::atomic::Ordering::SeqCst);
-    for ev in buffered {
-        let _ = app.emit("pty-out", ev);
-    }
+    std::mem::take(&mut *outbox.buffered.lock().unwrap())
 }
 
 #[tauri::command]
@@ -280,8 +283,10 @@ fn companion_info(managed: bool) -> serde_json::Value {
     })
 }
 
+/// Async so the spawn + bind poll runs off the main thread — a sync command
+/// would freeze the UI (and the mount-time listener handshake) for up to ~1s.
 #[tauri::command]
-fn companion_start(
+async fn companion_start(
     app: tauri::AppHandle,
     comp: State<'_, Companion>,
     cwd: State<'_, SessionCwd>,
@@ -324,6 +329,7 @@ fn companion_start(
 fn companion_stop(comp: State<'_, Companion>) -> Result<(), String> {
     if let Some(mut child) = comp.0.lock().unwrap().take() {
         let _ = child.kill();
+        let _ = child.wait(); // reap — killed children linger as zombies otherwise
     }
     Ok(())
 }
@@ -620,6 +626,7 @@ fn main() {
         if let tauri::RunEvent::Exit = event {
             if let Some(mut child) = handle.state::<Companion>().0.lock().unwrap().take() {
                 let _ = child.kill();
+                let _ = child.wait();
             }
         }
     });
