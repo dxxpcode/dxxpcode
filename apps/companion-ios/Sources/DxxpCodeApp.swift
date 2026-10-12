@@ -56,6 +56,7 @@ struct DxxpCodeCompanionApp: App {
 
 struct RootView: View {
     @EnvironmentObject var app: AppModel
+    @AppStorage("appearance") private var appearance = Appearance.system.rawValue
 
     var body: some View {
         Group {
@@ -68,6 +69,6 @@ struct RootView: View {
             }
         }
         .background(Color.dxBg.ignoresSafeArea())
-        .preferredColorScheme(nil)
+        .preferredColorScheme(Appearance(rawValue: appearance)?.scheme)
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import VisionKit
 
 // Screen 1 — pair with the desktop: scan the QR shown by Settings → iPhone
@@ -15,7 +16,7 @@ struct PairView: View {
             VStack(spacing: 10) {
                 XXMark()
                     .fill(Color.dxText)
-                    .frame(width: 46, height: 46)
+                    .frame(width: 60, height: 60)
                 Text("DxxpCode")
                     .font(.system(size: 26, weight: .semibold))
                 Text("Companion for your local agent")
@@ -23,13 +24,13 @@ struct PairView: View {
                     .foregroundStyle(Color.dxFaint)
             }
             VStack(spacing: 12) {
-                Button { scanning = true } label: {
+                Button {
+                    DXHaptics.tap()
+                    scanning = true
+                } label: {
                     Label("Scan pairing QR", systemImage: "qrcode.viewfinder")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.dxText)
-                .controlSize(.large)
+                .buttonStyle(DXPrimaryButton())
 
                 HStack(spacing: 8) {
                     TextField("or paste dxxpcode://pair?…", text: $manual)
@@ -37,8 +38,16 @@ struct PairView: View {
                         .textFieldStyle(.plain)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
+                        .submitLabel(.go)
+                        .onSubmit { tryPair(manual) }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
+                    if let clip = UIPasteboard.general.string,
+                       clip.hasPrefix("dxxpcode://pair"), manual.isEmpty {
+                        Button("Paste") { manual = clip }
+                            .font(.callout.weight(.medium))
+                            .padding(.trailing, 4)
+                    }
                     if !manual.isEmpty {
                         Button("Pair") { tryPair(manual) }
                             .font(.callout.weight(.medium))
@@ -56,7 +65,10 @@ struct PairView: View {
                     .font(.caption)
                     .foregroundStyle(Color.dxRed)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .dxCard()
+                    .padding(.horizontal, 28)
             }
 
             Spacer()

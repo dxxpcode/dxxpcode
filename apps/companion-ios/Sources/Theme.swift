@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Design tokens mirrored from apps/desktop/src/styles.css — the iOS app is
 // the same product in a native body: near-white light, pure-black dark,
@@ -65,4 +66,50 @@ struct DXCard: ViewModifier {
 
 extension View {
     func dxCard() -> some View { modifier(DXCard()) }
+}
+
+// Primary pill — black-on-white / white-on-black, same as the pair screen CTA.
+struct DXPrimaryButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.callout.weight(.semibold))
+            .foregroundStyle(Color.dxBg)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(Color.dxText)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .opacity(configuration.isPressed ? 0.82 : 1)
+    }
+}
+
+struct DXSecondaryButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.callout.weight(.medium))
+            .foregroundStyle(Color.dxText)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(Color.dxSurface2)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.dxBorder, lineWidth: 0.5))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+enum DXHaptics {
+    static func tap() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+    static func confirm() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+}
+
+// Appearance override: system / light / dark, persisted.
+enum Appearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var scheme: ColorScheme? {
+        switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
+    }
 }
