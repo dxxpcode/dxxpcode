@@ -1,0 +1,26 @@
+name: DxxpCodeCompanion
+options:
+  bundleIdPrefix: dev.dxxpcode
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  DxxpCodeCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.dxxpcode.companion
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_NSCameraUsageDescription: Scan the QR pairing code shown by the DxxpCode desktop app.
+        INFOPLIST_KEY_NSAppTransportSecurity: |
+          <dict>
+            <key>NSAllowsLocalNetworking</key><true/>
+          </dict>
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: 1
