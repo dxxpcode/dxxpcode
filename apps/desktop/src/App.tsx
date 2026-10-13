@@ -13,7 +13,8 @@ import QRCode from "qrcode";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
-import { SetSelect } from "./settings";
+import { ComposerSelector } from "./components/composer-selector";
+import { EFFORT_LEVELS } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
@@ -37,7 +38,6 @@ const ART_PIECES = [
 ];
 
 
-const EFFORT_LEVELS = ["default", "minimal", "low", "medium", "high", "xhigh", "max", "auto (Jev)"];
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
 const win = getCurrentWindow();
@@ -2329,17 +2329,15 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
-                  <SetSelect
-                    compact label="Model" value={ready.model}
-                    options={modelOpts.length ? modelOpts : [ready.model]} extra={["custom…"]}
-                    disabled={running || onboarding}
-                    onOpen={() => void send({ type: "command", name: "/models" })}
-                    onChange={(v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` })}
-                  />
-                  <SetSelect
-                    compact label="Reasoning effort" value={ready.effort ?? "default"}
-                    options={EFFORT_LEVELS} disabled={running || onboarding}
-                    onChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                  <ComposerSelector
+                    model={ready.model} models={modelOpts} provider={ready.provider}
+                    effort={ready.effort ?? "default"} disabled={running || onboarding}
+                    disabledReason={running ? "Available after this run" : "Complete setup to change model and effort"}
+                    onModelsOpen={() => void send({ type: "command", name: "/models" })}
+                    onModelChange={(v) => void send({ type: "command", name: `/model ${v}` })}
+                    onCustomModel={() => cmd("/model")}
+                    onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                    onCommit={() => taRef.current?.focus()}
                   />
                   {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
                   <button
@@ -2370,4 +2368,3 @@ export default function App() {
     </div>
   );
 }
-
