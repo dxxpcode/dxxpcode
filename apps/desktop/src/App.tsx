@@ -14,6 +14,7 @@ import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } fr
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { ComposerSelector } from "./components/composer-selector";
+import { DesktopDialog } from "./components/desktop-dialog";
 import { EFFORT_LEVELS } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
@@ -1293,19 +1294,19 @@ export default function App() {
     <div className={artSrc ? "app has-art" : "app"} data-resizing={railResizing || undefined}>
       {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
-        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPalOpen(false); }}>
-          <div className="sesspal-dialog">
+        <DesktopDialog title="Sessions" navigation returnFocusRef={taRef}
+          activeKey={`${palIdx}:${palQuery}`} onClose={() => setPalOpen(false)}>
             <div className="pal-search">
               <Search size={13} />
               <input
                 autoFocus
                 type="text"
                 placeholder="Search sessions…"
+                aria-label="Search sessions"
                 value={palQuery}
                 onChange={(e) => { setPalQuery(e.target.value); setPalIdx(0); }}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") setPalOpen(false);
-                  else if (e.key === "ArrowDown") { e.preventDefault(); setPalIdx((i) => Math.min(i + 1, palRows.length + palQueueRows.length)); }
+                  if (e.key === "ArrowDown") { e.preventDefault(); setPalIdx((i) => Math.min(i + 1, palRows.length + palQueueRows.length)); }
                   else if (e.key === "ArrowUp") { e.preventDefault(); setPalIdx((i) => Math.max(i - 1, 0)); }
                   else if (e.key === "Enter") { e.preventDefault(); palPick(palIdx); }
                 }}
@@ -1345,7 +1346,7 @@ export default function App() {
                   })}
                 </div>
               )}
-              {sessionGroups.length === 0 && <p className="pal-empty">{palQuery ? "No matches." : "No sessions in this project yet."}</p>}
+              {sessionGroups.length === 0 && <p className="pal-empty" role="status">{palQuery ? "No matching sessions." : "No sessions in this project yet."}</p>}
               {(() => {
                 let row = 0;
                 return sessionGroups.map(([label, group]) => (
@@ -1372,8 +1373,7 @@ export default function App() {
                 ));
               })()}
             </ScrollArea>
-          </div>
-        </div>
+        </DesktopDialog>
       )}
       {ready && !onboarding && (
         <aside className={`rail${railOpen ? "" : " rail-collapsed"}`} id="sessions-sidebar" aria-label="Sessions" style={{ width: railOpen ? displayedRailWidth : COLLAPSED_RAIL_WIDTH }}>
@@ -1721,13 +1721,13 @@ export default function App() {
         <span className="spacer" />
         {ready && !IS_MAC && (
           <div className="hact">
-            <Button variant="ghost" size="icon" title="Minimize" onClick={() => void win.minimize()}>
+            <Button variant="ghost" size="icon" title="Minimize" aria-label="Minimize window" onClick={() => void win.minimize()}>
               <Minus size={14} />
             </Button>
-            <Button variant="ghost" size="icon" title="Maximize" onClick={() => void win.toggleMaximize()}>
+            <Button variant="ghost" size="icon" title="Maximize" aria-label="Maximize window" onClick={() => void win.toggleMaximize()}>
               <Square size={12} />
             </Button>
-            <Button variant="ghost" size="icon" title="Close" className="win-close" onClick={() => void win.close()}>
+            <Button variant="ghost" size="icon" title="Close" aria-label="Close window" className="win-close" onClick={() => void win.close()}>
               <X size={14} />
             </Button>
           </div>
@@ -1735,23 +1735,22 @@ export default function App() {
       </header>
 
       {settingsOpen && ready && (
-        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
-          <div className="sesspal-dialog setpal-dialog">
+        <DesktopDialog title="Settings" className="setpal-dialog" navigation returnFocusRef={taRef}
+          activeKey={`${setI}:${setPalOpen_}:${setPalOptIdx}:${setQ}`} onClose={() => setSettingsOpen(false)}
+          escapeHint={setPalOpen_ >= 0 ? "Back" : "Close"}
+          onEscape={() => setPalOpen_ >= 0 ? setSetPalOpen_(-1) : setSettingsOpen(false)}>
             <div className="pal-search">
               <Search size={13} />
               <input
                 autoFocus
                 type="text"
                 placeholder="Search settings…"
+                aria-label="Search settings"
                 value={setQ}
                 onChange={(e) => { setSetPalQuery(e.target.value); setSetPalIdx(0); setSetPalOpen_(-1); }}
                 onKeyDown={(e) => {
                   const expanded = setPalOpen_ >= 0 ? setPalRows[setPalOpen_] : undefined;
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    if (expanded) setSetPalOpen_(-1);
-                    else setSettingsOpen(false);
-                  } else if (e.key === "ArrowDown") {
+                  if (e.key === "ArrowDown") {
                     e.preventDefault();
                     if (expanded?.options) setSetPalOptIdx((i) => Math.min(i + 1, expanded.options!.length - 1));
                     else setSetPalIdx((i) => Math.min(i + 1, setPalRows.length - 1));
@@ -1774,7 +1773,7 @@ export default function App() {
               />
             </div>
             <ScrollArea className="pal-list">
-              {setPalRows.length === 0 && <p className="pal-empty">No matching settings.</p>}
+              {setPalRows.length === 0 && <p className="pal-empty" role="status">No matching settings.</p>}
               {(() => {
                 let lastGroup = "";
                 return setPalRows.map((row, idx) => (
@@ -1784,6 +1783,8 @@ export default function App() {
                       variant="ghost"
                       data-active={setI === idx || undefined}
                       className={`pal-row setpal-row${row.danger ? " danger" : ""}`}
+                      aria-expanded={row.options ? setPalOpen_ === idx : undefined}
+                      aria-controls={row.options && setPalOpen_ === idx ? `setting-${row.id}-options` : undefined}
                       onMouseEnter={() => setSetPalIdx(idx)}
                       onClick={() => {
                         if (row.options) { setSetPalOpen_(setPalOpen_ === idx ? -1 : idx); setSetPalOptIdx(Math.max(0, row.options.indexOf(row.value ?? ""))); }
@@ -1795,13 +1796,14 @@ export default function App() {
                       {row.options && <ChevronDown size={11} className={`setpal-caret${setPalOpen_ === idx ? " up" : ""}`} />}
                     </Button>
                     {setPalOpen_ === idx && row.options && (
-                      <div className="setpal-opts">
+                      <div className="setpal-opts" id={`setting-${row.id}-options`} role="group" aria-label={`${row.label} options`}>
                         {row.options.map((o, oi) => (
                           <Button
                             key={o}
                             variant="ghost"
                             data-active={setPalOptIdx === oi || undefined}
                             className="pal-row setpal-opt"
+                            aria-pressed={o === row.value}
                             onMouseEnter={() => setSetPalOptIdx(oi)}
                             onClick={() => row.onPick?.(o)}
                           >
@@ -1815,14 +1817,12 @@ export default function App() {
                 ));
               })()}
             </ScrollArea>
-          </div>
-        </div>
+        </DesktopDialog>
       )}
       {pairOpen && (
-        <div className="sesspal" onClick={(e) => { if (e.target === e.currentTarget) setPairOpen(false); }}>
-          <div className="sesspal-dialog pair-dialog">
+        <DesktopDialog title="iPhone companion" className="pair-dialog" returnFocusRef={taRef}
+          onClose={() => setPairOpen(false)}>
             <div className="pair-body">
-              <div className="pair-title">iPhone companion</div>
               {pairErr ? (
                 <div className="pair-err">{pairErr}</div>
               ) : (
@@ -1833,22 +1833,13 @@ export default function App() {
                 </>
               )}
             </div>
-          </div>
-        </div>
+        </DesktopDialog>
       )}
       {docView && (
-        <div className="docviewer" onClick={(e) => { if (e.target === e.currentTarget) setDocView(null); }}>
-          <div className="card doc-card">
-            <div className="card-title">
-              {docView.title}
-              <span className="spacer" />
-              <button className="doc-close" onClick={() => setDocView(null)} aria-label="Close">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-            <Md className="doc-body text" text={docView.text} />
-          </div>
-        </div>
+        <DesktopDialog title={docView.title} className="doc-card" returnFocusRef={taRef}
+          onClose={() => setDocView(null)}>
+          <Md className="doc-body text" text={docView.text} />
+        </DesktopDialog>
       )}
       {onboarding && !settingsOpen && !docView && (
         <section className="onboarding" aria-labelledby="ob-title">
