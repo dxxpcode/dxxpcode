@@ -221,12 +221,6 @@ export default function App() {
   }, [projectExpanded]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    const textarea = taRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
-  }, [input, windowWidth]);
 
   const push = (item: Item) => {
     flushText();
@@ -1203,6 +1197,12 @@ export default function App() {
   const home = !!ready && !onboarding && !running && isHomeConversation(items) && !approvals.length && !diffs.length
     && !menu && !promptReq && !queue.length && !wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded");
   const homeSessions = useMemo(() => recentSessions(sessions), [sessions]);
+  useLayoutEffect(() => {
+    const textarea = taRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
+  }, [input, windowWidth, home]);
   const lastItem = items.at(-1);
   const doneWorkers = wtasks.filter((w) => w.phase === "done");
   const failedWorkers = wtasks.filter((w) => w.phase === "failed");
@@ -2300,7 +2300,7 @@ export default function App() {
             autoFocus
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
             aria-describedby="composer-hints"
-            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : home ? "Describe a task, a fix, or an idea…" : "Ask dxxpcode anything…"}
+            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : home ? "Describe the change you have in mind…" : "Ask a question or describe the next change…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -2353,7 +2353,7 @@ export default function App() {
                     aria-pressed={planMode}
                     disabled={running || onboarding}
                     onClick={() => setPlanMode((v) => !v)}
-                  ><ListChecks size={11} strokeWidth={2} />plan</button>
+                  ><ListChecks size={13} strokeWidth={1.6} />Plan</button>
                 </>
               )}
             </div>

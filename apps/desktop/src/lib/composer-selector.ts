@@ -19,7 +19,35 @@ export function effortOption(value: string) {
 export function filterModels(models: string[], current: string, query: string) {
   const needle = query.trim().toLowerCase();
   return Array.from(new Set([current, ...models]))
-    .filter((model) => model.trim() && model.toLowerCase().includes(needle));
+    .filter((model) => model.trim() && `${model} ${modelLabel(model)}`.toLowerCase().includes(needle));
+}
+
+export function modelLabel(id: string): string {
+  const base = id.replace(/-(?:\d{8}|\d{4}-\d{2}-\d{2})$/, "").replace(/-latest$/, "");
+  const claude = base.match(/^claude-(opus|sonnet|haiku)-(\d+)(?:-(\d+))?$/);
+  if (claude) return `Claude ${claude[1][0].toUpperCase() + claude[1].slice(1)} ${claude[2]}${claude[3] ? `.${claude[3]}` : ""}`;
+  const gpt = base.match(/^gpt-(\d+(?:\.\d+)?[a-z]?)((?:-(?:mini|nano|sol|luna|terra|astra|codex|pro|max))*)$/);
+  if (gpt) return `GPT-${gpt[1]}${gpt[2].split("-").filter(Boolean).map((word) => ` ${word[0].toUpperCase()}${word.slice(1)}`).join("")}`;
+  return id;
+}
+
+export function selectorPosition(
+  anchor: { left: number; top: number; bottom: number },
+  viewport: { width: number; height: number },
+) {
+  const gutter = 12;
+  const gap = 8;
+  const width = Math.max(0, Math.min(328, viewport.width - gutter * 2));
+  const left = Math.max(gutter, Math.min(anchor.left, viewport.width - width - gutter));
+  const above = Math.max(0, anchor.top - gap - gutter);
+  const below = Math.max(0, viewport.height - anchor.bottom - gap - gutter);
+  const openAbove = below < 280 && above > below;
+  return {
+    left, width,
+    maxHeight: Math.min(440, openAbove ? above : below),
+    ...(openAbove ? { bottom: viewport.height - anchor.top + gap, top: undefined }
+      : { top: anchor.bottom + gap, bottom: undefined }),
+  };
 }
 
 export function nextOption(index: number, length: number, direction: number) {
