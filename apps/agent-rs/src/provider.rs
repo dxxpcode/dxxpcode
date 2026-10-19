@@ -1,5 +1,6 @@
 //! Provider adapters — port of packages/providers (Anthropic, OpenAI, mock) + jev.
 
+use crate::model_catalog::{apply_anthropic_effort, catalog_model, fallback_model, ModelInfo};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -191,9 +192,19 @@ fn read_sse<R: Read>(reader: R, aborted: &Arc<AtomicBool>, mut on_event: impl Fn
 }
 
 pub enum Provider {
-    Anthropic { key: String },
-    OpenAi { key: String, base_url: String },
-    Mock { script: Vec<Value>, turn: usize },
+    Anthropic {
+        key: String,
+        catalog: Vec<ModelInfo>,
+    },
+    OpenAi {
+        key: String,
+        base_url: String,
+        catalog: Vec<ModelInfo>,
+    },
+    Mock {
+        script: Vec<Value>,
+        turn: usize,
+    },
 }
 
 impl Provider {
@@ -210,15 +221,40 @@ impl Provider {
         matches!(self, Self::Anthropic { .. } | Self::OpenAi { .. })
     }
 
-    pub fn list_models(&self) -> Result<Vec<String>, ProviderError> {
+    pub fn model_info(&self, id: &str) -> ModelInfo {
+        let (catalog, official) = match self {
+            Self::Anthropic { catalog, .. } => (catalog.as_slice(), false),
+            Self::OpenAi {
+                catalog, base_url, ..
+            } => (
+                catalog.as_slice(),
+                base_url.trim_end_matches('/') == "https://api.openai.com/v1",
+            ),
+            Self::Mock { .. } => (&[][..], false),
+        };
+        catalog
+            .iter()
+            .find(|info| info.id == id)
+            .cloned()
+            .unwrap_or_else(|| fallback_model(id, self.name(), official))
+    }
+
+    pub fn model_catalog(&self) -> Vec<ModelInfo> {
         match self {
-            Self::Anthropic { key } => {
+            Self::Anthropic { catalog, .. } | Self::OpenAi { catalog, .. } => catalog.clone(),
+            Self::Mock { .. } => vec![self.model_info("mock")],
+        }
+    }
+
+    pub fn list_models(&mut self) -> Result<Vec<String>, ProviderError> {
+        match self {
+            Self::Anthropic { key, catalog } => {
                 let mut resp = agent()
                     .get("https://api.anthropic.com/v1/models?limit=100")
                     .config()
                     .timeout_global(Some(std::time::Duration::from_secs(20)))
                     .build()
-                    .header("x-api-key", key)
+                    .header("x-api-key", key.as_str())
                     .header("anthropic-version", "2023-06-01")
                     .call()
                     .map_err(|e| post_error(e, "Anthropic"))?;
@@ -226,17 +262,22 @@ impl Provider {
                     .body_mut()
                     .read_json::<Value>()
                     .map_err(|e| ProviderError(e.to_string(), None))?;
-                Ok(body
+                *catalog = body
                     .get("data")
                     .and_then(|d| d.as_array())
                     .map(|a| {
                         a.iter()
-                            .filter_map(|m| m.get("id").and_then(|i| i.as_str()).map(String::from))
+                            .filter_map(|m| catalog_model(m, "anthropic", false))
                             .collect()
                     })
-                    .unwrap_or_default())
+                    .unwrap_or_default();
+                Ok(catalog.iter().map(|info| info.id.clone()).collect())
             }
-            Self::OpenAi { key, base_url } => {
+            Self::OpenAi {
+                key,
+                base_url,
+                catalog,
+            } => {
                 let mut resp = agent()
                     .get(&format!("{base_url}/models"))
                     .config()
@@ -250,16 +291,18 @@ impl Provider {
                     .read_json::<Value>()
                     .map_err(|e| ProviderError(e.to_string(), None))?;
                 let re = regex::Regex::new(r"(?i)embed|whisper|dall-e|tts|moderation|babbage|davinci|audio|image|transcribe").unwrap();
-                let mut ids: Vec<String> = body
+                let official = base_url.trim_end_matches('/') == "https://api.openai.com/v1";
+                *catalog = body
                     .get("data")
                     .and_then(|d| d.as_array())
                     .map(|a| {
                         a.iter()
-                            .filter_map(|m| m.get("id").and_then(|i| i.as_str()).map(String::from))
-                            .filter(|id| !re.is_match(id))
+                            .filter_map(|m| catalog_model(m, "openai", official))
+                            .filter(|info| !re.is_match(&info.id))
                             .collect()
                     })
                     .unwrap_or_default();
+                let mut ids: Vec<String> = catalog.iter().map(|info| info.id.clone()).collect();
                 ids.sort();
                 ids.reverse();
                 Ok(ids)
@@ -280,19 +323,21 @@ impl Provider {
         aborted: &Arc<AtomicBool>,
         mut emit: impl FnMut(ProviderEvent),
     ) -> Result<(), ProviderError> {
+        let info = self.model_info(model);
         match self {
-            Self::Anthropic { key } => anthropic_chat(
+            Self::Anthropic { key, .. } => anthropic_chat(
                 key,
                 system,
                 messages,
                 tools,
                 model,
                 effort,
+                &info,
                 provider_opts,
                 aborted,
                 &mut emit,
             ),
-            Self::OpenAi { key, base_url } => openai_chat(
+            Self::OpenAi { key, base_url, .. } => openai_chat(
                 key,
                 base_url,
                 system,
@@ -314,15 +359,6 @@ impl Provider {
     }
 }
 
-const EFFORT_BUDGET: &[(&str, u64)] = &[
-    ("minimal", 1024),
-    ("low", 4096),
-    ("medium", 16384),
-    ("high", 32768),
-    ("xhigh", 49152),
-    ("max", 61440),
-];
-
 fn anthropic_chat(
     key: &str,
     system: &str,
@@ -330,16 +366,14 @@ fn anthropic_chat(
     tools: &[Value],
     model: &str,
     effort: Option<&str>,
+    info: &ModelInfo,
     provider_opts: Option<&Value>,
     aborted: &Arc<AtomicBool>,
     emit: &mut dyn FnMut(ProviderEvent),
 ) -> Result<(), ProviderError> {
-    let budget = effort
-        .and_then(|e| EFFORT_BUDGET.iter().find(|(n, _)| *n == e))
-        .map(|(_, b)| *b);
     let mut body = json!({
         "model": model,
-        "max_tokens": std::cmp::max(8192u64, budget.map(|b| b + 2048).unwrap_or(0)),
+        "max_tokens": 8192,
         "system": system,
         "messages": messages.iter().map(to_anthropic_message).collect::<Vec<_>>(),
         "tools": tools.iter().map(|t| json!({
@@ -347,9 +381,7 @@ fn anthropic_chat(
         })).collect::<Vec<_>>(),
         "stream": true,
     });
-    if let Some(b) = budget {
-        body["thinking"] = json!({"type": "enabled", "budget_tokens": b});
-    }
+    apply_anthropic_effort(&mut body, info, effort);
     // Model-variant options: Anthropic understands `speed` — "fast"
     // enables fast mode (same weights, ~2.5× output, premium pricing,
     // requires the beta header); other values pass through as-is.
@@ -914,7 +946,13 @@ pub fn resolve_provider(
             .map(String::from)
             .or_else(|| env("DXXPCODE_MODEL"))
             .unwrap_or_else(|| "claude-opus-5-5".into());
-        return Ok((Provider::Anthropic { key }, model));
+        return Ok((
+            Provider::Anthropic {
+                key,
+                catalog: vec![],
+            },
+            model,
+        ));
     }
     if name == "openai"
         || (name.is_empty() && (env("OPENAI_API_KEY").is_some() || config.openai_api_key.is_some()))
@@ -933,6 +971,7 @@ pub fn resolve_provider(
         return Ok((
             Provider::OpenAi {
                 key,
+                catalog: vec![],
                 base_url: std::env::var("OPENAI_BASE_URL")
                     .ok()
                     .unwrap_or_else(|| "https://api.openai.com/v1".into())

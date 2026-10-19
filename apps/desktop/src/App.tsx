@@ -18,7 +18,7 @@ import { DesktopDialog } from "./components/desktop-dialog";
 import { HomeHeader, HomeSessions } from "./components/desktop-home";
 import { isHomeConversation, recentSessions } from "./lib/home-layout";
 import type { SessionSummary } from "./lib/home-layout";
-import { EFFORT_LEVELS } from "./lib/composer-selector";
+import { availableEffortOptions, modelLabel } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
@@ -73,7 +73,7 @@ export default function App() {
   const [promptVal, setPromptVal] = useState("");
   const [cmdSel, setCmdSel] = useState(0);
   const [fileSugs, setFileSugs] = useState<{ id: number; items: { name: string; desc: string }[] }>({ id: -1, items: [] });
-  const [modelOpts, setModelOpts] = useState<string[]>([]);
+  const modelOpts = ready?.modelCatalog?.map((info) => info.id) ?? [];
   const fileReqId = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [setQ, setSetPalQuery] = useState("");
@@ -381,7 +381,12 @@ export default function App() {
                 ...prev,
                 provider: String(ev.provider),
                 model: String(ev.model),
-                effort: ev.effort as string | undefined,
+                ...(ev.modelInfo ? {
+                  modelInfo: ev.modelInfo as ReadyInfo["modelInfo"],
+                  modelCatalog: ev.modelCatalog as ReadyInfo["modelCatalog"],
+                  effort: ev.effort as string | undefined,
+                  effortChoices: ev.effortChoices as string[] | undefined,
+                } : {}),
                 variant: ev.variant as string | undefined,
                 variants: ev.variants as string[] | undefined,
                 providers: ev.providers as string[] | undefined,
@@ -439,9 +444,6 @@ export default function App() {
       case "files":
         if (Number(ev.id) === fileReqId.current)
           setFileSugs({ id: fileReqId.current, items: ev.items as { name: string; desc: string }[] });
-        break;
-      case "models":
-        if (Array.isArray(ev.items)) setModelOpts(ev.items as string[]);
         break;
       case "setup_result": {
         setObBusy(false);
@@ -1050,7 +1052,6 @@ export default function App() {
     }
   };
   useEffect(() => {
-    setModelOpts([]);
     if (ready && !ready.needsSetup) void send({ type: "command", name: "/models" });
   }, [ready?.provider, ready?.needsSetup]);
 
@@ -1252,7 +1253,8 @@ export default function App() {
       options: [...(modelOpts.length ? modelOpts : [ready?.model ?? ""]), "custom…"],
       onPick: (v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` }) },
     { id: "effort", label: "Reasoning effort", group: "Providers & Models", value: ready?.effort ?? "default",
-      options: [...EFFORT_LEVELS], onPick: (v) => void send({ type: "command", name: `/effort ${v}` }) },
+      options: availableEffortOptions(ready?.effortChoices).map((option) => option.value),
+      onPick: (v) => void send({ type: "command", name: `/effort ${v}` }) },
     { id: "variant", label: "Model variant", group: "Providers & Models", value: ready?.variant ?? "default",
       options: ["default", ...(ready?.variants ?? [])], onPick: (v) => void send({ type: "command", name: `/variant ${v}` }) },
     { id: "approvals", label: "Approvals", group: "Providers & Models", value: ready?.mode === "smart" ? "smart (Jev)" : ready?.mode,
@@ -1816,7 +1818,8 @@ export default function App() {
                       }}
                     >
                       <span className="truncate">{row.label}</span>
-                      {row.value && <span className="setpal-val">{row.value}</span>}
+                      {row.value && <span className="setpal-val">{row.id === "model"
+                        ? modelLabel(row.value, ready?.modelInfo?.displayName) : row.value}</span>}
                       {row.options && <ChevronDown size={11} className={`setpal-caret${setPalOpen_ === idx ? " up" : ""}`} />}
                     </Button>
                     {setPalOpen_ === idx && row.options && (
@@ -1832,7 +1835,12 @@ export default function App() {
                             onClick={() => row.onPick?.(o)}
                           >
                             <span className="setpal-opt-check">{o === row.value ? "✓" : ""}</span>
-                            <span className="truncate">{o}</span>
+                            {row.id === "model" && o !== "custom…" ? (
+                              <span className="selector-option-copy">
+                                <span>{modelLabel(o, ready?.modelCatalog?.find((info) => info.id === o)?.displayName)}</span>
+                                <span className="selector-model-id">{o}</span>
+                              </span>
+                            ) : <span className="truncate">{o}</span>}
                           </Button>
                         ))}
                       </div>
@@ -2336,8 +2344,8 @@ export default function App() {
               {ready && (
                 <>
                   <ComposerSelector
-                    model={ready.model} models={modelOpts} provider={ready.provider}
-                    effort={ready.effort ?? "default"} disabled={running || onboarding}
+                    model={ready.model} modelInfo={ready.modelInfo} models={ready.modelCatalog ?? []} provider={ready.provider}
+                    effort={ready.effort ?? "default"} effortChoices={ready.effortChoices} disabled={running || onboarding}
                     disabledReason={running ? "Available after this run" : "Complete setup to change model and effort"}
                     onModelsOpen={() => void send({ type: "command", name: "/models" })}
                     onModelChange={(v) => void send({ type: "command", name: `/model ${v}` })}

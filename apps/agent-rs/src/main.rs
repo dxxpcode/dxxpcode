@@ -6,6 +6,7 @@ mod app;
 mod browser;
 mod config;
 mod errors;
+mod model_catalog;
 mod perm;
 mod project;
 mod provider;

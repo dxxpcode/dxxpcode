@@ -169,17 +169,57 @@ pub struct Shared {
 }
 
 impl Shared {
+    fn selector_state(&self) -> Value {
+        let model = self.model.lock().unwrap().clone();
+        let provider = self.provider.lock().unwrap();
+        if provider.is_none() {
+            return json!({});
+        }
+        let info = provider
+            .as_ref()
+            .map(|p| p.model_info(&model))
+            .unwrap_or_else(|| crate::model_catalog::ModelInfo::unknown(&model));
+        let mut catalog = provider
+            .as_ref()
+            .map(|p| p.model_catalog())
+            .unwrap_or_default();
+        if !catalog.iter().any(|entry| entry.id == model) {
+            catalog.insert(0, info.clone());
+        }
+        let mut choices = vec!["default".to_string()];
+        choices.extend(info.effort_levels.clone().unwrap_or_default());
+        if choices.len() > 1 && self.jev_key().is_some() {
+            choices.push("auto (Jev)".into());
+        }
+        let effort = if self.effort_auto() && choices.iter().any(|choice| choice == "auto (Jev)") {
+            "auto (Jev)".into()
+        } else {
+            self.effort
+                .lock()
+                .unwrap()
+                .clone()
+                .filter(|effort| info.supports(effort))
+                .unwrap_or_else(|| "default".into())
+        };
+        json!({"modelInfo": info, "modelCatalog": catalog, "effortChoices": choices, "effort": effort})
+    }
+
     fn emit_state(&self) {
-        emit(json!({
+        let selector = self.selector_state();
+        let mut state = json!({
             "type": "state",
             "provider": *self.provider_name.lock().unwrap(),
             "model": *self.model.lock().unwrap(),
-            "effort": if self.effort_auto() { "auto (Jev)".to_string() } else { self.effort.lock().unwrap().clone().unwrap_or_else(|| "default".into()) },
             "variant": self.variant.lock().unwrap().clone().unwrap_or_else(|| "default".into()),
             "variants": variant_names(),
             "providers": available_providers(self),
             "mode": *self.mode.lock().unwrap(),
-        }));
+        });
+        state
+            .as_object_mut()
+            .unwrap()
+            .extend(selector.as_object().unwrap().clone());
+        emit(state);
     }
 
     fn effort_auto(&self) -> bool {
@@ -453,6 +493,7 @@ fn model_options(sh: &Arc<Shared>) -> Vec<String> {
 
 const EFFORT_LEVELS: &[&str] = &[
     "default",
+    "none",
     "minimal",
     "low",
     "medium",
@@ -463,29 +504,16 @@ const EFFORT_LEVELS: &[&str] = &[
 ];
 
 fn open_effort_menu(sh: &Arc<Shared>) {
-    let opts = EFFORT_LEVELS;
-    let descs = [
-        "provider default",
-        "fastest — quick lookups, simple formatting",
-        "modest reasoning — drafting, straightforward tasks",
-        "balanced — agentic coding, research, most workloads",
-        "hard reasoning — complex debugging, deep planning",
-        "larger budget for the hardest multi-step problems",
-        "unconstrained budget — high-stakes, hardest tasks",
-        "Jev scores each task and picks the tier — needs TYPESAFE_API_KEY",
-    ];
-    let cfg = load_config();
-    let cur = if cfg.effort_auto == Some(true) {
-        "auto (Jev)".to_string()
-    } else {
-        sh.effort
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap_or_else(|| "default".into())
-    };
+    let selector = sh.selector_state();
+    let opts: Vec<&str> = selector["effortChoices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(Value::as_str)
+        .collect();
+    let cur = selector["effort"].as_str().unwrap_or("default");
     let current = opts.iter().position(|o| *o == cur).unwrap_or(0);
-    let menu_opts = labeled_options(&opts, Some(&descs));
+    let menu_opts = labeled_options(&opts, None);
     let Some(i) = sh.menu(
         "Reasoning effort — applies to the next task",
         menu_opts,
@@ -499,6 +527,18 @@ fn open_effort_menu(sh: &Arc<Shared>) {
 fn set_effort(sh: &Arc<Shared>, next: &str) {
     if !EFFORT_LEVELS.contains(&next) {
         emit_note(format!("unknown effort level: {next}"));
+        return;
+    }
+    let selector = sh.selector_state();
+    if !selector["effortChoices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|choice| choice.as_str() == Some(next))
+    {
+        emit_note(format!(
+            "reasoning effort {next} is not available for this model; choose provider default"
+        ));
         return;
     }
     if next == "auto (Jev)" {
@@ -833,10 +873,14 @@ fn run_wizard_setup(sh: &Arc<Shared>, cmd: &Value) {
         .filter(|s| !s.is_empty())
         .map(|s| s.trim_end_matches('/').to_string());
 
-    let candidate = match which {
-        "anthropic" => crate::provider::Provider::Anthropic { key: key.clone() },
+    let mut candidate = match which {
+        "anthropic" => crate::provider::Provider::Anthropic {
+            key: key.clone(),
+            catalog: vec![],
+        },
         "openai" => crate::provider::Provider::OpenAi {
             key: key.clone(),
+            catalog: vec![],
             base_url: base_url
                 .clone()
                 .unwrap_or_else(|| "https://api.openai.com/v1".into()),
@@ -992,7 +1036,7 @@ fn open_settings_menu(sh: &Arc<Shared>) {
         "Provider",
         "Model",
         "Reasoning effort",
-        "Speed",
+        "Model variant",
     ];
     let Some(i) = sh.menu("Settings", labeled_options(&entries, None), None) else {
         return;
@@ -1392,7 +1436,8 @@ const COMMAND_HANDLERS: &[(&[&str], Cmd)] = &[
         cmd_or_menu(sh, raw, set_model, open_model_menu)
     }),
     (&["/models"], |sh, _, _| {
-        emit(json!({"type": "models", "items": model_options(sh)}))
+        emit(json!({"type": "models", "items": model_options(sh)}));
+        sh.emit_state();
     }),
     (&["/effort"], |sh, _deps, raw| {
         cmd_or_menu(sh, raw, set_effort, open_effort_menu)
@@ -1427,6 +1472,22 @@ const COMMAND_HANDLERS: &[(&[&str], Cmd)] = &[
 
 fn handle_command(sh: &Arc<Shared>, deps: &DepsInfo, raw: &str) {
     let name = raw.split_whitespace().next().unwrap_or("");
+    if sh.running.load(Ordering::SeqCst)
+        && matches!(
+            name,
+            "/model"
+                | "/models"
+                | "/effort"
+                | "/provider"
+                | "/providers"
+                | "/variant"
+                | "/settings"
+                | "/setup"
+        )
+    {
+        emit_note("model settings are available after this run");
+        return;
+    }
     match COMMAND_HANDLERS
         .iter()
         .find(|(names, _)| names.contains(&name))
@@ -1555,15 +1616,6 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, spec: &QueuedTask) {
     for s in &mentions.skipped {
         emit_note(format!("skipped @{}: {}", s.0, s.1));
     }
-    let jev = sh.jev_key();
-    let effort = if load_config().effort_auto == Some(true) {
-        jev.as_deref()
-            .and_then(|k| jev_route_effort(&mentions.text, k))
-            .or_else(|| sh.effort.lock().unwrap().clone())
-    } else {
-        sh.effort.lock().unwrap().clone()
-    };
-
     // Take the provider for the duration of the run (menus block on it anyway).
     let provider_opt = sh.provider.lock().unwrap().take();
     let Some(mut provider) = provider_opt else {
@@ -1575,6 +1627,23 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, spec: &QueuedTask) {
         emit(json!({"type": "idle"}));
         return;
     };
+    let model = sh.model.lock().unwrap().clone();
+    let info = provider.model_info(&model);
+    let saved_effort = sh.effort.lock().unwrap().clone();
+    let routed = if sh.effort_auto()
+        && info
+            .effort_levels
+            .as_ref()
+            .is_some_and(|levels| !levels.is_empty())
+    {
+        sh.jev_key()
+            .as_deref()
+            .and_then(|key| jev_route_effort(&mentions.text, key))
+            .and_then(|effort| info.routed_effort(&effort))
+    } else {
+        None
+    };
+    let effort = routed.or_else(|| saved_effort.filter(|effort| info.supports(effort)));
 
     let session_for_run = sh.session.lock().unwrap().take();
     let sh_steer = Arc::clone(sh);
@@ -1590,7 +1659,7 @@ fn run_once(sh: &Arc<Shared>, deps: &DepsInfo, spec: &QueuedTask) {
     let mut opts = agent::RunOpts {
         task: mentions.text,
         provider: &mut provider,
-        model: sh.model.lock().unwrap().clone(),
+        model,
         project_root: deps.root.clone(),
         plan_only: deps.plan_only || spec.plan_only,
         approved_plan: spec.approved_plan.clone(),
@@ -1716,12 +1785,16 @@ pub fn run_app(deps: AppDeps) -> i32 {
         max_iterations: deps.max_iterations,
     });
 
+    let selector = sh.selector_state();
     emit(json!({
         "type": "ready",
         "version": deps.version,
         "provider": provider_label,
         "model": deps.model,
-        "effort": deps.effort,
+        "effort": selector["effort"],
+        "effortChoices": selector["effortChoices"],
+        "modelInfo": selector["modelInfo"],
+        "modelCatalog": selector["modelCatalog"],
         "variant": deps.variant,
         "variants": variant_names(),
         "providers": available_providers(&sh),

@@ -1,10 +1,19 @@
 // Event/item model for the desktop UI, mirroring `dxxpcode --app` events.
 
+export interface ModelInfo {
+  id: string;
+  displayName?: string;
+  effortLevels?: string[] | null;
+}
+
 export interface ReadyInfo {
   version: string;
   provider: string;
   model: string;
+  modelInfo?: ModelInfo;
+  modelCatalog?: ModelInfo[];
   effort?: string;
+  effortChoices?: string[];
   variant?: string;
   variants?: string[];
   providers?: string[];
