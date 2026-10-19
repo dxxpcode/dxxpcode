@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isHomeConversation, recentSessions, sessionDetail } from "../apps/desktop/src/lib/home-layout.ts";
+import { isHomeConversation, recentSessions, sessionDetail, sessionTimestamp } from "../apps/desktop/src/lib/home-layout.ts";
 import type { SessionSummary } from "../apps/desktop/src/lib/home-layout.ts";
 
 const session = (id: string, when?: string, extra: Partial<SessionSummary> = {}): SessionSummary => ({
@@ -54,6 +54,15 @@ test("home accepts sidecar timestamps with spaces and keeps equal-date order sta
   assert.deepEqual(recentSessions(sessions).map((s) => s.id), ["first", "second", "older"]);
 });
 
+test("home sorts and displays the same valid timestamp, including legacy metadata", () => {
+  const legacy = session("legacy", "invalid", { desc: "2026-10-18 · 2 msg" });
+  assert.equal(sessionTimestamp(legacy), "2026-10-18T00:00:00.000Z");
+  assert.equal(sessionTimestamp(session("current", "2026-10-19T09:00:00Z")), "2026-10-19T09:00:00.000Z");
+  assert.equal(sessionTimestamp(session("unknown", "invalid", { desc: "unknown · 2 msg" })), undefined);
+  assert.equal(sessionTimestamp(session("missing")), undefined);
+  assert.deepEqual(recentSessions([legacy, session("older", "2026-10-17T09:00:00Z")]).map((s) => s.id), ["legacy", "older"]);
+});
+
 test("home metadata counts actual unique changed files instead of implying a branch", () => {
   assert.equal(sessionDetail(session("a", undefined, { files: ["a.ts"], status: "success" })), "1 file changed");
   assert.equal(sessionDetail(session("a", undefined, { files: ["a.ts", "b.ts", "a.ts"] })), "2 files changed");
@@ -67,6 +76,12 @@ test("home metadata shows a recorded outcome when there are no changed files", (
   ]) {
     assert.equal(sessionDetail(session("a", undefined, { files: [], status })), expected);
   }
+});
+
+test("home does not hide an unsuccessful outcome behind a changed-file count", () => {
+  assert.equal(sessionDetail(session("a", undefined, { files: ["a.ts"], status: "error" })), "1 file changed · Failed");
+  assert.equal(sessionDetail(session("a", undefined, { files: ["a.ts", "b.ts"], status: "canceled" })), "2 files changed · Cancelled");
+  assert.equal(sessionDetail(session("a", undefined, { files: ["a.ts"], status: "interrupted" })), "1 file changed · Interrupted");
 });
 
 test("home does not invent a completed state or file count for missing metadata", () => {
