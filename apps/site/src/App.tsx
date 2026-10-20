@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, Moon, Sun } from "lucide-react";
+import { DownloadCount } from "./components/DownloadCount";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
 import { PlatformIcon, type Platform } from "./components/PlatformIcon";
@@ -87,6 +88,7 @@ function DownloadButtons() {
           </p>
         </div>
         <GitHubStars />
+        <DownloadCount />
       </div>
       <p className="mt-6 animate-gate-in-late text-[13px] text-muted-foreground">
         Also available for{" "}
