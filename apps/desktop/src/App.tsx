@@ -2359,9 +2359,11 @@ export default function App() {
             </div>
             <div className="composer-actions">
               {running && <Button variant="ghost" size="icon" className="composer-stop" aria-label="Stop task" title="Stop task (Esc)" onClick={() => void send({ type: "cancel" })}><Square size={13} /></Button>}
-              <Button size="icon" className="composer-submit" aria-label={submitLabel} title={submitLabel} disabled={!ready || !input.trim()} onClick={() => { submit(); taRef.current?.focus(); }}>
-                {submitAction === "queue" ? <ListEnd size={16} /> : submitAction === "complete" ? <CornerDownLeft size={16} /> : <ArrowUp size={17} />}
-              </Button>
+              {input.trim() ? (
+                <Button size="icon" className="composer-submit" aria-label={submitLabel} title={submitLabel} disabled={!ready} onClick={() => { submit(); taRef.current?.focus(); }}>
+                  {submitAction === "queue" ? <ListEnd size={16} /> : submitAction === "complete" ? <CornerDownLeft size={16} /> : <ArrowUp size={17} />}
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

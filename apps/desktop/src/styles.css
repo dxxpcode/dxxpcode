@@ -1191,31 +1191,27 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 .queuerow .wact:hover { color: var(--text); background: var(--surface2); }
 .inputbox {
-  display: flex; flex-direction: column; gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px 14px 12px; box-shadow: var(--shadow-sm);
-  transition: border-color 0.15s var(--ease);
-}
-.inputbox:focus-within {
-  border-color: var(--border-strong);
+  display: flex; flex-direction: column;
+  padding: 4px 0 0;
 }
 .inputbox textarea {
-  width: 100%; min-height: 44px; padding: 0; resize: none;
+  width: 100%; min-height: 44px; padding: 4px 0 12px; resize: none;
   border: none; outline: none; background: none;
   color: var(--text); font-family: var(--font-chat); font-size: 14px; line-height: 1.5;
   max-height: 140px; overflow-y: auto;
 }
 .inputbox textarea::placeholder { color: var(--faint); }
 .composer-toolbar {
-  position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 10px; border-top: 1px solid var(--border);
+  transition: border-color 0.15s var(--ease);
 }
+.inputbox:focus-within .composer-toolbar { border-top-color: var(--border-strong); }
 .composer-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: 1; min-width: 0; }
 .composer-selector { display: inline-flex; min-width: 0; max-width: 100%; }
 .selector-control {
   display: flex; align-items: stretch; min-width: 0;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface); box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-sm);
 }
 .selector-zone {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -1234,7 +1230,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .selector-chevron { flex-shrink: 0; color: var(--faint); transition: transform 0.14s var(--ease); }
 .selector-chevron.open { transform: rotate(180deg); }
 .selector-effort {
-  flex-shrink: 0; min-width: 104px; border-left: 1px solid var(--border);
+  flex-shrink: 0; min-width: 104px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .selector-effort span { min-width: 60px; text-align: left; }
@@ -1604,8 +1600,8 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   letter-spacing: -0.03em; text-wrap: balance;
 }
 .home-intro p { max-width: 38ch; margin: 9px 0 0; font: 400 13px/1.6 var(--font-chat); color: var(--dim); text-wrap: balance; }
-.conversation-home .inputbox { padding: 20px 18px 16px; background: var(--surface); box-shadow: none; }
-.conversation-home .inputbox textarea { min-height: 76px; }
+.conversation-home .inputbox textarea { min-height: 96px; font-size: 15px; }
+.conversation-home .composer-toolbar { padding-top: 12px; }
 .home-recent {
   flex-shrink: 0; width: 100%; max-width: calc(var(--conversation-width) + var(--conversation-gutter) * 2);
   margin: 30px auto 0; padding-inline: var(--conversation-gutter); font-family: var(--font-chat);
@@ -1648,7 +1644,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   .home-context { gap: 6px; }
   .home-project, .home-branch { max-width: 48%; }
   .home-branch { padding-left: 10px; }
-  .conversation-home .inputbox { padding: 16px 14px 12px; }
+  .conversation-home .inputbox textarea { min-height: 80px; }
 }
 @container workspace (max-width: 480px) {
   .home-session-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
@@ -1710,8 +1706,10 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .app.has-art .logo-mark {
   filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.65));
 }
-.app.has-art .inputbox { background: rgb(0 0 0 / 0.55); border-color: rgb(255 255 255 / 0.2); text-shadow: none; }
+.app.has-art .inputbox { background: rgb(0 0 0 / 0.55); border: 1px solid rgb(255 255 255 / 0.2); border-radius: var(--radius); padding: 16px 14px 12px; text-shadow: none; }
 .app.has-art .inputbox:focus-within { border-color: rgb(255 255 255 / 0.4); }
+.app.has-art .inputbox .composer-toolbar { border-top: none; padding-top: 0; }
+.app.has-art .inputbox:focus-within .composer-toolbar { border-top-color: transparent; }
 .app.has-art .home-session { background: rgb(0 0 0 / 0.55); border-color: rgb(255 255 255 / 0.2); text-shadow: none; }
 .app.has-art .home-session:hover { background: rgb(0 0 0 / 0.7); border-color: rgb(255 255 255 / 0.4); }
 /* ---------- onboarding ---------- */
@@ -1843,7 +1841,6 @@ html[data-theme="dark"] {
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 html[data-theme="dark"] .app:not(.has-art) .rail { --rail-bg: var(--bg); background: var(--rail-bg); }
-html[data-theme="dark"] .app:not(.has-art) .conversation:not(.conversation-home) .inputbox { background: var(--bg); }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
 html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #d5d5d9; }
@@ -1910,7 +1907,7 @@ html[data-theme="dark"] .docviewer { background: rgba(0, 0, 0, 0.7); }
 @media (max-height: 620px) {
   .transcript { padding-top: 20px; padding-bottom: 12px; }
   .composer { padding-bottom: 12px; }
-  .inputbox { gap: 8px; padding-top: 12px; }
+  .inputbox { padding-top: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
