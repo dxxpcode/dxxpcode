@@ -1515,7 +1515,7 @@ export default function App() {
             {railGroups.length === 0 && (
               <div className="rail-empty">
                 <p>No sessions yet</p>
-                <Button variant="secondary" size="sm" onClick={() => cmd("/new")}>
+                <Button variant="outline" onClick={() => cmd("/new")}>
                   <Plus size={13} />
                   Start one
                 </Button>
