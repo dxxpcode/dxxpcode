@@ -35,13 +35,12 @@ export function ComposerSelector({
   onEffortChange: (value: string) => void;
   onCommit: () => void;
 }) {
-  const [open, setOpen] = useState<"model" | "effort" | null>(null);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeModel, setActiveModel] = useState(model);
   const [activeEffort, setActiveEffort] = useState(effort);
   const root = useRef<HTMLDivElement>(null);
-  const modelTrigger = useRef<HTMLButtonElement>(null);
-  const effortTrigger = useRef<HTMLButtonElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const modelRows = useRef<(HTMLButtonElement | null)[]>([]);
   const effortRows = useRef<(HTMLButtonElement | null)[]>([]);
@@ -54,21 +53,18 @@ export function ComposerSelector({
   const options = EFFORT_OPTIONS.some((option) => option.value === effort)
     ? EFFORT_OPTIONS : [...EFFORT_OPTIONS, currentEffort];
 
-  const toggle = (zone: "model" | "effort") => {
+  const toggle = () => {
     if (disabled) return;
-    if (open === zone) { setOpen(null); return; }
-    if (zone === "model") {
-      setQuery("");
-      setActiveModel(model);
-      onModelsOpen();
-    } else {
-      setActiveEffort(effort);
-    }
-    setOpen(zone);
+    if (open) { setOpen(false); return; }
+    setQuery("");
+    setActiveModel(model);
+    setActiveEffort(effort);
+    onModelsOpen();
+    setOpen(true);
   };
   const close = (restoreFocus = false) => {
-    setOpen(null);
-    if (restoreFocus) (open === "model" ? modelTrigger : effortTrigger).current?.focus();
+    setOpen(false);
+    if (restoreFocus) trigger.current?.focus();
   };
   const chooseModel = (value: string) => {
     if (disabled) return;
@@ -86,21 +82,16 @@ export function ComposerSelector({
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(null);
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
     window.addEventListener("pointerdown", outside);
     return () => window.removeEventListener("pointerdown", outside);
   }, [open]);
-  useEffect(() => { if (disabled) setOpen(null); }, [disabled]);
-  useEffect(() => { if (open === "model") search.current?.focus(); }, [open]);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  useEffect(() => { if (open) search.current?.focus(); }, [open]);
   useEffect(() => {
-    if (open === "model") modelRows.current[modelIndex]?.scrollIntoView({ block: "nearest" });
+    if (open) modelRows.current[modelIndex]?.scrollIntoView({ block: "nearest" });
   }, [open, modelIndex, query, filtered.length]);
-  useEffect(() => {
-    if (open === "effort") {
-      effortRows.current[options.findIndex((option) => option.value === activeEffort)]?.focus();
-    }
-  }, [open, activeEffort, effort]);
 
   const modelKeys = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
@@ -125,7 +116,7 @@ export function ComposerSelector({
   return (
     <div className="composer-selector" ref={root}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(null);
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
       onKeyDown={(event) => {
         if (event.key === "Escape" && open) {
@@ -134,35 +125,29 @@ export function ComposerSelector({
           close(true);
         }
       }}>
-      <div className="selector-control" role="group" aria-label="Model and reasoning effort"
-        title={disabled ? disabledReason : undefined}>
-        <button ref={modelTrigger} type="button" className="selector-zone selector-model"
-          disabled={disabled} title={disabled ? disabledReason : `Model: ${model}`}
-          aria-label={`Model: ${model}`} aria-haspopup="dialog" aria-expanded={open === "model"}
-          aria-controls={open === "model" ? `${id}-model-panel` : undefined}
-          onClick={() => toggle("model")}
-          onKeyDown={(event) => {
-            if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); if (!open) toggle("model"); }
-          }}>
-          <ProviderIcon icon={providerIconKey(provider, model)} />
-          <span className="selector-model-name">{displayModel(model)}</span>
-          <ChevronDown size={12} aria-hidden="true" className={open === "model" ? "selector-chevron open" : "selector-chevron"} />
-        </button>
-        <button ref={effortTrigger} type="button" className="selector-zone selector-effort"
-          disabled={disabled} title={disabled ? disabledReason : `Reasoning effort: ${currentEffort.label}`}
-          aria-label={`Reasoning effort: ${currentEffort.label}`} aria-haspopup="listbox"
-          aria-expanded={open === "effort"} aria-controls={open === "effort" ? effortListId : undefined}
-          onClick={() => toggle("effort")}
-          onKeyDown={(event) => {
-            if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); if (!open) toggle("effort"); }
-          }}>
-          <EffortMeter value={effort} />
-          <span>{currentEffort.label}</span>
-        </button>
-      </div>
-      {open === "model" && !disabled && (
-        <div className="selector-popover" id={`${id}-model-panel`} role="dialog" aria-label="Choose model">
-          <div className="selector-heading"><span>Model</span><span className="selector-provider" title={provider}><ProviderIcon icon={providerIconKey(provider)} />{displayProvider(provider)}</span></div>
+      <button ref={trigger} type="button" className="selector-unified"
+        disabled={disabled}
+        title={disabled ? disabledReason : `Model: ${model} · Reasoning effort: ${currentEffort.label}`}
+        aria-label={`Model: ${model}, Reasoning effort: ${currentEffort.label}`}
+        aria-haspopup="dialog" aria-expanded={open}
+        aria-controls={open ? `${id}-panel` : undefined}
+        onClick={toggle}
+        onKeyDown={(event) => {
+          if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); if (!open) toggle(); }
+        }}>
+        <ProviderIcon icon={providerIconKey(provider, model)} />
+        <span className="selector-model-name">{displayModel(model)}</span>
+        <span className="selector-effort-name">{currentEffort.label}</span>
+        <ChevronDown size={12} aria-hidden="true" className={open ? "selector-chevron open" : "selector-chevron"} />
+      </button>
+      {open && !disabled && (
+        <div className="selector-popover selector-unified-popover" id={`${id}-panel`}
+          role="dialog" aria-label="Choose model and reasoning effort">
+          <div className="selector-heading"><span>Model</span>
+            <span className="selector-provider" title={provider}>
+              <ProviderIcon icon={providerIconKey(provider)} />{displayProvider(provider)}
+            </span>
+          </div>
           <div className="selector-search">
             <Search size={14} aria-hidden="true" />
             <input ref={search} value={query} placeholder="Search models…" aria-label="Search models"
@@ -174,7 +159,7 @@ export function ComposerSelector({
               }}
               onKeyDown={modelKeys} />
           </div>
-          <div className="selector-options" id={modelListId} role="listbox" aria-label="Models">
+          <div className="selector-options selector-models" id={modelListId} role="listbox" aria-label="Models">
             {filtered.map((value, index) => (
               <button key={value} ref={(element) => { modelRows.current[index] = element; }}
                 id={`${id}-model-${index}`} type="button" role="option" tabIndex={-1}
@@ -190,29 +175,26 @@ export function ComposerSelector({
                 {value === model && <Check size={14} aria-hidden="true" />}
               </button>
             ))}
+            {!filtered.length && <div className="selector-empty" role="status">No matching models</div>}
           </div>
-          {!filtered.length && <div className="selector-empty" role="status">No matching models</div>}
-          <div className="selector-footer">
+          <div className="selector-footer selector-footer-models">
             <button type="button" className="selector-custom" onClick={() => { close(); onCustomModel(); }}>
               Custom model… <span aria-hidden="true">↗</span>
             </button>
           </div>
-        </div>
-      )}
-      {open === "effort" && !disabled && (
-        <div className="selector-popover selector-effort-popover">
-          <div className="selector-heading"><span>Reasoning effort</span><span>Next task</span></div>
-          <div className="selector-options" id={effortListId} role="listbox" aria-label="Reasoning effort" onKeyDown={effortKeys}>
+          <div className="selector-heading selector-effort-heading"><span>Reasoning effort</span><span>Next task</span></div>
+          <div className="selector-options selector-efforts" id={effortListId} role="listbox" aria-label="Reasoning effort" onKeyDown={effortKeys}>
             {options.map((option, index) => (
               <button key={option.value} ref={(element) => { effortRows.current[index] = element; }}
                 type="button" role="option" tabIndex={option.value === activeEffort ? 0 : -1}
                 aria-selected={option.value === effort}
-                className={`selector-option selector-effort-option${option.value === "auto (Jev)" ? " selector-auto" : ""}`}
+                aria-label={`${option.label} — ${option.description}`}
+                title={option.description}
+                className={`selector-option selector-effort-row${option.value === "auto (Jev)" ? " selector-auto" : ""}`}
                 onFocus={() => setActiveEffort(option.value)} onClick={() => chooseEffort(option.value)}>
                 <span className="selector-option-meter"><EffortMeter value={option.value} /></span>
-                <span className="selector-option-copy"><span className="selector-option-text">{option.label}</span>
-                  <span className="selector-description">{option.description}</span>
-                </span>
+                <span className="selector-option-text">{option.label}</span>
+                <span className="selector-effort-desc">{option.description}</span>
                 {option.value === effort && <Check size={14} aria-hidden="true" />}
               </button>
             ))}
