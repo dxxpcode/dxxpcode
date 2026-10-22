@@ -1296,8 +1296,6 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .selector-efforts { overflow-y: auto; max-height: 224px; }
 .selector-efforts .selector-option[aria-selected="true"] { background: var(--surface2); }
 .selector-option-meter { display: flex; align-items: center; justify-content: center; width: 21px; padding-top: 2px; flex-shrink: 0; }
-.selector-option-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.selector-option-id { font-size: 10.5px; color: var(--dim); }
 .provider-icon { flex-shrink: 0; }
 .selector-provider { display: inline-flex; align-items: center; gap: 5px; }
 .selector-description { font-size: 11px; line-height: 1.45; color: var(--dim); }

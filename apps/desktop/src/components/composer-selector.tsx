@@ -168,10 +168,7 @@ export function ComposerSelector({
                 onMouseDown={(event) => event.preventDefault()}
                 onMouseEnter={() => setActiveModel(value)} onClick={() => chooseModel(value)}>
                 <ProviderIcon icon={providerIconKey(provider, value)} />
-                <span className="selector-option-copy">
-                  <span className="selector-option-text">{displayModel(value)}</span>
-                  {displayModel(value) !== value && <span className="selector-option-id mono">{value}</span>}
-                </span>
+                <span className="selector-option-text">{displayModel(value)}</span>
                 {value === model && <Check size={14} aria-hidden="true" />}
               </button>
             ))}
