@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Check, ChevronDown, CircleDashed, Search, SlidersHorizontal } from "lucide-react";
-import { EFFORT_OPTIONS, effortOption, filterModels, nextOption } from "../lib/composer-selector";
+import { EFFORT_OPTIONS, displayModel, displayProvider, effortOption, filterModels, nextOption } from "../lib/composer-selector";
 
 function EffortMeter({ value }: { value: string }) {
   const { tier } = effortOption(value);
@@ -143,7 +143,7 @@ export function ComposerSelector({
           onKeyDown={(event) => {
             if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); if (!open) toggle("model"); }
           }}>
-          <span className="selector-model-name">{model}</span>
+          <span className="selector-model-name">{displayModel(model)}</span>
           <ChevronDown size={12} aria-hidden="true" className={open === "model" ? "selector-chevron open" : "selector-chevron"} />
         </button>
         <button ref={effortTrigger} type="button" className="selector-zone selector-effort"
@@ -160,7 +160,7 @@ export function ComposerSelector({
       </div>
       {open === "model" && !disabled && (
         <div className="selector-popover" id={`${id}-model-panel`} role="dialog" aria-label="Choose model">
-          <div className="selector-heading"><span>Model</span><span className="selector-provider" title={provider}>{provider}</span></div>
+          <div className="selector-heading"><span>Model</span><span className="selector-provider" title={provider}>{displayProvider(provider)}</span></div>
           <div className="selector-search">
             <Search size={14} aria-hidden="true" />
             <input ref={search} value={query} placeholder="Search models…" aria-label="Search models"
@@ -180,7 +180,10 @@ export function ComposerSelector({
                 className={`selector-option${index === modelIndex ? " active" : ""}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onMouseEnter={() => setActiveModel(value)} onClick={() => chooseModel(value)}>
-                <span className="selector-option-text">{value}</span>
+                <span className="selector-option-copy">
+                  <span className="selector-option-text">{displayModel(value)}</span>
+                  {displayModel(value) !== value && <span className="selector-option-id mono">{value}</span>}
+                </span>
                 {value === model && <Check size={14} aria-hidden="true" />}
               </button>
             ))}
