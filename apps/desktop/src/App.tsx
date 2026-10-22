@@ -15,7 +15,7 @@ import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { ComposerSelector } from "./components/composer-selector";
 import { DesktopDialog } from "./components/desktop-dialog";
-import { EFFORT_LEVELS } from "./lib/composer-selector";
+import { EFFORT_LEVELS, displayModel, displayProvider, effortOption } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
@@ -1217,17 +1217,20 @@ export default function App() {
   // Settings palette: every setting is a searchable row. Select rows expand
   // their options inline under the row; action rows run immediately.
   type SetEntry = {
-    id: string; label: string; group: string; value?: string;
+    id: string; label: string; group: string; value?: string; display?: (v: string) => string;
     options?: string[]; onPick?: (v: string) => void; action?: () => void; danger?: boolean;
   };
   const setEntries: SetEntry[] = [
     { id: "provider", label: "Provider", group: "Providers & Models", value: ready?.provider,
+      display: displayProvider,
       options: [...(ready?.providers?.length ? ready.providers : [ready?.provider ?? ""]), "connect a provider…"],
       onPick: (v) => v === "connect a provider…" ? cmd("/providers") : void send({ type: "command", name: `/provider ${v}` }) },
     { id: "model", label: "Model", group: "Providers & Models", value: ready?.model,
+      display: displayModel,
       options: [...(modelOpts.length ? modelOpts : [ready?.model ?? ""]), "custom…"],
       onPick: (v) => v === "custom…" ? cmd("/model") : void send({ type: "command", name: `/model ${v}` }) },
     { id: "effort", label: "Reasoning effort", group: "Providers & Models", value: ready?.effort ?? "default",
+      display: (v) => effortOption(v).label,
       options: [...EFFORT_LEVELS], onPick: (v) => void send({ type: "command", name: `/effort ${v}` }) },
     { id: "variant", label: "Model variant", group: "Providers & Models", value: ready?.variant ?? "default",
       options: ["default", ...(ready?.variants ?? [])], onPick: (v) => void send({ type: "command", name: `/variant ${v}` }) },
@@ -1792,7 +1795,7 @@ export default function App() {
                       }}
                     >
                       <span className="truncate">{row.label}</span>
-                      {row.value && <span className="setpal-val">{row.value}</span>}
+                      {row.value && <span className="setpal-val" title={row.value}>{row.display ? row.display(row.value) : row.value}</span>}
                       {row.options && <ChevronDown size={11} className={`setpal-caret${setPalOpen_ === idx ? " up" : ""}`} />}
                     </Button>
                     {setPalOpen_ === idx && row.options && (
@@ -1808,7 +1811,7 @@ export default function App() {
                             onClick={() => row.onPick?.(o)}
                           >
                             <span className="setpal-opt-check">{o === row.value ? "✓" : ""}</span>
-                            <span className="truncate">{o}</span>
+                            <span className="truncate">{row.display ? row.display(o) : o}</span>
                           </Button>
                         ))}
                       </div>

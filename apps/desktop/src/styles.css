@@ -1294,6 +1294,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .selector-effort-option[aria-selected="true"] { background: var(--surface2); }
 .selector-option-meter { display: flex; align-items: center; justify-content: center; width: 21px; padding-top: 2px; flex-shrink: 0; }
 .selector-option-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.selector-option-id { font-size: 10.5px; color: var(--dim); }
 .selector-description { font-size: 11px; line-height: 1.45; color: var(--dim); }
 .selector-auto { margin-top: 5px; border-top: 1px solid var(--border); border-top-left-radius: 0; border-top-right-radius: 0; }
 .selector-footnote { flex-shrink: 0; margin-top: 5px; padding: 9px; border-top: 1px solid var(--border); font-size: 10.5px; line-height: 1.5; color: var(--dim); }
