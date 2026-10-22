@@ -1167,7 +1167,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .statusline .statustext { font-family: inherit; }
 
 .composer { width: 100%; max-width: calc(var(--conversation-width) + var(--conversation-gutter) * 2); margin-inline: auto; padding: 8px var(--conversation-gutter) 18px; flex-shrink: 0; }
-.queuelist { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.queuelist { display: flex; flex-direction: column; gap: 2px; width: 100%; max-width: 640px; margin: 0 auto 6px; }
 .queuerow {
   display: flex; align-items: center; gap: 8px;
   font-family: var(--font-mono); font-size: 11.5px; color: var(--faint);
@@ -1191,13 +1191,15 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .queuerow .wact:hover { color: var(--text); background: var(--surface2); }
 .inputbox {
   display: flex; flex-direction: column; gap: 12px;
+  width: 100%; max-width: 640px; margin-inline: auto;
   background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px 14px 12px; box-shadow: var(--shadow-sm);
-  transition: border-color 0.15s var(--ease);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px 16px 10px; box-shadow: var(--shadow-md);
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 .inputbox:focus-within {
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg);
 }
 .inputbox textarea {
   width: 100%; min-height: 44px; padding: 0; resize: none;
@@ -1214,7 +1216,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .selector-control {
   display: flex; align-items: stretch; min-width: 0;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface); box-shadow: var(--shadow-sm);
+  background: var(--surface);
 }
 .selector-zone {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -1326,7 +1328,8 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .composer-submit:disabled { opacity: 0.3; }
 .composer-hints {
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px;
-  padding: 8px 2px 0; font-size: 11px; line-height: 1.5; color: var(--faint);
+  width: 100%; max-width: 640px; margin-inline: auto;
+  padding: 8px 4px 0; font-size: 11px; line-height: 1.5; color: var(--faint);
 }
 .composer-hints kbd { font: inherit; color: var(--dim); }
 .composer button:focus-visible, .statusline button:focus-visible {
@@ -1340,7 +1343,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 /* ---------- command palette ---------- */
 .palette {
-  margin-bottom: 10px;
+  width: 100%; max-width: 640px; margin: 0 auto 10px;
   background: var(--surface);
   border-radius: var(--radius);
   overflow: hidden;
@@ -1771,7 +1774,6 @@ html[data-theme="dark"] {
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 html[data-theme="dark"] .app:not(.has-art) .rail { --rail-bg: var(--bg); background: var(--rail-bg); }
-html[data-theme="dark"] .app:not(.has-art) .inputbox { background: var(--bg); }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
 html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #d5d5d9; }
