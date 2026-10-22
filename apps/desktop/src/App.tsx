@@ -15,9 +15,6 @@ import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { ComposerSelector } from "./components/composer-selector";
 import { DesktopDialog } from "./components/desktop-dialog";
-import { HomeHeader, HomeSessions } from "./components/desktop-home";
-import { isHomeConversation, recentSessions } from "./lib/home-layout";
-import type { SessionSummary } from "./lib/home-layout";
 import { EFFORT_LEVELS } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
 import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
@@ -64,7 +61,6 @@ export default function App() {
   const [diffs, setDiffs] = useState<{ id: number; path: string; diff: string; decided?: string }[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
-  const runningRef = useRef(false);
   const [input, setInput] = useState("");
   const [chatMode, setChatMode] = useState(false);
   const [planMode, setPlanMode] = useState(false);
@@ -156,8 +152,7 @@ export default function App() {
   const displayedRailWidth = Math.min(railWidth, maxRailWidth);
   const railDrag = useRef<{ x: number; width: number } | null>(null);
   const [bootGone, setBootGone] = useState(false);
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
   const [renamingSess, setRenamingSess] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
@@ -357,11 +352,6 @@ export default function App() {
         // reset the transcript so the new session starts clean.
         setItems([]);
         setApprovals([]);
-        setDiffs([]);
-        runningRef.current = false;
-        setRunning(false);
-        setSessions([]);
-        setSessionsLoaded(false);
         setSessionInfo({ id: null, tokens: 0 });
         setChatMode(false);
         break;
@@ -370,7 +360,6 @@ export default function App() {
         // A new run supersedes any leftover "Build this plan" cue.
         setItems((prev) => prev.filter((it) => it.k !== "build" && it.k !== "replan"));
         push({ k: "user", text: String(ev.text) });
-        runningRef.current = true;
         setRunning(true);
         runStart.current = Date.now();
         break;
@@ -424,17 +413,9 @@ export default function App() {
         break;
       case "session":
         setSessionInfo({ id: ev.id as string | null, tokens: Number(ev.tokens) });
-        if (ev.id === null && !runningRef.current) {
-          setItems([]);
-          setApprovals([]);
-          setDiffs([]);
-          textBuf.current = "";
-          thinkBuf.current = "";
-        }
         break;
       case "sessions":
-        setSessions(Array.isArray(ev.items) ? (ev.items as SessionSummary[]) : []);
-        setSessionsLoaded(true);
+        setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]) : []);
         break;
       case "files":
         if (Number(ev.id) === fileReqId.current)
@@ -693,7 +674,6 @@ export default function App() {
         break;
       }
       case "idle": {
-        runningRef.current = false;
         flushText();
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
@@ -1200,10 +1180,6 @@ export default function App() {
   // expand control.
   const pendingApprovals = approvals.filter((a) => !a.answered);
   const pendingDiffs = diffs.filter((d) => !d.decided);
-  const home = !!ready && !onboarding && !running && isHomeConversation(items) && !approvals.length && !diffs.length
-    && !menu && !promptReq && !queue.length && !wtasks.some((w) => w.phase !== "merged" && w.phase !== "discarded");
-  const homeSessions = useMemo(() => recentSessions(sessions), [sessions]);
-  const lastItem = items.at(-1);
   const doneWorkers = wtasks.filter((w) => w.phase === "done");
   const failedWorkers = wtasks.filter((w) => w.phase === "failed");
   const scrollTranscriptBottom = () => {
@@ -2035,8 +2011,7 @@ export default function App() {
           </div>
         </section>
       )}
-      <div className={`conversation${home ? " conversation-home" : ""}`} style={settingsOpen ? { visibility: "hidden" } : undefined}>
-      <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll}>
+      <div className="transcript" ref={scrollRef} onScroll={onTranscriptScroll} style={settingsOpen ? { visibility: "hidden" } : undefined}>
         {(!ready || !bootGone) && (
           <div className={`boot${ready ? " out" : ""}`}>
             <div className="boot-logo">
@@ -2046,8 +2021,18 @@ export default function App() {
             <span className="boot-word">starting engine…</span>
           </div>
         )}
-        {home && ready && <HomeHeader project={ready.project} onOpenProject={openProject} />}
-        {!home && turns.map((turn, ti) => (
+        {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
+          <div className="hero">
+            <Logo className="hero-mark" />
+            <div className="hero-title">What should we build in
+              <button className="hero-proj" title="Change project" onClick={openProject}>
+                {ready.project.name}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </button>?
+            </div>
+          </div>
+        )}
+        {turns.map((turn, ti) => (
           <div className="turn" key={ti}>
             {turn.map((seg, si) =>
               Array.isArray(seg) ? (
@@ -2140,7 +2125,7 @@ export default function App() {
         })}
       </div>
 
-      <div className="statusline" hidden={home}>
+      <div className="statusline">
         {ready && (
           <span className="statusline-ctx">
             <button className="inctx" aria-label={`Change project: ${ready.project.name}`} title={`Change project: ${ready.project.name}`} onClick={openProject}>
@@ -2300,7 +2285,7 @@ export default function App() {
             autoFocus
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
             aria-describedby="composer-hints"
-            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : home ? "Describe a task, a fix, or an idea…" : "Ask dxxpcode anything…"}
+            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : "Ask dxxpcode anything…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -2369,15 +2354,6 @@ export default function App() {
           <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
           <span><kbd>↵</kbd> {submitAction === "queue" ? "queue" : submitAction === "complete" ? "complete" : "send"} · <kbd>⇧↵</kbd> newline{running && <> · <kbd>Esc</kbd> stop</>}</span>
         </div>
-      </div>
-      {home && <>
-        {lastItem?.k === "note" && (
-          <div className="home-feedback" role="status">{lastItem.text}</div>
-        )}
-        <HomeSessions sessions={homeSessions} loaded={sessionsLoaded}
-          onResume={(id) => { void send({ type: "resume", id }); taRef.current?.focus(); }}
-          onViewAll={() => setPalOpen(true)} />
-      </>}
       </div>
       </div>
     </div>
