@@ -2125,24 +2125,14 @@ export default function App() {
         })}
       </div>
 
-      <div className="statusline">
-        {ready && (
-          <span className="statusline-ctx">
-            <button className="inctx" aria-label={`Change project: ${ready.project.name}`} title={`Change project: ${ready.project.name}`} onClick={openProject}>
-              <Folder size={12} />
-              <span className="inctx-name">{ready.project.name}</span>
-              {ready.project.git && (
-                <span className="branch mono" title={ready.project.git.branch}>{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-              )}
-              <ChevronDown size={11} />
-            </button>
+      {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) || queue.length > 0) && (
+        <div className="statusline">
+          <span className="statusline-act">
+            {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}</>}
+            {queue.length > 0 && <span className="queuecount">{queue.length} queued</span>}
           </span>
-        )}
-        <span className="statusline-act">
-          {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}</>}
-          {queue.length > 0 && <span className="queuecount">{queue.length} queued</span>}
-        </span>
-      </div>
+        </div>
+      )}
 
       {menu && (
         <div className="menu-card">
@@ -2284,7 +2274,6 @@ export default function App() {
             rows={2}
             autoFocus
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
-            aria-describedby="composer-hints"
             placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : "Ask dxxpcode anything…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -2320,6 +2309,14 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
+                  <button className="inctx" aria-label={`Change project: ${ready.project.name}`} title={`Change project: ${ready.project.name}`} onClick={openProject}>
+                    <Folder size={12} />
+                    <span className="inctx-name">{ready.project.name}</span>
+                    {ready.project.git && (
+                      <span className="branch mono" title={ready.project.git.branch}>{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+                    )}
+                    <ChevronDown size={11} />
+                  </button>
                   <ComposerSelector
                     model={ready.model} models={modelOpts} provider={ready.provider}
                     effort={ready.effort ?? "default"} disabled={running || onboarding}
@@ -2349,10 +2346,6 @@ export default function App() {
               </Button>
             </div>
           </div>
-        </div>
-        <div className="composer-hints" id="composer-hints">
-          <span><kbd>/</kbd> commands · <kbd>@</kbd> files</span>
-          <span><kbd>↵</kbd> {submitAction === "queue" ? "queue" : submitAction === "complete" ? "complete" : "send"} · <kbd>⇧↵</kbd> newline{running && <> · <kbd>Esc</kbd> stop</>}</span>
         </div>
       </div>
       </div>
