@@ -1208,35 +1208,25 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 }
 .composer-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: 1; min-width: 0; }
 .composer-selector { display: inline-flex; min-width: 0; max-width: 100%; }
-.selector-control {
-  display: flex; align-items: stretch; min-width: 0;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface);
-}
-.selector-zone {
+.selector-unified {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  height: 32px; padding: 0 10px; border: none; background: none;
-  color: var(--dim); font-size: 12px; font-weight: 500; cursor: pointer;
-  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+  height: 32px; padding: 0 10px; min-width: 0; max-width: 300px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--dim);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease), border-color 0.14s var(--ease);
 }
-.selector-zone:hover:not(:disabled), .selector-zone[aria-expanded="true"] {
-  color: var(--text); background: var(--surface2);
+.selector-unified:hover:not(:disabled), .selector-unified[aria-expanded="true"] {
+  color: var(--text); background: var(--surface2); border-color: var(--border-strong);
 }
-.selector-model {
-  min-width: 0; max-width: 220px; justify-content: space-between;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--text);
-}
-.selector-model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selector-model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.selector-effort-name { flex-shrink: 0; color: var(--dim); }
+.selector-effort-name::before { content: "\00b7"; margin-right: 8px; color: var(--faint); }
 .selector-chevron { flex-shrink: 0; color: var(--faint); transition: transform 0.14s var(--ease); }
 .selector-chevron.open { transform: rotate(180deg); }
-.selector-effort {
-  flex-shrink: 0; min-width: 104px; border-left: 1px solid var(--border);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-.selector-effort span { min-width: 60px; text-align: left; }
-.selector-effort svg, .selector-option-meter svg { flex-shrink: 0; }
-.selector-zone:disabled { opacity: 0.45; cursor: default; }
-.composer .selector-zone:focus-visible, .composer .selector-custom:focus-visible {
+.selector-option-meter svg { flex-shrink: 0; }
+.selector-unified:disabled { opacity: 0.45; cursor: default; }
+.composer .selector-unified:focus-visible, .composer .selector-custom:focus-visible {
   outline: 1px solid var(--focus); outline-offset: -3px; box-shadow: none;
 }
 .selector-popover {
@@ -1292,9 +1282,20 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .selector-custom:hover { color: var(--text); background: var(--surface2); }
 .selector-effort-option { align-items: flex-start; }
 .selector-effort-option[aria-selected="true"] { background: var(--surface2); }
+.selector-unified-popover { width: min(380px, 100%); }
+.selector-models { max-height: 220px; }
+.selector-footer-models { margin-bottom: 0; }
+.selector-effort-heading { padding-top: 9px; }
+.selector-effort-row { gap: 10px; padding-top: 7px; padding-bottom: 7px; }
+.selector-effort-row .selector-option-text { flex-shrink: 0; }
+.selector-effort-row .selector-option-meter { width: 18px; padding-top: 0; }
+.selector-effort-desc {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; color: var(--faint); font-weight: 400;
+}
+.selector-efforts { overflow-y: auto; max-height: 224px; }
+.selector-efforts .selector-option[aria-selected="true"] { background: var(--surface2); }
 .selector-option-meter { display: flex; align-items: center; justify-content: center; width: 21px; padding-top: 2px; flex-shrink: 0; }
-.selector-option-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.selector-option-id { font-size: 10.5px; color: var(--dim); }
 .provider-icon { flex-shrink: 0; }
 .selector-provider { display: inline-flex; align-items: center; gap: 5px; }
 .selector-description { font-size: 11px; line-height: 1.45; color: var(--dim); }
