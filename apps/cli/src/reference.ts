@@ -1,4 +1,4 @@
-/** In-terminal reference rendered by /docs — kept in sync with apps/site docs. */
+/** In-app reference rendered by /docs — kept in sync with apps/site docs. */
 export const DOCS_MD = `# install
 
 - download the desktop app from GitHub releases — \`.dmg\` (macOS), \`.msi\`/\`.exe\` (Windows), \`.deb\`/\`.AppImage\` (Linux)
@@ -8,19 +8,21 @@ export const DOCS_MD = `# install
 # in the app
 
 - \`/\` opens the command palette; \`@\` opens file mentions (\`@file#L-M\`, \`@dir/\`)
+- \`⌘K\` search sessions · \`⌘B\` collapse the sidebar · \`⌘,\` Settings · \`⇧Tab\` plan mode (Ctrl on Windows/Linux)
 - approvals are clickable (Allow / Always / Deny); type mid-run to steer; \`Esc\` interrupts
-- theme toggle in the header switches light / black dark mode
+- the model picker (bottom-left of the composer) sets both model and reasoning effort
+- theme lives in Settings → Appearance — light, pure-black dark, or system
 
 # cli engine
 
-- the bundled \`dxxpcode\` binary also works standalone: \`dxxpcode "task"\`, \`--plan\`, \`--review\`, \`--resume\`, \`--undo\`, \`--yes\`
+- the bundled \`dxxpcode\` binary also works standalone: \`dxxpcode --task "…"\` (or \`--print\`)
 - \`dxxpcode --app\` is the NDJSON protocol the app speaks — useful for other front-ends
 
 # connect a provider
 
-- \`/provider\` — guided connect; keys save to \`~/.dxxpcode/config.json\` (0600)
+- \`/provider\` — connect a key or switch providers; keys save to \`~/.dxxpcode/config.json\` (0600)
 - or env: \`ANTHROPIC_API_KEY\`, \`OPENAI_API_KEY\` (+ optional \`OPENAI_BASE_URL\` for compatible endpoints)
-- \`/providers\` — switch between configured providers; \`/model\` picks within the active one
+- \`/model\` picks a model within the active provider; \`/variant\` picks a named config preset
 - \`/setup\` — onboarding wizard: provider, effort, optional \`TYPESAFE_API_KEY\`
 
 # workflow
@@ -34,11 +36,13 @@ export const DOCS_MD = `# install
 
 - \`/status\` — session, provider, git, usage
 - \`/settings\` — Settings + Session tabs (approval mode, provider, model, effort)
-- \`/model\` · \`/providers\` · \`/effort\` — pickers
+- \`/model\` · \`/models\` · \`/variant\` — pickers; \`/provider\` · \`/providers\` — connect or switch
+- \`/effort\` — reasoning effort · \`/approval\` — approval mode: ask, always, or smart (Jev)
+- \`/review\` — diff of uncommitted changes; \`/review agent\` runs an AI review
 - \`/undo\` — restore files from the last checkpoint
+- \`/resume\` — resume a previous session for this project; \`/new\` starts a fresh one
 - \`/tools\` — custom tools: \`/tools enable <name>\` · \`disable\` · \`remove\`; drop a \`.toml\` in \`~/.dxxpcode/tools/\` (or \`.dxxpcode/tools/\` per project) with \`name\`, \`description\`, \`command\` (\`{arg}\` placeholders under \`[args]\`), \`permission = "auto"|"ask"\`; new tools start disabled until enabled
-- \`/compact\` — compress old tool output; \`/settings\` → Approval mode \`smart\` = Jev-decided approvals; effort \`auto (Jev)\` = Jev picks effort per task; \`/clear\` clears the transcript; \`/new\` starts a new session
-- \`/review\` — diff of uncommitted changes; \`/provider\` — connect a key
+- \`/compact\` — compress old tool output; \`/license\` — save or show a lifetime license key; \`/clear\` clears the transcript
 - \`/changelog\` · \`/docs\` — this reference; \`/help\` · \`/exit\`
 
 # mentions
@@ -48,7 +52,7 @@ export const DOCS_MD = `# install
 
 # flags + env
 
-- \`dxxpcode --plan\` — plan only, no edits · \`--yes\` auto-approve · \`--review\` · \`--undo\` · \`--resume\` · \`--model <m>\` · \`--effort <e>\`
+- \`dxxpcode --task "…"\` · \`--plan\` plan only, no edits · \`--yes\`/\\\`-y\` auto-approve · \`--resume\` · \`--provider <p>\` · \`--model <m>\` · \`--effort <e>\` · \`--variant <v>\` · \`--max-iterations <n>\` · \`--app\` · \`--version\` · \`--help\`
 - \`DXXPCODE_PROVIDER\`, \`DXXPCODE_MODEL\`, \`DXXPCODE_HOME\` (default \`~/.dxxpcode\`)
 - project instructions live in \`.dxxpcode/instructions.md\` — loaded automatically
 
@@ -61,7 +65,7 @@ export const DOCS_MD = `# install
 - \`~/.dxxpcode/config.json\`: provider, model (+ per-provider \`models\`), approvalMode, effort, keys
 `;
 
-/** In-terminal release history rendered by /changelog — mirror of CHANGELOG.md. */
+/** In-app release history rendered by /changelog — mirror of CHANGELOG.md. */
 export const CHANGELOG_MD = `# Unreleased
 
 - \`/compact\` forces context compaction; \`/status\` shows context usage vs the 60k cap
@@ -72,7 +76,7 @@ export const CHANGELOG_MD = `# Unreleased
 - \`todo_write\` live checklists, \`/effort\` shortcut, full effort range (minimal→max)
 - opencode-style streaming — tool icons + live verb lines; geometric XX mark
 - tabbed \`/settings\` (Settings + Session); model+effort change notes
-- \`/docs\` and \`/changelog\` here in the terminal
+- \`/docs\` and \`/changelog\` in the app
 - \`--resume\` banner indicator; live git state in \`/status\`; \`OPENAI_BASE_URL\` fix
 
 # v0.1.0 — initial release
