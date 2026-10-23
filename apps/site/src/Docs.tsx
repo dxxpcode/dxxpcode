@@ -182,8 +182,16 @@ export default function Docs() {
                 <Row name="/model" desc="Pick a model from the provider's live catalog (or enter a custom name)." />
                 <Row name="/effort" desc="Reasoning effort for the next task: default, minimal → max." />
                 <Row name="/undo" desc="Restore files from the last checkpoint." />
-                <Row name="/review" desc="Show the working-tree diff." />
-                <Row name="/provider" desc="Connect or switch the model provider." />
+                <Row name="/review" desc="Show the working-tree diff; /review agent runs an AI review." />
+                <Row name="/provider" desc="Connect a key or switch providers." />
+                <Row name="/providers" desc="Switch between configured providers." />
+                <Row name="/models" desc="List the provider's model options." />
+                <Row name="/variant" desc="Pick a named model preset from your config." />
+                <Row name="/approval" desc="Approval mode: ask, always, or smart (Jev)." />
+                <Row name="/tools" desc="Custom tools — list, enable, disable, remove." />
+                <Row name="/compact" desc="Compress old tool output in the session context." />
+                <Row name="/license" desc="Save or show a lifetime license key." />
+                <Row name="/new" desc="Start a new session." />
                 <Row name="/clear" desc="Clear the transcript." />
                 <Row name="/help" desc="List all commands." />
                 <Row name="/exit" desc="Quit dxxpcode." />
@@ -194,16 +202,18 @@ export default function Docs() {
           <Section id="flags" title="Flags & environment">
             <table className="w-full text-[14px]">
               <tbody>
-                <Row name='dxxpcode "task"' desc="Run a task directly (non-interactive-friendly)." />
-                <Row name='--plan "task"' desc="Plan only — no changes made." />
+                <Row name='dxxpcode --task "…"' desc="Run a task once and exit (alias: --print)." />
+                <Row name="--plan" desc="Plan only — no changes made." />
                 <Row name="--resume" desc="Resume the previous session in this directory." />
-                <Row name="--review" desc="Print the working-tree diff and exit." />
-                <Row name="--undo" desc="Restore files from the last checkpoint and exit." />
                 <Row name="--provider" desc="anthropic | openai | mock." />
                 <Row name="--model" desc="Model override for this run." />
                 <Row name="--effort" desc="minimal | low | medium | high | xhigh | max." />
+                <Row name="--variant" desc="Named model preset from your config." />
                 <Row name="--yes, -y" desc="Auto-approve actions that would otherwise ask." />
                 <Row name="--max-iterations" desc="Agent iteration cap (default 40)." />
+                <Row name="--app" desc="NDJSON protocol mode used by the desktop app." />
+                <Row name="--version, -v" desc="Print version." />
+                <Row name="--help, -h" desc="Print usage." />
               </tbody>
             </table>
             <p className="pt-2">Environment:</p>
