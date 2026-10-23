@@ -1,6 +1,6 @@
 # DxxpCode
 
-An AI coding agent in a desktop app — one install, a custom terminal-native interface, and everything bundled. No terminal, editor, or Node setup required.
+An AI coding agent in a desktop app — one install, a calm focused interface, and everything bundled. No terminal, editor, or Node setup required.
 
 ```
 > Fix the failing authentication tests.
@@ -24,7 +24,7 @@ Download the app — it bundles the agent; nothing else to install:
 - **Windows** — `.msi` or `.exe`
 - **Linux** — `.deb` or `.AppImage`
 
-Latest installers live on the [releases page](https://github.com/dxxpcode/DxxpCode-Terminal/releases).
+Latest installers live on the [releases page](https://github.com/dxxpcode/dxxpcode/releases).
 
 ## Configure a model provider
 
@@ -67,7 +67,7 @@ Every task runs **Context → Plan → Tools → Verify → Result**:
 Actions are classified **safe** / **approval** / **restricted**:
 
 - Reads, searches, `git status/diff`, and test/build commands run freely.
-- Deletes, git mutations, dependency installs, config writes, and unrecognized commands open an approval menu (Yes / Always / No — arrows or `y`/`a`/`n`).
+- Deletes, git mutations, dependency installs, config writes, and unrecognized commands open an approval prompt (Allow / Always / Deny).
 - Anything outside the project root, `.env*`, SSH keys, and credential stores are always denied — no flag unlocks them.
 
 See [SECURITY.md](SECURITY.md) for the full policy and known limitations.
@@ -100,7 +100,7 @@ The desktop app (`apps/desktop`) is Tauri + React and talks to the engine over `
 cd apps/desktop && npm install && npm run dev
 ```
 
-The original TypeScript implementation lives in `packages/` + `apps/cli` (ink/React terminal UI) — `npm install`, `npm test`, `npm run typecheck`, `npm run build` at the root still work for it.
+The original TypeScript implementation lives in `packages/` + `apps/cli` (legacy ink/React terminal UI) — `npm install`, `npm test`, `npm run typecheck`, `npm run build` at the root still work for it.
 
 Layout:
 
