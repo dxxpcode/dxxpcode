@@ -1766,7 +1766,7 @@ pub fn run_app(deps: AppDeps) -> i32 {
         std::process::exit(0);
     });
 
-    let mut file_index: Option<FileIndex> = None;
+    let mut file_index: Option<(std::time::Instant, FileIndex)> = None;
 
     loop {
         let cmd = inbox.lock().unwrap().pop_front();
@@ -1886,14 +1886,22 @@ pub fn run_app(deps: AppDeps) -> i32 {
             }
             "list_files" => {
                 if let Some(id) = cmd.get("id").and_then(|v| v.as_u64()) {
-                    if file_index.is_none() {
-                        file_index = Some(list_project_files(&dinfo.root));
+                    // Rebuild after 30s so files created mid-session still
+                    // complete — `ls-files` is cheap relative to a keystroke.
+                    let stale = file_index
+                        .as_ref()
+                        .map(|(built, _)| built.elapsed() > std::time::Duration::from_secs(30))
+                        .unwrap_or(true);
+                    if stale {
+                        file_index =
+                            Some((std::time::Instant::now(), list_project_files(&dinfo.root)));
                     }
                     let prefix = cmd.get("text").and_then(|v| v.as_str()).unwrap_or("");
-                    let items: Vec<Value> = file_suggestions(file_index.as_ref().unwrap(), prefix)
-                        .into_iter()
-                        .map(|(name, desc)| json!({"name": name, "desc": desc}))
-                        .collect();
+                    let items: Vec<Value> =
+                        file_suggestions(&file_index.as_ref().unwrap().1, prefix)
+                            .into_iter()
+                            .map(|(name, desc)| json!({"name": name, "desc": desc}))
+                            .collect();
                     emit(json!({"type": "files", "id": id, "items": items}));
                 }
             }

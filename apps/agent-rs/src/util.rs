@@ -143,7 +143,7 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
             skipped.push((p.to_string(), "protected file".into()));
             continue;
         }
-        let key = format!("{rel}{}", from.map(|f| format!("#{f}")).unwrap_or_default());
+        let key = format!("{rel}#{}-{}", from.unwrap_or(0), to.unwrap_or(0));
         if !seen.insert(key) {
             continue;
         }
@@ -188,7 +188,6 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
         }
         if let Some(f) = from {
             let lines: Vec<&str> = raw.split('\n').collect();
-            let end = to.unwrap_or(f).min(lines.len());
             if f < 1 || f > lines.len() {
                 skipped.push((
                     p.to_string(),
@@ -196,6 +195,7 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
                 ));
                 continue;
             }
+            let end = to.unwrap_or(f).clamp(f, lines.len());
             let slice = &lines[f - 1..end];
             attached.push(format!("{rel}#{f}-{end} ({} lines)", slice.len()));
             blocks.push(format!(
@@ -313,6 +313,12 @@ pub struct FileIndex {
     pub files: Vec<String>,
     pub dirs: Vec<String>,
     pub branches: Vec<String>,
+    /// Lowercase forms precomputed at build time so per-keystroke suggestion
+    /// scoring doesn't re-lowercase the whole index every call.
+    files_lc: Vec<String>,
+    /// Lowercase `dir + "/"` — matches what suggestions are scored against.
+    dirs_lc: Vec<String>,
+    branches_lc: Vec<String>,
 }
 
 fn git_files(root: &str) -> Option<Vec<String>> {
@@ -348,16 +354,25 @@ pub fn list_project_files(root: &str) -> FileIndex {
     }
     let mut dirs: Vec<String> = dirs.into_iter().collect();
     dirs.sort();
-    let branches = git_stdout_ok(
+    let branches: Vec<String> = git_stdout_ok(
         root,
         &["for-each-ref", "--format=%(refname:short)", "refs/heads"],
     )
     .map(|t| t.lines().map(String::from).collect())
     .unwrap_or_default();
+    let files_lc = files.iter().map(|f| f.to_lowercase()).collect();
+    let dirs_lc = dirs
+        .iter()
+        .map(|d| format!("{d}/").to_lowercase())
+        .collect();
+    let branches_lc = branches.iter().map(|b| b.to_lowercase()).collect();
     FileIndex {
         files,
         dirs,
         branches,
+        files_lc,
+        dirs_lc,
+        branches_lc,
     }
 }
 
@@ -369,17 +384,16 @@ fn path_basename(p: &str) -> &str {
 pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static str)> {
     let f = frag.to_lowercase();
     let base = path_basename(&f).to_string();
-    let score = |p: &str| -> i32 {
-        let lp = p.to_lowercase();
+    let score = |lp: &str| -> i32 {
         if lp == f {
             0
-        } else if lp.starts_with(&f) {
-            if path_basename(&lp).starts_with(&base) {
+        } else if lp.starts_with(&f.as_str()) {
+            if path_basename(lp).starts_with(&base) {
                 1
             } else {
                 2
             }
-        } else if path_basename(&lp).starts_with(&base) {
+        } else if path_basename(lp).starts_with(&base) {
             3
         } else if lp.contains(&f) {
             4
@@ -390,20 +404,20 @@ pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static st
     let mut seen = HashSet::new();
     // kind: 2 = dir, 1 = branch, 0 = file (dirs rank ahead on equal scores).
     let mut entries: Vec<(String, i32, u8)> = vec![];
-    for d in &idx.dirs {
-        let s = score(&format!("{d}/"));
+    for (d, d_lc) in idx.dirs.iter().zip(&idx.dirs_lc) {
+        let s = score(d_lc);
         if s >= 0 && seen.insert(d.clone()) {
             entries.push((format!("{d}/"), s, 2));
         }
     }
-    for p in &idx.files {
-        let s = score(p);
+    for (p, p_lc) in idx.files.iter().zip(&idx.files_lc) {
+        let s = score(p_lc);
         if s >= 0 && seen.insert(p.clone()) {
             entries.push((p.clone(), s, 0));
         }
     }
-    for b in &idx.branches {
-        let s = score(b);
+    for (b, b_lc) in idx.branches.iter().zip(&idx.branches_lc) {
+        let s = score(b_lc);
         if s >= 0 && seen.insert(b.clone()) {
             entries.push((b.clone(), s, 1));
         }
@@ -425,4 +439,49 @@ pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static st
             )
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("dxxp-mentions-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("a.txt"),
+            (1..=10).map(|i| format!("line {i}\n")).collect::<String>(),
+        )
+        .unwrap();
+        dir
+    }
+
+    #[test]
+    fn mention_reversed_range_does_not_panic() {
+        let dir = fixture("rev");
+        let res = expand_mentions("see @a.txt#5-2", dir.to_str().unwrap());
+        // A reversed range clamps to the start line instead of slicing [4..2].
+        assert_eq!(res.attached.len(), 1, "{:?}", res.skipped);
+        assert!(res.attached[0].contains("#5-5"), "{:?}", res.attached);
+        assert!(res.skipped.is_empty(), "{:?}", res.skipped);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn mention_ranges_with_same_start_are_not_deduped() {
+        let dir = fixture("dedup");
+        let res = expand_mentions("@a.txt#1-2 and @a.txt#1-8", dir.to_str().unwrap());
+        assert_eq!(res.attached.len(), 2, "{:?}", res.attached);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn mention_out_of_bounds_range_is_skipped() {
+        let dir = fixture("oob");
+        let res = expand_mentions("@a.txt#50-60", dir.to_str().unwrap());
+        assert!(res.attached.is_empty(), "{:?}", res.attached);
+        assert_eq!(res.skipped.len(), 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
