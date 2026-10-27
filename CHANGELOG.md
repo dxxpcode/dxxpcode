@@ -4,6 +4,17 @@ All notable changes to dxxpcode are documented here. Versions follow semver.
 
 ## [Unreleased]
 
+## [0.2.5] — 2026-10-27
+
+- Agent: fix `@file#L-M` crash on reversed ranges — `lines[4..2]` panicked and killed the sidecar; the end bound now clamps to the start
+- Agent: fix mention dedup dropping distinct ranges — `@file#1-2` and `@file#1-8` in one prompt collided and the second attach was silently lost
+- Agent: fix stale `@` completions — the file index was built once per sidecar lifetime; it now rebuilds after 30s so files created mid-session appear
+- Agent: session listing no longer re-parses every transcript file per sidebar emit — records cache by (mtime, len), deleted files evicted
+- Agent: `@` suggestions no longer re-lowercase the whole index per keystroke — `FileIndex` stores precomputed lowercase forms
+- Desktop: unified model + reasoning-effort selector — one label, one menu, official provider marks
+- Desktop: floating composer bar with project·branch context inside; hints row removed
+- Site: GitHub release download count badge (renders above 500)
+
 ## [0.2.4] — 2026-10-07
 
 - Agent: fix `read_file` panic on huge `offset` — `usize` overflow in `offset - 1 + limit` could crash the sidecar mid-session
