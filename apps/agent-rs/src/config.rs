@@ -5,6 +5,7 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 pub fn home_dir() -> PathBuf {
     if let Ok(d) = std::env::var("DXXPCODE_HOME") {
@@ -187,24 +188,53 @@ pub fn load_session(id: &str) -> Option<SessionRecord> {
     (parsed.version == 1).then_some(parsed)
 }
 
+/// Parsed session files keyed by path → (mtime, len, record). `list_sessions`
+/// runs on every sidebar emit; transcripts can be large, so unchanged files
+/// are not re-read or re-parsed.
+fn session_cache() -> &'static Mutex<HashMap<PathBuf, (std::time::SystemTime, u64, SessionRecord)>> {
+    static CACHE: std::sync::OnceLock<
+        Mutex<HashMap<PathBuf, (std::time::SystemTime, u64, SessionRecord)>>,
+    > = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 pub fn list_sessions() -> Vec<SessionRecord> {
     let dir = sessions_dir();
     let mut out = vec![];
+    let mut cache = session_cache().lock().unwrap();
+    let mut present: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
     if let Ok(rd) = fs::read_dir(&dir) {
         for e in rd.flatten() {
+            let path = e.path();
             let name = e.file_name().to_string_lossy().to_string();
             if !name.ends_with(".json") {
                 continue;
             }
-            if let Ok(raw) = fs::read_to_string(e.path()) {
+            present.insert(path.clone());
+            let meta = fs::metadata(&path).ok();
+            let key = meta.and_then(|m| m.modified().ok().map(|t| (t, m.len())));
+            if let Some(key) = key {
+                if let Some((t, l, rec)) = cache.get(&path) {
+                    if *t == key.0 && *l == key.1 {
+                        out.push(rec.clone());
+                        continue;
+                    }
+                }
+            }
+            if let Ok(raw) = fs::read_to_string(&path) {
                 if let Ok(rec) = serde_json::from_str::<SessionRecord>(&raw) {
                     if rec.version == 1 {
+                        if let Some((t, l)) = key {
+                            cache.insert(path, (t, l, rec.clone()));
+                        }
                         out.push(rec);
                     }
                 }
             }
         }
     }
+    // Drop entries for deleted session files so deletes take effect.
+    cache.retain(|p, _| present.contains(p));
     out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
     out
 }

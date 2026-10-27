@@ -313,6 +313,12 @@ pub struct FileIndex {
     pub files: Vec<String>,
     pub dirs: Vec<String>,
     pub branches: Vec<String>,
+    /// Lowercase forms precomputed at build time so per-keystroke suggestion
+    /// scoring doesn't re-lowercase the whole index every call.
+    files_lc: Vec<String>,
+    /// Lowercase `dir + "/"` — matches what suggestions are scored against.
+    dirs_lc: Vec<String>,
+    branches_lc: Vec<String>,
 }
 
 fn git_files(root: &str) -> Option<Vec<String>> {
@@ -348,16 +354,25 @@ pub fn list_project_files(root: &str) -> FileIndex {
     }
     let mut dirs: Vec<String> = dirs.into_iter().collect();
     dirs.sort();
-    let branches = git_stdout_ok(
+    let branches: Vec<String> = git_stdout_ok(
         root,
         &["for-each-ref", "--format=%(refname:short)", "refs/heads"],
     )
     .map(|t| t.lines().map(String::from).collect())
     .unwrap_or_default();
+    let files_lc = files.iter().map(|f| f.to_lowercase()).collect();
+    let dirs_lc = dirs
+        .iter()
+        .map(|d| format!("{d}/").to_lowercase())
+        .collect();
+    let branches_lc = branches.iter().map(|b| b.to_lowercase()).collect();
     FileIndex {
         files,
         dirs,
         branches,
+        files_lc,
+        dirs_lc,
+        branches_lc,
     }
 }
 
@@ -369,17 +384,16 @@ fn path_basename(p: &str) -> &str {
 pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static str)> {
     let f = frag.to_lowercase();
     let base = path_basename(&f).to_string();
-    let score = |p: &str| -> i32 {
-        let lp = p.to_lowercase();
+    let score = |lp: &str| -> i32 {
         if lp == f {
             0
-        } else if lp.starts_with(&f) {
-            if path_basename(&lp).starts_with(&base) {
+        } else if lp.starts_with(&f.as_str()) {
+            if path_basename(lp).starts_with(&base) {
                 1
             } else {
                 2
             }
-        } else if path_basename(&lp).starts_with(&base) {
+        } else if path_basename(lp).starts_with(&base) {
             3
         } else if lp.contains(&f) {
             4
@@ -390,20 +404,20 @@ pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static st
     let mut seen = HashSet::new();
     // kind: 2 = dir, 1 = branch, 0 = file (dirs rank ahead on equal scores).
     let mut entries: Vec<(String, i32, u8)> = vec![];
-    for d in &idx.dirs {
-        let s = score(&format!("{d}/"));
+    for (d, d_lc) in idx.dirs.iter().zip(&idx.dirs_lc) {
+        let s = score(d_lc);
         if s >= 0 && seen.insert(d.clone()) {
             entries.push((format!("{d}/"), s, 2));
         }
     }
-    for p in &idx.files {
-        let s = score(p);
+    for (p, p_lc) in idx.files.iter().zip(&idx.files_lc) {
+        let s = score(p_lc);
         if s >= 0 && seen.insert(p.clone()) {
             entries.push((p.clone(), s, 0));
         }
     }
-    for b in &idx.branches {
-        let s = score(b);
+    for (b, b_lc) in idx.branches.iter().zip(&idx.branches_lc) {
+        let s = score(b_lc);
         if s >= 0 && seen.insert(b.clone()) {
             entries.push((b.clone(), s, 1));
         }
