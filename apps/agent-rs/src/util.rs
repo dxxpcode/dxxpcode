@@ -143,7 +143,7 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
             skipped.push((p.to_string(), "protected file".into()));
             continue;
         }
-        let key = format!("{rel}{}", from.map(|f| format!("#{f}")).unwrap_or_default());
+        let key = format!("{rel}#{}-{}", from.unwrap_or(0), to.unwrap_or(0));
         if !seen.insert(key) {
             continue;
         }
@@ -188,7 +188,6 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
         }
         if let Some(f) = from {
             let lines: Vec<&str> = raw.split('\n').collect();
-            let end = to.unwrap_or(f).min(lines.len());
             if f < 1 || f > lines.len() {
                 skipped.push((
                     p.to_string(),
@@ -196,6 +195,7 @@ pub fn expand_mentions(task: &str, root: &str) -> MentionsResult {
                 ));
                 continue;
             }
+            let end = to.unwrap_or(f).clamp(f, lines.len());
             let slice = &lines[f - 1..end];
             attached.push(format!("{rel}#{f}-{end} ({} lines)", slice.len()));
             blocks.push(format!(
@@ -425,4 +425,45 @@ pub fn file_suggestions(idx: &FileIndex, frag: &str) -> Vec<(String, &'static st
             )
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("dxxp-mentions-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("a.txt"), (1..=10).map(|i| format!("line {i}\n")).collect::<String>()).unwrap();
+        dir
+    }
+
+    #[test]
+    fn mention_reversed_range_does_not_panic() {
+        let dir = fixture("rev");
+        let res = expand_mentions("see @a.txt#5-2", dir.to_str().unwrap());
+        // A reversed range clamps to the start line instead of slicing [4..2].
+        assert_eq!(res.attached.len(), 1, "{:?}", res.skipped);
+        assert!(res.attached[0].contains("#5-5"), "{:?}", res.attached);
+        assert!(res.skipped.is_empty(), "{:?}", res.skipped);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn mention_ranges_with_same_start_are_not_deduped() {
+        let dir = fixture("dedup");
+        let res = expand_mentions("@a.txt#1-2 and @a.txt#1-8", dir.to_str().unwrap());
+        assert_eq!(res.attached.len(), 2, "{:?}", res.attached);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn mention_out_of_bounds_range_is_skipped() {
+        let dir = fixture("oob");
+        let res = expand_mentions("@a.txt#50-60", dir.to_str().unwrap());
+        assert!(res.attached.is_empty(), "{:?}", res.attached);
+        assert_eq!(res.skipped.len(), 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
