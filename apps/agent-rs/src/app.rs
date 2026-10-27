@@ -1893,13 +1893,15 @@ pub fn run_app(deps: AppDeps) -> i32 {
                         .map(|(built, _)| built.elapsed() > std::time::Duration::from_secs(30))
                         .unwrap_or(true);
                     if stale {
-                        file_index = Some((std::time::Instant::now(), list_project_files(&dinfo.root)));
+                        file_index =
+                            Some((std::time::Instant::now(), list_project_files(&dinfo.root)));
                     }
                     let prefix = cmd.get("text").and_then(|v| v.as_str()).unwrap_or("");
-                    let items: Vec<Value> = file_suggestions(&file_index.as_ref().unwrap().1, prefix)
-                        .into_iter()
-                        .map(|(name, desc)| json!({"name": name, "desc": desc}))
-                        .collect();
+                    let items: Vec<Value> =
+                        file_suggestions(&file_index.as_ref().unwrap().1, prefix)
+                            .into_iter()
+                            .map(|(name, desc)| json!({"name": name, "desc": desc}))
+                            .collect();
                     emit(json!({"type": "files", "id": id, "items": items}));
                 }
             }

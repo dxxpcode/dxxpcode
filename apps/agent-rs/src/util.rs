@@ -449,7 +449,11 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dxxp-mentions-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("a.txt"), (1..=10).map(|i| format!("line {i}\n")).collect::<String>()).unwrap();
+        fs::write(
+            dir.join("a.txt"),
+            (1..=10).map(|i| format!("line {i}\n")).collect::<String>(),
+        )
+        .unwrap();
         dir
     }
 

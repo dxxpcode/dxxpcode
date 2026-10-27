@@ -191,7 +191,8 @@ pub fn load_session(id: &str) -> Option<SessionRecord> {
 /// Parsed session files keyed by path → (mtime, len, record). `list_sessions`
 /// runs on every sidebar emit; transcripts can be large, so unchanged files
 /// are not re-read or re-parsed.
-fn session_cache() -> &'static Mutex<HashMap<PathBuf, (std::time::SystemTime, u64, SessionRecord)>> {
+fn session_cache() -> &'static Mutex<HashMap<PathBuf, (std::time::SystemTime, u64, SessionRecord)>>
+{
     static CACHE: std::sync::OnceLock<
         Mutex<HashMap<PathBuf, (std::time::SystemTime, u64, SessionRecord)>>,
     > = std::sync::OnceLock::new();
