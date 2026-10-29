@@ -14,6 +14,8 @@ import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } fr
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { ComposerSelector } from "./components/composer-selector";
+import { PermissionSelector } from "./components/permission-selector";
+import { PERMISSION_OPTIONS, permissionMode, permissionOption } from "./lib/permission-mode";
 import { DesktopDialog } from "./components/desktop-dialog";
 import { EFFORT_LEVELS, displayModel, displayProvider, effortOption } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
@@ -1234,8 +1236,9 @@ export default function App() {
       options: [...EFFORT_LEVELS], onPick: (v) => void send({ type: "command", name: `/effort ${v}` }) },
     { id: "variant", label: "Model variant", group: "Providers & Models", value: ready?.variant ?? "default",
       options: ["default", ...(ready?.variants ?? [])], onPick: (v) => void send({ type: "command", name: `/variant ${v}` }) },
-    { id: "approvals", label: "Approvals", group: "Providers & Models", value: ready?.mode === "smart" ? "smart (Jev)" : ready?.mode,
-      options: ["ask", "always-approve", "smart (Jev)"], onPick: (v) => void send({ type: "command", name: `/approval ${v}` }) },
+    { id: "approvals", label: "Permissions", group: "Providers & Models", value: permissionMode(ready?.mode),
+      display: (v) => permissionOption(v).label,
+      options: PERMISSION_OPTIONS.map((o) => o.value), onPick: (v) => void send({ type: "command", name: `/approval ${v}` }) },
     { id: "theme", label: "Theme", group: "Appearance", value: artSrc ? "dark — set by art" : theme,
       ...(artSrc ? {} : { options: ["system", "light", "dark"], onPick: (v) => setTheme(v as "system" | "light" | "dark") }) },
     { id: "artwork", label: "Artwork", group: "Appearance", value: artLabel || artDirLabel || "None",
@@ -2328,6 +2331,11 @@ export default function App() {
                     onModelChange={(v) => void send({ type: "command", name: `/model ${v}` })}
                     onCustomModel={() => cmd("/model")}
                     onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+                    onCommit={() => taRef.current?.focus()}
+                  />
+                  <PermissionSelector
+                    mode={ready.mode} disabled={onboarding}
+                    onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
                     onCommit={() => taRef.current?.focus()}
                   />
                   {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}

@@ -1305,6 +1305,29 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   .selector-popover { animation: none; }
   .composer-selector * { transition: none; }
 }
+.permission-selector { display: inline-flex; min-width: 0; }
+.permission-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: none; color: var(--dim); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer;
+  transition: color 0.14s var(--ease), background 0.14s var(--ease);
+}
+.permission-trigger svg:first-child { flex-shrink: 0; opacity: 0.75; }
+.permission-trigger:hover:not(:disabled), .permission-trigger[aria-expanded="true"] { color: var(--text); background: var(--surface2); }
+.permission-trigger.full { color: var(--text); }
+.permission-trigger.full svg:first-child { opacity: 1; }
+.permission-trigger:disabled { opacity: 0.45; cursor: default; }
+.composer .permission-trigger:focus-visible { outline: 1px solid var(--focus); outline-offset: -3px; box-shadow: none; }
+.permission-popover { width: min(340px, 100%); }
+.permission-option { align-items: flex-start; gap: 11px; padding: 9px 10px; }
+.permission-option-icon { flex-shrink: 0; margin-top: 1px; color: var(--dim); }
+.permission-option[aria-selected="true"] .permission-option-icon, .permission-option.active .permission-option-icon { color: var(--text); }
+.permission-option-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.permission-option-desc { font-size: 11px; line-height: 1.45; color: var(--faint); font-weight: 400; }
+.permission-option > svg:last-child:not(.permission-option-icon) { margin-top: 1px; }
+.permission-option:focus-visible { outline: none; }
+.composer .permission-option:focus-visible { outline: none; background: var(--surface2); }
+@media (prefers-reduced-motion: reduce) { .permission-selector * { transition: none; } }
 .composer-variant { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11px; }
 .plan-toggle {
   display: inline-flex; align-items: center; gap: 4px;
