@@ -1,26 +1,30 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { Check, ChevronDown, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
-import { PERMISSION_OPTIONS, permissionMode } from "../lib/permission-mode";
-import type { PermissionMode } from "../lib/permission-mode";
+import { Check, ChevronDown, ListChecks, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { MODE_OPTIONS, composerMode } from "../lib/permission-mode";
+import type { ComposerMode, PermissionMode } from "../lib/permission-mode";
 import { nextOption } from "../lib/composer-selector";
 
-const ICONS = { ask: Shield, smart: ShieldCheck, "always-approve": ShieldAlert } as const;
+const ICONS = { ask: Shield, smart: ShieldCheck, "always-approve": ShieldAlert, plan: ListChecks } as const;
 
-export function PermissionSelector({ mode, disabled, onChange, onCommit }: {
+export function PermissionSelector({ mode, plan, disabled, planLocked, onChange, onPlanChange, onCommit }: {
   mode: string | undefined;
+  plan: boolean;
   disabled: boolean;
+  planLocked: boolean;
   onChange: (value: PermissionMode) => void;
+  onPlanChange: (on: boolean) => void;
   onCommit: () => void;
 }) {
-  const current = permissionMode(mode);
+  const current = composerMode(mode, plan);
+  const approval = composerMode(mode, false);
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState<PermissionMode>(current);
+  const [active, setActive] = useState<ComposerMode>(current);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
   const id = useId();
-  const option = PERMISSION_OPTIONS.find((o) => o.value === current)!;
+  const option = MODE_OPTIONS.find((o) => o.value === current)!;
   const Icon = ICONS[current];
 
   const close = (restoreFocus = false) => {
@@ -33,9 +37,16 @@ export function PermissionSelector({ mode, disabled, onChange, onCommit }: {
     setActive(current);
     setOpen(true);
   };
-  const choose = (value: PermissionMode) => {
+  const locked = (value: ComposerMode) => planLocked && (value === "plan" || plan);
+  const choose = (value: ComposerMode) => {
+    if (locked(value)) return;
     close();
-    if (value !== current) onChange(value);
+    if (value === "plan") {
+      if (!plan) onPlanChange(true);
+    } else {
+      if (plan) onPlanChange(false);
+      if (value !== approval) onChange(value);
+    }
     onCommit();
   };
 
@@ -49,16 +60,16 @@ export function PermissionSelector({ mode, disabled, onChange, onCommit }: {
   }, [open]);
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   useEffect(() => {
-    if (open) rows.current[PERMISSION_OPTIONS.findIndex((o) => o.value === active)]?.focus();
+    if (open) rows.current[MODE_OPTIONS.findIndex((o) => o.value === active)]?.focus();
   }, [open, active]);
 
   const keys = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
-    const index = PERMISSION_OPTIONS.findIndex((o) => o.value === active);
-    const next = event.key === "Home" ? 0 : event.key === "End" ? PERMISSION_OPTIONS.length - 1
-      : nextOption(index, PERMISSION_OPTIONS.length, event.key === "ArrowDown" ? 1 : -1);
-    setActive(PERMISSION_OPTIONS[next].value);
+    const index = MODE_OPTIONS.findIndex((o) => o.value === active);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? MODE_OPTIONS.length - 1
+      : nextOption(index, MODE_OPTIONS.length, event.key === "ArrowDown" ? 1 : -1);
+    setActive(MODE_OPTIONS[next].value);
   };
 
   return (
@@ -72,10 +83,10 @@ export function PermissionSelector({ mode, disabled, onChange, onCommit }: {
         }
       }}>
       <button ref={trigger} type="button"
-        className={`permission-trigger${current === "always-approve" ? " full" : ""}`}
+        className={`permission-trigger${current === "always-approve" || current === "plan" ? " full" : ""}`}
         disabled={disabled}
-        title={disabled ? "Complete setup to change permissions" : `Permissions: ${option.label}`}
-        aria-label={`Permissions: ${option.label}`}
+        title={disabled ? "Complete setup to change permissions" : `Mode: ${option.label} (⇧Tab toggles Plan)`}
+        aria-label={`Mode: ${option.label}`}
         aria-haspopup="dialog" aria-expanded={open}
         aria-controls={open ? `${id}-panel` : undefined}
         onClick={toggle}
@@ -87,15 +98,17 @@ export function PermissionSelector({ mode, disabled, onChange, onCommit }: {
         <ChevronDown size={12} aria-hidden="true" className={open ? "selector-chevron open" : "selector-chevron"} />
       </button>
       {open && !disabled && (
-        <div className="selector-popover permission-popover" id={`${id}-panel`} role="dialog" aria-label="Permissions">
-          <div className="selector-heading"><span>How should actions be approved?</span></div>
-          <div className="selector-options" role="listbox" aria-label="Permission mode" onKeyDown={keys}>
-            {PERMISSION_OPTIONS.map((o, index) => {
+        <div className="selector-popover permission-popover" id={`${id}-panel`} role="dialog" aria-label="Mode">
+          <div className="selector-heading"><span>How should dxxpcode work?</span></div>
+          <div className="selector-options" role="listbox" aria-label="Mode" onKeyDown={keys}>
+            {MODE_OPTIONS.map((o, index) => {
               const RowIcon = ICONS[o.value];
               return (
                 <button key={o.value} ref={(element) => { rows.current[index] = element; }}
                   type="button" role="option" tabIndex={o.value === active ? 0 : -1}
                   aria-selected={o.value === current}
+                  aria-disabled={locked(o.value) || undefined}
+                  title={locked(o.value) ? "Available after this run" : undefined}
                   className={`selector-option permission-option${o.value === active ? " active" : ""}`}
                   onMouseEnter={() => setActive(o.value)}
                   onFocus={() => setActive(o.value)}
