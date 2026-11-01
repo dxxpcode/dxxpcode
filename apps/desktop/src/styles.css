@@ -1151,6 +1151,11 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .statusline .statustext { font-family: inherit; }
 
 .composer { width: 100%; max-width: calc(var(--conversation-width) + var(--conversation-gutter) * 2); margin-inline: auto; padding: 8px var(--conversation-gutter) 18px; flex-shrink: 0; }
+/* Empty session: hero + composer sit together in the optical center; the composer drops to the bottom once a task starts. */
+.main.idle .transcript { flex: 0 1 auto; margin-top: auto; padding-bottom: 0; overflow: visible; }
+.main.idle .hero { flex: none; padding: 0 24px 28px; }
+.main.idle .composer { position: relative; margin-bottom: auto; padding-bottom: calc(18px + 6vh); }
+.main.idle .palette { position: absolute; left: var(--conversation-gutter); right: var(--conversation-gutter); bottom: 100%; width: auto; z-index: 2; }
 .queuelist { display: flex; flex-direction: column; gap: 2px; width: 100%; max-width: 640px; margin: 0 auto 6px; }
 .queuerow {
   display: flex; align-items: center; gap: 8px;

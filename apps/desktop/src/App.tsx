@@ -154,6 +154,8 @@ export default function App() {
   const displayedRailWidth = Math.min(railWidth, maxRailWidth);
   const railDrag = useRef<{ x: number; width: number } | null>(null);
   const [bootGone, setBootGone] = useState(false);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const composerTop = useRef<number | null>(null);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
   const [renamingSess, setRenamingSess] = useState<string | null>(null);
@@ -1296,6 +1298,22 @@ export default function App() {
     }
   };
 
+  const idle = items.length === 0 && approvals.length === 0 && !onboarding;
+  useLayoutEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    if (idle) {
+      composerTop.current = el.getBoundingClientRect().top;
+      return;
+    }
+    const from = composerTop.current;
+    composerTop.current = null;
+    if (from === null || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const dy = from - el.getBoundingClientRect().top;
+    if (Math.abs(dy) < 1) return;
+    el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 340, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+  });
+
   return (
     <div className={artSrc ? "app has-art" : "app"} data-resizing={railResizing || undefined}>
       {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
@@ -1719,7 +1737,7 @@ export default function App() {
           />
         </aside>
       )}
-      <div className="main">
+      <div className={`main${idle ? " idle" : ""}`}>
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && !ready && <Logo className="logo-mark" />}
@@ -2027,7 +2045,7 @@ export default function App() {
             <span className="boot-word">starting engine…</span>
           </div>
         )}
-        {items.length === 0 && approvals.length === 0 && ready && !onboarding && (
+        {idle && ready && bootGone && (
           <div className="hero">
             <Logo className="hero-mark" />
             <div className="hero-title">What should we build in
@@ -2182,7 +2200,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <div className="composer">
+      <div className="composer" ref={composerRef}>
         {palette.length > 0 && (
           <div className="palette">
             {palette.map((c, i) => (
