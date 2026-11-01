@@ -14,6 +14,8 @@ import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } fr
 import { closePartialMd, md } from "./lib/markdown";
 import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
 import { ComposerSelector } from "./components/composer-selector";
+import { PermissionSelector } from "./components/permission-selector";
+import { PERMISSION_OPTIONS, permissionMode, permissionOption } from "./lib/permission-mode";
 import { DesktopDialog } from "./components/desktop-dialog";
 import { EFFORT_LEVELS, displayModel, displayProvider, effortOption } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
@@ -1234,8 +1236,9 @@ export default function App() {
       options: [...EFFORT_LEVELS], onPick: (v) => void send({ type: "command", name: `/effort ${v}` }) },
     { id: "variant", label: "Model variant", group: "Providers & Models", value: ready?.variant ?? "default",
       options: ["default", ...(ready?.variants ?? [])], onPick: (v) => void send({ type: "command", name: `/variant ${v}` }) },
-    { id: "approvals", label: "Approvals", group: "Providers & Models", value: ready?.mode === "smart" ? "smart (Jev)" : ready?.mode,
-      options: ["ask", "always-approve", "smart (Jev)"], onPick: (v) => void send({ type: "command", name: `/approval ${v}` }) },
+    { id: "approvals", label: "Permissions", group: "Providers & Models", value: permissionMode(ready?.mode),
+      display: (v) => permissionOption(v).label,
+      options: PERMISSION_OPTIONS.map((o) => o.value), onPick: (v) => void send({ type: "command", name: `/approval ${v}` }) },
     { id: "theme", label: "Theme", group: "Appearance", value: artSrc ? "dark — set by art" : theme,
       ...(artSrc ? {} : { options: ["system", "light", "dark"], onPick: (v) => setTheme(v as "system" | "light" | "dark") }) },
     { id: "artwork", label: "Artwork", group: "Appearance", value: artLabel || artDirLabel || "None",
@@ -2271,6 +2274,7 @@ export default function App() {
               ))}
           </div>
         )}
+        <div className="composer-stack">
         <div className="inputbox">
           <textarea
             ref={taRef}
@@ -2312,14 +2316,6 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
-                  <button className="inctx" aria-label={`Change project: ${ready.project.name}`} title={`Change project: ${ready.project.name}`} onClick={openProject}>
-                    <Folder size={12} />
-                    <span className="inctx-name">{ready.project.name}</span>
-                    {ready.project.git && (
-                      <span className="branch mono" title={ready.project.git.branch}>{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-                    )}
-                    <ChevronDown size={11} />
-                  </button>
                   <ComposerSelector
                     model={ready.model} models={modelOpts} provider={ready.provider}
                     effort={ready.effort ?? "default"} disabled={running || onboarding}
@@ -2330,6 +2326,13 @@ export default function App() {
                     onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
                     onCommit={() => taRef.current?.focus()}
                   />
+                  <span className="composer-divider" aria-hidden="true" />
+                  <PermissionSelector
+                    mode={ready.mode} disabled={onboarding}
+                    onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
+                    onCommit={() => taRef.current?.focus()}
+                  />
+                  <span className="composer-divider" aria-hidden="true" />
                   {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
                   <button
                     type="button"
@@ -2349,6 +2352,22 @@ export default function App() {
               </Button>
             </div>
           </div>
+        </div>
+        {ready && (
+          <div className="composer-tray">
+            <button type="button" className="tray-item" aria-label={`Change project: ${ready.project.name}`} title="Change project" onClick={openProject}>
+              <Folder size={12} />
+              <span className="tray-label">{ready.project.name}</span>
+              <ChevronDown size={11} className="tray-chevron" />
+            </button>
+            {ready.project.git && (
+              <span className="tray-item static" title={ready.project.git.dirty ? `On ${ready.project.git.branch} · uncommitted changes` : `On ${ready.project.git.branch}`}>
+                <GitBranch size={12} />
+                <span className="tray-label mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+              </span>
+            )}
+          </div>
+        )}
         </div>
       </div>
       </div>
