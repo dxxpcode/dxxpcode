@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #ffffff;
-  --surface: #fafafa;
-  --surface2: #f0f0f2;
-  --surface3: #e6e6e9;
-  --border: #e5e5e8;
-  --border-strong: #c4c4cc;
-  --text: #161618;
-  --dim: #56565f;
-  --faint: #6c6c76;
+  --bg: #f9f9f7;
+  --surface: #ffffff;
+  --surface2: #efefeb;
+  --surface3: #e5e5e0;
+  --sidebar: #f3f3f0;
+  --border: #e4e4df;
+  --border-strong: #c6c6bf;
+  --text: #1f1f1d;
+  --dim: #5a5a55;
+  --faint: #6a6a64;
   --accent: var(--text);
   --blue: #2563eb;
   --green: #16a34a;
@@ -19,7 +20,7 @@
   --syn-kw: var(--text);
   --syn-str: var(--dim);
   --syn-num: var(--dim);
-  --focus: #70707a;
+  --focus: #75756f;
   --ring: var(--border-strong);
   --overlay: rgb(0 0 0 / 0.28);
   --selection: rgb(0 0 0 / 0.12);
@@ -30,9 +31,9 @@
      prose reads as native UI rather than a bundled web font. */
   --font-chat: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", "JetBrains Mono", Menlo, monospace;
-  --shadow-sm: 0 1px 2px rgba(10, 10, 11, 0.05);
-  --shadow-md: 0 4px 16px rgba(10, 10, 11, 0.08), 0 1px 3px rgba(10, 10, 11, 0.05);
-  --shadow-lg: 0 16px 48px rgba(10, 10, 11, 0.12), 0 2px 8px rgba(10, 10, 11, 0.05);
+  --shadow-sm: 0 1px 2px rgba(31, 31, 26, 0.05);
+  --shadow-md: 0 4px 16px rgba(31, 31, 26, 0.07), 0 1px 3px rgba(31, 31, 26, 0.05);
+  --shadow-lg: 0 16px 48px rgba(31, 31, 26, 0.11), 0 2px 8px rgba(31, 31, 26, 0.05);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --duration-fast: 120ms;
   --duration: 180ms;
@@ -164,7 +165,7 @@ button { transition: color var(--duration-fast) var(--ease), background-color va
 
 /* Sessions rail */
 .rail {
-  --rail-bg: color-mix(in srgb, var(--bg) 76%, var(--surface));
+  --rail-bg: var(--sidebar);
   --rail-row: color-mix(in srgb, var(--surface2) 82%, transparent);
   position: relative; flex-shrink: 0;
   display: flex; flex-direction: column;
@@ -1101,7 +1102,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .btn:active:not(:disabled) { opacity: 0.8; }
 .btn:focus-visible { outline: 1px solid var(--focus); outline-offset: 2px; box-shadow: none; }
 .btn.allow, .btn.primary { background: var(--text); color: var(--surface); border-color: var(--text); }
-.btn.allow:hover, .btn.primary:hover { background: #2a2a2e; }
+.btn.allow:hover, .btn.primary:hover { background: #3a3a37; }
 .btn.deny:hover { border-color: var(--red); color: var(--red); background: rgba(220, 38, 38, 0.04); }
 
 /* ---------- done ---------- */
@@ -1665,7 +1666,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   position: absolute; inset: 41px 0 0; z-index: 30;
   display: flex; align-items: center; justify-content: center;
   padding: 32px 24px; overflow: hidden;
-  background: #fff; color: var(--text); text-shadow: none;
+  background: var(--bg); color: var(--text); text-shadow: none;
 }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 .ob-frame {
@@ -1767,32 +1768,31 @@ html[data-theme] .onboarding button:focus-visible, html[data-theme] .onboarding 
 
 /* ---------- dark theme ---------- */
 html[data-theme="dark"] {
-  --bg: #000000;
-  --surface: #101012;
-  --surface2: #1b1b1e;
-  --surface3: #28282d;
-  --border: #26262c;
-  --border-strong: #484850;
-  --text: #fafafa;
-  --dim: #adadb5;
-  --faint: #8b8b95;
+  --bg: #1e1e1e;
+  --surface: #262626;
+  --surface2: #2f2f2f;
+  --surface3: #3a3a3a;
+  --sidebar: #1a1a1a;
+  --border: #333333;
+  --border-strong: #4f4f4f;
+  --text: #f2f2f0;
+  --dim: #b3b3af;
+  --faint: #9a9a96;
   --blue: #60a5fa;
   --green: #4ade80;
   --amber: #fbbf24;
   --red: #f87171;
   --purple: #c084fc;
-  --focus: #b5b5bf;
-  --overlay: rgb(0 0 0 / 0.64);
+  --focus: #b3b3af;
+  --overlay: rgb(0 0 0 / 0.5);
   --selection: rgb(255 255 255 / 0.2);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
 }
-html[data-theme="dark"] .app:not(.has-art) .rail { --rail-bg: var(--bg); background: var(--rail-bg); }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
-html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #d5d5d9; }
-html[data-theme="dark"] .onboarding { background: #000; }
+html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #dadad6; }
 html[data-theme="dark"] .pulse { background: var(--text); }
 
 /* ---------- doc viewer ---------- */
@@ -1800,11 +1800,11 @@ html[data-theme="dark"] .pulse { background: var(--text); }
   position: absolute; inset: 41px 0 0 0; z-index: 25;
   display: flex; align-items: flex-start; justify-content: center;
   padding: 40px 24px;
-  background: rgba(247, 247, 248, 0.75);
+  background: rgb(249 249 247 / 0.75);
   backdrop-filter: blur(10px) saturate(1.15);
   animation: fadein 0.25s var(--ease);
 }
-html[data-theme="dark"] .docviewer { background: rgba(0, 0, 0, 0.7); }
+html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
 .doc-card {
   width: 560px; max-width: 100%; max-height: 100%;
   display: flex; flex-direction: column;
