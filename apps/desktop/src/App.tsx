@@ -2328,20 +2328,17 @@ export default function App() {
                   />
                   <span className="composer-divider" aria-hidden="true" />
                   <PermissionSelector
-                    mode={ready.mode} disabled={onboarding}
+                    mode={ready.mode} plan={planMode} disabled={onboarding} planLocked={running}
                     onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
+                    onPlanChange={setPlanMode}
                     onCommit={() => taRef.current?.focus()}
                   />
-                  <span className="composer-divider" aria-hidden="true" />
-                  {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
-                  <button
-                    type="button"
-                    className={`plan-toggle${planMode ? " on" : ""}`}
-                    title={planMode ? "Plan mode on (⇧Tab to cycle)" : "Plan mode (⇧Tab to cycle)"}
-                    aria-pressed={planMode}
-                    disabled={running || onboarding}
-                    onClick={() => setPlanMode((v) => !v)}
-                  ><ListChecks size={11} strokeWidth={2} />plan</button>
+                  {ready.variant && (
+                    <>
+                      <span className="composer-divider" aria-hidden="true" />
+                      <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>
+                    </>
+                  )}
                 </>
               )}
             </div>
