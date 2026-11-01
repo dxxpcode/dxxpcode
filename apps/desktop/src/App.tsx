@@ -2274,6 +2274,7 @@ export default function App() {
               ))}
           </div>
         )}
+        <div className="composer-stack">
         <div className="inputbox">
           <textarea
             ref={taRef}
@@ -2315,14 +2316,6 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
-                  <button className="inctx" aria-label={`Change project: ${ready.project.name}`} title={`Change project: ${ready.project.name}`} onClick={openProject}>
-                    <Folder size={12} />
-                    <span className="inctx-name">{ready.project.name}</span>
-                    {ready.project.git && (
-                      <span className="branch mono" title={ready.project.git.branch}>{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-                    )}
-                    <ChevronDown size={11} />
-                  </button>
                   <ComposerSelector
                     model={ready.model} models={modelOpts} provider={ready.provider}
                     effort={ready.effort ?? "default"} disabled={running || onboarding}
@@ -2333,11 +2326,13 @@ export default function App() {
                     onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
                     onCommit={() => taRef.current?.focus()}
                   />
+                  <span className="composer-divider" aria-hidden="true" />
                   <PermissionSelector
                     mode={ready.mode} disabled={onboarding}
                     onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
                     onCommit={() => taRef.current?.focus()}
                   />
+                  <span className="composer-divider" aria-hidden="true" />
                   {ready.variant && <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>}
                   <button
                     type="button"
@@ -2357,6 +2352,22 @@ export default function App() {
               </Button>
             </div>
           </div>
+        </div>
+        {ready && (
+          <div className="composer-tray">
+            <button type="button" className="tray-item" aria-label={`Change project: ${ready.project.name}`} title="Change project" onClick={openProject}>
+              <Folder size={12} />
+              <span className="tray-label">{ready.project.name}</span>
+              <ChevronDown size={11} className="tray-chevron" />
+            </button>
+            {ready.project.git && (
+              <span className="tray-item static" title={ready.project.git.dirty ? `On ${ready.project.git.branch} · uncommitted changes` : `On ${ready.project.git.branch}`}>
+                <GitBranch size={12} />
+                <span className="tray-label mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+              </span>
+            )}
+          </div>
+        )}
         </div>
       </div>
       </div>
