@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f9f9f7;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface2: #efefeb;
-  --surface3: #e5e5e0;
-  --sidebar: #f3f3f0;
-  --border: #e4e4df;
-  --border-strong: #c6c6bf;
+  --surface2: #f5f5f3;
+  --surface3: #ecece8;
+  --sidebar: #fafaf8;
+  --border: #e7e7e2;
+  --border-strong: #c8c8c1;
   --text: #1f1f1d;
   --dim: #5a5a55;
   --faint: #6a6a64;
@@ -32,8 +32,8 @@
   --font-chat: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", "JetBrains Mono", Menlo, monospace;
   --shadow-sm: 0 1px 2px rgba(31, 31, 26, 0.05);
-  --shadow-md: 0 4px 16px rgba(31, 31, 26, 0.07), 0 1px 3px rgba(31, 31, 26, 0.05);
-  --shadow-lg: 0 16px 48px rgba(31, 31, 26, 0.11), 0 2px 8px rgba(31, 31, 26, 0.05);
+  --shadow-md: 0 8px 24px rgba(31, 31, 26, 0.06), 0 1px 3px rgba(31, 31, 26, 0.05);
+  --shadow-lg: 0 20px 56px rgba(31, 31, 26, 0.09), 0 3px 10px rgba(31, 31, 26, 0.05);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --duration-fast: 120ms;
   --duration: 180ms;
@@ -1182,7 +1182,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
   display: flex; flex-direction: column; gap: 12px;
   width: 100%; max-width: 640px; margin-inline: auto;
   background: var(--surface);
-  border: 1px solid var(--border); border-radius: 16px;
+  border: 1px solid var(--border); border-radius: 14px;
   padding: 16px 16px 10px; box-shadow: var(--shadow-md);
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
@@ -1334,9 +1334,9 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .composer-tray {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: -14px 12px 0; padding: 18px 8px 4px;
-  background: color-mix(in srgb, var(--surface) 50%, var(--bg));
+  background: color-mix(in srgb, var(--surface2) 62%, var(--bg));
   border: 1px solid var(--border); border-top: none;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 13px 13px;
 }
 .tray-item {
   display: inline-flex; align-items: center; gap: 5px; min-width: 0;
@@ -1600,8 +1600,8 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px; min-height: 0;
-  padding: 32px 24px;
+  gap: 18px; min-height: 0;
+  padding: 40px 24px 48px;
   animation: fadein 0.3s var(--ease);
 }
 /* user-supplied character art — full-window backdrop */
@@ -1655,7 +1655,7 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
 .hero-mark { width: 40px; height: auto; color: var(--faint); animation: heromark 0.24s var(--ease) backwards; }
 @keyframes heromark { from { opacity: 0; } to { opacity: 1; } }
 .hero-title {
-  font-size: 22px; line-height: 1.4; font-weight: 500; letter-spacing: -0.025em;
+  font-size: 22px; line-height: 1.4; font-weight: 500; letter-spacing: -0.03em;
   color: var(--text); text-align: center; text-wrap: balance;
 }
 .hero-proj {
@@ -1794,6 +1794,19 @@ html[data-theme="dark"] {
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.25);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+html[data-theme="dark"] .inputbox {
+  background: #242424;
+  border-color: #363636;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34), 0 3px 10px rgba(0, 0, 0, 0.24);
+}
+html[data-theme="dark"] .composer-tray {
+  background: #202020;
+  border-color: #303030;
+}
+html[data-theme="dark"] .inputbox:focus-within {
+  border-color: #4a4a4a;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.28);
 }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
