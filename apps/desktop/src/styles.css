@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f9f9f7;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface2: #efefeb;
-  --surface3: #e5e5e0;
-  --sidebar: #f3f3f0;
-  --border: #e4e4df;
-  --border-strong: #c6c6bf;
-  --text: #1f1f1d;
-  --dim: #5a5a55;
-  --faint: #6a6a64;
+  --surface2: #f5f5f7;
+  --surface3: #ebebed;
+  --sidebar: #f7f7f9;
+  --border: #e5e5e7;
+  --border-strong: #c7c7cc;
+  --text: #1d1d1f;
+  --dim: #636366;
+  --faint: #6e6e73;
   --accent: var(--text);
   --blue: #2563eb;
   --green: #16a34a;
@@ -20,7 +20,7 @@
   --syn-kw: var(--text);
   --syn-str: var(--dim);
   --syn-num: var(--dim);
-  --focus: #75756f;
+  --focus: #6e6e73;
   --ring: var(--border-strong);
   --overlay: rgb(0 0 0 / 0.28);
   --selection: rgb(0 0 0 / 0.12);
@@ -31,9 +31,9 @@
      prose reads as native UI rather than a bundled web font. */
   --font-chat: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", "JetBrains Mono", Menlo, monospace;
-  --shadow-sm: 0 1px 2px rgba(31, 31, 26, 0.05);
-  --shadow-md: 0 4px 16px rgba(31, 31, 26, 0.07), 0 1px 3px rgba(31, 31, 26, 0.05);
-  --shadow-lg: 0 16px 48px rgba(31, 31, 26, 0.11), 0 2px 8px rgba(31, 31, 26, 0.05);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 20px 56px rgb(0 0 0 / 0.12), 0 3px 10px rgb(0 0 0 / 0.05);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --duration-fast: 120ms;
   --duration: 180ms;
@@ -1773,27 +1773,27 @@ html[data-theme] .onboarding button:focus-visible, html[data-theme] .onboarding 
 
 /* ---------- dark theme ---------- */
 html[data-theme="dark"] {
-  --bg: #1e1e1e;
-  --surface: #262626;
-  --surface2: #2f2f2f;
-  --surface3: #3a3a3a;
-  --sidebar: #1a1a1a;
-  --border: #333333;
-  --border-strong: #4f4f4f;
-  --text: #f2f2f0;
-  --dim: #b3b3af;
-  --faint: #9a9a96;
+  --bg: #000000;
+  --surface: #0b0b0b;
+  --surface2: #151515;
+  --surface3: #202020;
+  --sidebar: #050505;
+  --border: #1c1c1e;
+  --border-strong: #2c2c2e;
+  --text: #f5f5f7;
+  --dim: #aeaeb2;
+  --faint: #8e8e93;
   --blue: #60a5fa;
   --green: #4ade80;
   --amber: #fbbf24;
   --red: #f87171;
   --purple: #c084fc;
-  --focus: #b3b3af;
+  --focus: #8e8e93;
   --overlay: rgb(0 0 0 / 0.5);
   --selection: rgb(255 255 255 / 0.2);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.32);
+  --shadow-lg: 0 24px 64px rgb(0 0 0 / 0.68), 0 4px 12px rgb(0 0 0 / 0.42);
 }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
@@ -1805,11 +1805,145 @@ html[data-theme="dark"] .pulse { background: var(--text); }
   position: absolute; inset: 41px 0 0 0; z-index: 25;
   display: flex; align-items: flex-start; justify-content: center;
   padding: 40px 24px;
-  background: rgb(249 249 247 / 0.75);
+  background: rgb(255 255 255 / 0.78);
   backdrop-filter: blur(10px) saturate(1.15);
   animation: fadein 0.25s var(--ease);
 }
-html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
+html[data-theme="dark"] .docviewer { background: rgb(0 0 0 / 0.76); }
+
+/* ---------- Apple desktop system ----------
+   Keep the canvas absolute and let hierarchy come from spacing, type and
+   barely-lifted surfaces instead of decorative chrome. */
+.rail {
+  background: var(--sidebar);
+  border-right-color: var(--border);
+}
+
+.rail-new,
+.rail-search,
+.rail-workspace,
+.rail-sessrow,
+.rail-inbox-item,
+.rail-act,
+.rail-menu-btn,
+.setdd-item,
+.selector-option,
+.palette-row,
+.menu-opt,
+.pal-row {
+  border-radius: var(--radius-sm);
+}
+
+.rail-new,
+.rail-search {
+  min-height: 40px;
+}
+
+.rail-new {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.rail-search {
+  background: transparent;
+  border-color: var(--border);
+}
+
+.rail-workspace {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.rail-sessrow {
+  min-height: 42px;
+}
+
+.rail-sessrow[data-active] {
+  background: var(--surface2);
+  box-shadow: inset 2px 0 0 var(--text);
+}
+
+.rail-menu,
+.sesspal-dialog,
+.selector-popover,
+.palette,
+.menu-card,
+.setdd-menu,
+.settings-dialog,
+.doc-card {
+  border-radius: 14px;
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-lg);
+}
+
+.inputbox {
+  border-radius: 14px;
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.inputbox:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+.composer-tray {
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+  border-color: var(--border);
+}
+
+.composer-submit,
+.composer-stop {
+  border-radius: 10px;
+}
+
+.selector-unified,
+.permission-trigger,
+.selector-custom,
+.tray-item {
+  border-radius: 8px;
+}
+
+.hero {
+  gap: 18px;
+}
+
+.hero-title {
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.hero-mark {
+  width: 36px;
+}
+
+html[data-theme="dark"] .rail,
+html[data-theme="dark"] .main,
+html[data-theme="dark"] .onboarding {
+  background: #000;
+}
+
+html[data-theme="dark"] .rail-new,
+html[data-theme="dark"] .rail-workspace,
+html[data-theme="dark"] .inputbox,
+html[data-theme="dark"] .composer-tray,
+html[data-theme="dark"] .rail-menu,
+html[data-theme="dark"] .sesspal-dialog,
+html[data-theme="dark"] .selector-popover,
+html[data-theme="dark"] .palette,
+html[data-theme="dark"] .menu-card,
+html[data-theme="dark"] .setdd-menu,
+html[data-theme="dark"] .settings-dialog,
+html[data-theme="dark"] .doc-card {
+  background: #000;
+  border-color: #1c1c1e;
+}
 .doc-card {
   width: 560px; max-width: 100%; max-height: 100%;
   display: flex; flex-direction: column;
