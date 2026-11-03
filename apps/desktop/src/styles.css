@@ -1808,6 +1808,36 @@ html[data-theme="dark"] .inputbox:focus-within {
   border-color: transparent;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.28);
 }
+html[data-theme="dark"] .rail {
+  border-right-color: transparent;
+}
+html[data-theme="dark"] .rail-new,
+html[data-theme="dark"] .rail-search {
+  background: #0b0b0b;
+  border-color: transparent;
+  box-shadow: none;
+}
+html[data-theme="dark"] .rail-workspace {
+  margin: 2px 0 10px;
+  padding: 7px;
+  background: #0b0b0b;
+  border-color: transparent;
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+html[data-theme="dark"] .rail-workspace-icon {
+  background: transparent;
+}
+html[data-theme="dark"] .rail-workspace-open:hover {
+  background: #151515;
+}
+html[data-theme="dark"] .rail-sessrow[data-active] {
+  background: #111111;
+}
+html[data-theme="dark"] .rail-footer,
+html[data-theme="dark"] .rail-strip-footer {
+  border-top-color: transparent;
+}
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
 html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #dadad6; }
