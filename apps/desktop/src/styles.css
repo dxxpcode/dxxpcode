@@ -1800,6 +1800,111 @@ html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08);
 html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: #dadad6; }
 html[data-theme="dark"] .pulse { background: var(--text); }
 
+/* ---------- premium rail ---------- */
+html:not([data-theme="dark"]) .rail {
+  --rail-bg: #f5f5f3;
+  --rail-row: #ededeb;
+  border-right-color: transparent;
+}
+html:not([data-theme="dark"]) .rail-brand {
+  height: 52px;
+  padding-inline: 18px;
+}
+html:not([data-theme="dark"]) .rail-head {
+  padding: 10px 14px 18px;
+  gap: 9px;
+}
+html:not([data-theme="dark"]) .rail-new {
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgb(31 31 26 / 0.06);
+}
+html:not([data-theme="dark"]) .rail-search {
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+}
+html:not([data-theme="dark"]) .rail-search:hover {
+  background: #ececea;
+}
+html:not([data-theme="dark"]) .rail-list {
+  padding: 0 14px 12px;
+}
+html:not([data-theme="dark"]) .rail-workspace {
+  margin: 4px 0 14px;
+  padding: 9px;
+  border: none;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgb(31 31 26 / 0.07);
+}
+html:not([data-theme="dark"]) .rail-workspace-icon {
+  background: #f0f0ed;
+  border-radius: 9px;
+}
+html:not([data-theme="dark"]) .rail-sessrow[data-active] {
+  background: #ececea;
+  box-shadow: none;
+}
+html:not([data-theme="dark"]) .rail-footer {
+  border-top-color: transparent;
+}
+
+html[data-theme="dark"] .rail {
+  --rail-bg: #151515;
+  --rail-row: #202020;
+  border-right-color: transparent;
+}
+html[data-theme="dark"] .rail-brand {
+  height: 52px;
+  padding-inline: 18px;
+}
+html[data-theme="dark"] .rail-head {
+  padding: 10px 14px 18px;
+  gap: 9px;
+}
+html[data-theme="dark"] .rail-new {
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: #202020;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.22);
+}
+html[data-theme="dark"] .rail-search {
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+}
+html[data-theme="dark"] .rail-search:hover {
+  background: #202020;
+}
+html[data-theme="dark"] .rail-list {
+  padding: 0 14px 12px;
+}
+html[data-theme="dark"] .rail-workspace {
+  margin: 4px 0 14px;
+  padding: 9px;
+  border: none;
+  border-radius: 16px;
+  background: #202020;
+  box-shadow: 0 14px 30px rgb(0 0 0 / 0.25);
+}
+html[data-theme="dark"] .rail-workspace-icon {
+  background: transparent;
+}
+html[data-theme="dark"] .rail-sessrow[data-active] {
+  background: #202020;
+  box-shadow: none;
+}
+html[data-theme="dark"] .rail-footer,
+html[data-theme="dark"] .rail-strip-footer {
+  border-top-color: transparent;
+}
+
 /* ---------- doc viewer ---------- */
 .docviewer {
   position: absolute; inset: 41px 0 0 0; z-index: 25;
