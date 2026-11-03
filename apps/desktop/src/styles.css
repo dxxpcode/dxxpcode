@@ -2009,3 +2009,100 @@ html[data-theme="dark"] .doc-card {
     background: none; color: var(--dim); -webkit-text-fill-color: currentColor;
   }
 }
+
+/* ---------- premium floating sidebar ----------
+   The sidebar is one composed navigation pane, inset from the canvas. */
+.rail {
+  width: 292px;
+  min-width: 244px;
+  height: calc(100% - 24px);
+  margin: 12px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-md);
+}
+
+.rail-brand {
+  height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rail-head {
+  gap: 8px;
+  padding: 14px 14px 12px;
+}
+
+.rail-new,
+.rail-search {
+  height: 38px;
+  min-height: 38px;
+  background: var(--surface2);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.rail-new:hover,
+.rail-search:hover {
+  background: var(--surface3);
+}
+
+.rail-list {
+  padding: 0 10px 10px;
+}
+
+.rail-workspace {
+  margin: 0 0 8px;
+  padding: 8px;
+  background: var(--surface2);
+  border: 0;
+  border-radius: 12px;
+}
+
+.rail-workspace:hover {
+  background: var(--surface3);
+}
+
+.rail .pal-group-label,
+.rail-section-head {
+  padding-inline: 8px;
+}
+
+.rail-sessrow {
+  min-height: 44px;
+  padding-inline: 4px;
+}
+
+.rail-sessrow[data-active] {
+  background: var(--surface3);
+  box-shadow: none;
+}
+
+.rail-footer {
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--border);
+}
+
+html[data-theme="dark"] .rail {
+  background: #0a0a0a;
+  border-color: #1c1c1e;
+}
+
+html[data-theme="dark"] .rail-new,
+html[data-theme="dark"] .rail-search,
+html[data-theme="dark"] .rail-workspace {
+  background: #141414;
+}
+
+html[data-theme="dark"] .rail-new:hover,
+html[data-theme="dark"] .rail-search:hover,
+html[data-theme="dark"] .rail-workspace:hover,
+html[data-theme="dark"] .rail-sessrow[data-active],
+html[data-theme="dark"] .rail-sessrow:hover,
+html[data-theme="dark"] .rail-footer .rail-navrow:hover {
+  background: #1b1b1b;
+}
