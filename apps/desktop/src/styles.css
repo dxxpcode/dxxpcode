@@ -1797,15 +1797,15 @@ html[data-theme="dark"] {
 }
 html[data-theme="dark"] .inputbox {
   background: #0b0b0b;
-  border-color: #292929;
+  border-color: transparent;
   box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34), 0 3px 10px rgba(0, 0, 0, 0.24);
 }
 html[data-theme="dark"] .composer-tray {
   background: #050505;
-  border-color: #242424;
+  border-color: transparent;
 }
 html[data-theme="dark"] .inputbox:focus-within {
-  border-color: #454545;
+  border-color: transparent;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.28);
 }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
