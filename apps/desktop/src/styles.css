@@ -1778,8 +1778,8 @@ html[data-theme="dark"] {
   --surface2: #151515;
   --surface3: #202020;
   --sidebar: #000000;
-  --border: #292929;
-  --border-strong: #454545;
+  --border: #141414;
+  --border-strong: #222222;
   --text: #f5f5f5;
   --dim: #b5b5b5;
   --faint: #9f9f9f;
@@ -1788,7 +1788,7 @@ html[data-theme="dark"] {
   --amber: #fbbf24;
   --red: #f87171;
   --purple: #c084fc;
-  --focus: #b3b3af;
+  --focus: #666666;
   --overlay: rgb(0 0 0 / 0.5);
   --selection: rgb(255 255 255 / 0.2);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
