@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f9f9f7;
-  --surface: #ffffff;
-  --surface2: #efefeb;
-  --surface3: #e5e5e0;
-  --sidebar: #f3f3f0;
-  --border: #e4e4df;
-  --border-strong: #c6c6bf;
-  --text: #1f1f1d;
-  --dim: #5a5a55;
-  --faint: #6a6a64;
+  --bg: #edf4fc;
+  --surface: #f8fbff;
+  --surface2: #e3eef9;
+  --surface3: #d5e3f2;
+  --sidebar: #e9f1f9;
+  --border: #d6e2ee;
+  --border-strong: #afc4da;
+  --text: #152033;
+  --dim: #526277;
+  --faint: #596a7e;
   --accent: var(--text);
   --blue: #2563eb;
   --green: #16a34a;
@@ -20,10 +20,10 @@
   --syn-kw: var(--text);
   --syn-str: var(--dim);
   --syn-num: var(--dim);
-  --focus: #75756f;
+  --focus: #64748f;
   --ring: var(--border-strong);
-  --overlay: rgb(0 0 0 / 0.28);
-  --selection: rgb(0 0 0 / 0.12);
+  --overlay: rgb(30 58 96 / 0.3);
+  --selection: rgb(37 99 235 / 0.14);
   --radius: 14px;
   --radius-sm: 9px;
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -31,19 +31,25 @@
      prose reads as native UI rather than a bundled web font. */
   --font-chat: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", "JetBrains Mono", Menlo, monospace;
-  --shadow-sm: 0 1px 2px rgba(31, 31, 26, 0.05);
-  --shadow-md: 0 4px 16px rgba(31, 31, 26, 0.07), 0 1px 3px rgba(31, 31, 26, 0.05);
-  --shadow-lg: 0 16px 48px rgba(31, 31, 26, 0.11), 0 2px 8px rgba(31, 31, 26, 0.05);
+  --shadow-sm: 0 1px 2px rgba(21, 32, 51, 0.05);
+  --shadow-md: 0 4px 16px rgba(21, 32, 51, 0.07), 0 1px 3px rgba(21, 32, 51, 0.05);
+  --shadow-lg: 0 16px 48px rgba(21, 32, 51, 0.12), 0 2px 8px rgba(21, 32, 51, 0.05);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --duration-fast: 120ms;
   --duration: 180ms;
+  --glass-bg: rgb(188 216 245 / 0.34);
+  --glass-surface: rgb(247 251 255 / 0.62);
+  --glass-surface2: rgb(221 236 249 / 0.64);
+  --glass-border: rgb(132 165 205 / 0.38);
+  --glass-highlight: rgb(255 255 255 / 0.72);
+  --glass-blur: 26px;
+  --glass-saturate: 165%;
   font-size: 14px;
 }
 
 * { box-sizing: border-box; }
-html, body, #root { margin: 0; height: 100%; }
+html, body, #root { margin: 0; height: 100%; background: transparent; }
 body {
-  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
@@ -60,7 +66,7 @@ button:disabled { cursor: default; }
 }
 button { transition: color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease); }
 
-.app { display: flex; flex-direction: row; height: 100%; position: relative; }
+.app { display: flex; flex-direction: row; height: 100%; position: relative; background: transparent; }
 .main { --conversation-width: 760px; --conversation-gutter: 24px; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; z-index: 1; container-type: inline-size; container-name: workspace; }
 
 /* Session palette — ⌘K command-style session switcher */
@@ -1773,27 +1779,34 @@ html[data-theme] .onboarding button:focus-visible, html[data-theme] .onboarding 
 
 /* ---------- dark theme ---------- */
 html[data-theme="dark"] {
-  --bg: #1e1e1e;
-  --surface: #262626;
-  --surface2: #2f2f2f;
-  --surface3: #3a3a3a;
-  --sidebar: #1a1a1a;
-  --border: #333333;
-  --border-strong: #4f4f4f;
-  --text: #f2f2f0;
-  --dim: #b3b3af;
-  --faint: #9a9a96;
+  --bg: #0a1428;
+  --surface: #111f3a;
+  --surface2: #172a4d;
+  --surface3: #223a63;
+  --sidebar: #0d192e;
+  --border: #243653;
+  --border-strong: #3d5680;
+  --text: #eef4ff;
+  --dim: #b7c7e2;
+  --faint: #93a7c9;
   --blue: #60a5fa;
   --green: #4ade80;
   --amber: #fbbf24;
   --red: #f87171;
   --purple: #c084fc;
-  --focus: #b3b3af;
-  --overlay: rgb(0 0 0 / 0.5);
-  --selection: rgb(255 255 255 / 0.2);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --focus: #aebdd8;
+  --overlay: rgb(2 8 20 / 0.52);
+  --selection: rgb(96 165 250 / 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.34);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.38), 0 1px 3px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.48), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --glass-bg: rgb(5 15 34 / 0.46);
+  --glass-surface: rgb(13 27 52 / 0.64);
+  --glass-surface2: rgb(24 45 79 / 0.58);
+  --glass-border: rgb(88 126 177 / 0.34);
+  --glass-highlight: rgb(144 188 255 / 0.12);
+  --glass-blur: 28px;
+  --glass-saturate: 150%;
 }
 html[data-theme="dark"] .diff .add mark.chg, html[data-theme="dark"] .diff .del mark.chg { background: var(--surface2); }
 html[data-theme="dark"] .btn.deny:hover { background: rgba(248, 113, 113, 0.08); }
@@ -1855,6 +1868,106 @@ html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
   .hero-title { font-size: 20px; }
   .statusline { flex-wrap: wrap; gap: 4px 12px; }
   .statusline-act { max-width: 100%; }
+}
+
+/* Liquid Glass surfaces */
+.app { background: var(--glass-bg); }
+.rail {
+  --rail-bg: var(--glass-bg);
+  border-right-color: var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+.header {
+  background: color-mix(in srgb, var(--glass-bg) 78%, transparent);
+  border-bottom-color: var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+.pal-search { background: color-mix(in srgb, var(--surface2) 78%, transparent); border-color: var(--glass-border); }
+.inputbox {
+  background: var(--glass-surface);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight);
+}
+.inputbox:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+}
+.composer-tray {
+  background: color-mix(in srgb, var(--glass-surface) 72%, transparent);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(18px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate));
+}
+.queuerow { background: color-mix(in srgb, var(--surface2) 68%, transparent); }
+.fchip { background: color-mix(in srgb, var(--surface2) 72%, transparent); border-color: var(--glass-border); }
+.usermsg { background: color-mix(in srgb, var(--surface2) 72%, transparent); }
+.text pre, .reply .text pre { background: color-mix(in srgb, var(--surface2) 82%, transparent); }
+.card, .decision-card {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight);
+}
+.tool .out { background: color-mix(in srgb, var(--surface2) 78%, transparent); }
+.pill, .btn {
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  border-color: var(--glass-border);
+}
+.btn:hover { background: color-mix(in srgb, var(--surface2) 78%, transparent); }
+.chip { background: color-mix(in srgb, var(--surface2) 72%, transparent); border-color: var(--glass-border); }
+.palette, .menu-card {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+}
+.rail-menu, .selector-popover, .setdd-menu {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+}
+.sesspal {
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.sesspal-dialog, .settings-dialog, .doc-card, .pair-dialog {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(26px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(26px) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+}
+.settings {
+  background: color-mix(in srgb, var(--bg) 38%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+.onboarding {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+.ob-prov, .ob-project {
+  background: color-mix(in srgb, var(--glass-surface) 88%, transparent);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(18px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate));
+}
+.ob-input {
+  background: color-mix(in srgb, var(--glass-surface) 90%, transparent);
+  border-color: var(--glass-border);
+}
+.settings-nav {
+  background: color-mix(in srgb, var(--glass-surface) 82%, transparent);
+  border-right-color: var(--glass-border);
 }
 
 @media (max-height: 620px) {
