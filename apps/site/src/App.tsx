@@ -37,25 +37,29 @@ const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
 // Each row links where a visitor can get the project: downloads go to their
 // download page and the web app to its site.
-const PROJECTS: { name: string; description: string; url: string }[] = [
+const PROJECTS: { name: string; description: string; kind: string; url: string }[] = [
   {
     name: "DxxpCode",
-    description: "The AI coding agent on your desktop.",
+    description: "An AI coding agent for the desktop.",
+    kind: "desktop app",
     url: "/download",
   },
   {
     name: "NextDeveloper",
-    description: "A career-path learning platform — lessons, projects, certificates.",
+    description: "A learning platform for developers.",
+    kind: "web app",
     url: "https://nextdeveloper.software",
   },
   {
     name: "openmxc",
-    description: "A native macOS browser.",
+    description: "A native browser for macOS.",
+    kind: "macOS app",
     url: "https://openmxc-landing.vercel.app/",
   },
   {
     name: "ix1",
-    description: "A desktop operating system that maintains itself.",
+    description: "An operating system for the desktop.",
+    kind: "OS",
     url: "https://dxxpcode.github.io/ix1/",
   },
 ];
@@ -317,7 +321,7 @@ function StudioHome() {
             <span className="text-[13px] text-muted-foreground">{p.description}</span>
             <span className="flex items-baseline gap-3 self-center">
               <span className="hidden font-mono text-[11px] text-muted-foreground/70 md:inline">
-                {p.url.replace("https://", "")}
+                {p.kind}
               </span>
               <ArrowUpRight
                 strokeWidth={1.5}
