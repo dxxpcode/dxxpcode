@@ -93,7 +93,7 @@ export default function Pricing() {
             All {state.tiers.reduce((n, t) => n + t.total, 0)} licenses claimed
           </h1>
           <p className="mt-3 text-[13px] text-muted-foreground">
-            DxxpCode remains free during early access — <a className="text-foreground underline-offset-4 hover:underline" href="/">download</a>.
+            DxxpCode remains free during early access — <a className="text-foreground underline-offset-4 hover:underline" href="/download">download</a>.
           </p>
           <p className="mt-8 font-mono text-[11px] text-muted-foreground/60">
             lost your key?{" "}
