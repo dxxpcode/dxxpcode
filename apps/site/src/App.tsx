@@ -295,6 +295,23 @@ function DownloadPage() {
   );
 }
 
+const MARK_FILES: Record<string, string> = {
+  NextDeveloper: "nextdeveloper",
+  openmxc: "openmxc",
+  ix1: "ix1",
+};
+
+function ProjectMark({ name }: { name: string }) {
+  if (name === "DxxpCode") return <Logo className="h-5 w-auto" />;
+  const base = MARK_FILES[name];
+  return (
+    <>
+      <img src={`/marks/${base}-light.png`} alt={name} className="h-6 w-auto dark:hidden" />
+      <img src={`/marks/${base}-dark.png`} alt="" aria-hidden="true" className="hidden h-6 w-auto dark:block" />
+    </>
+  );
+}
+
 function StudioHome() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16">
@@ -313,7 +330,9 @@ function StudioHome() {
             {...(p.url.startsWith("/") ? {} : { target: "_blank", rel: "noreferrer" })}
             className="group grid grid-cols-[8rem_1fr_auto] items-baseline gap-x-6 border-t border-border py-5 transition-colors last:border-b hover:bg-muted/40"
           >
-            <span className="px-1 text-[15px] font-medium tracking-tight">{p.name}</span>
+            <span className="flex items-center px-1">
+              <ProjectMark name={p.name} />
+            </span>
             <span className="text-[13px] text-muted-foreground">{p.description}</span>
             <span className="flex h-7 w-7 items-center justify-center self-center rounded-full border border-border text-muted-foreground transition-colors group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
               <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5" />
