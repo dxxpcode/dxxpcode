@@ -1,3 +1,9 @@
 {
+  "redirects": [
+    { "source": "/dxxpcode", "destination": "/download" },
+    { "source": "/nextdeveloper", "destination": "https://nextdeveloper.software" },
+    { "source": "/openmxc", "destination": "https://openmxc-landing.vercel.app/" },
+    { "source": "/ix1", "destination": "https://dxxpcode.github.io/ix1/" }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

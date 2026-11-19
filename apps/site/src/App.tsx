@@ -35,28 +35,34 @@ function detect(): Platform | null {
 
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
-// Each row links where a visitor can get the project: downloads go to their
-// download page and the web app to its site.
+// Each row links to the project's clean dxxp.codes path, which hands off to
+// where a visitor can get it (mirrored server-side in vercel.json).
+const PROJECT_REDIRECTS: Record<string, string> = {
+  "/dxxpcode": "/download",
+  "/nextdeveloper": "https://nextdeveloper.software",
+  "/openmxc": "https://openmxc-landing.vercel.app/",
+  "/ix1": "https://dxxpcode.github.io/ix1/",
+};
 const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "DxxpCode",
     description: "An AI coding agent for the desktop.",
-    url: "/download",
+    url: "/dxxpcode",
   },
   {
     name: "NextDeveloper",
     description: "A learning platform for developers.",
-    url: "https://nextdeveloper.software",
+    url: "/nextdeveloper",
   },
   {
     name: "openmxc",
     description: "A native browser for macOS.",
-    url: "https://openmxc-landing.vercel.app/",
+    url: "/openmxc",
   },
   {
     name: "ix1",
     description: "An operating system for the desktop.",
-    url: "https://dxxpcode.github.io/ix1/",
+    url: "/ix1",
   },
 ];
 
@@ -395,6 +401,11 @@ export default function App() {
   // host forwards there with the prefix stripped.
   if (path.startsWith("/devs")) {
     window.location.replace(`https://developers.dxxp.codes${path.replace(/^\/devs/, "") || "/"}`);
+    return null;
+  }
+  const projectRedirect = PROJECT_REDIRECTS[path.length > 1 ? path.replace(/\/+$/, "") : path];
+  if (projectRedirect) {
+    window.location.replace(projectRedirect);
     return null;
   }
   if (devHost && (path === "/notes" || path.startsWith("/notes/"))) return <Notes />;
