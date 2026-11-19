@@ -3,14 +3,22 @@ import { Logo } from "./Logo";
 
 export const GITHUB_URL = "https://github.com/dxxpcode";
 
-// Projects and Download live on the main site: developers.dxxp.codes serves
-// its own Devs page for those paths, so these links must leave the dev host.
 const LINKS = [
-  ["https://dxxp.codes/", "Projects"],
-  ["https://dxxp.codes/download", "Download"],
+  ["/", "Projects"],
+  ["/download", "Download"],
   ["/docs", "Docs"],
   ["/changelog", "Changelog"],
 ] as const;
+
+// Projects and Download live on the main site: developers.dxxp.codes serves
+// its own Devs page for those paths, so on the dev host these links must
+// leave for dxxp.codes. Everywhere else they stay relative so previews and
+// local dev keep their own pages.
+const MAIN_SITE_ONLY = new Set(["/", "/download"]);
+const toMainSite = (href: string) =>
+  window.location.hostname === "developers.dxxp.codes" && MAIN_SITE_ONLY.has(href)
+    ? `https://dxxp.codes${href}`
+    : href;
 
 export function Nav({
   dark,
@@ -28,19 +36,23 @@ export function Nav({
           <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">DxxpCode</span>
         </a>
         <div className="flex items-center gap-5 sm:gap-6">
-          {LINKS.map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              className={
-                (href.startsWith("/") && path.startsWith(href))
-                  ? "text-sm text-foreground"
-                  : "text-sm text-muted-foreground transition-colors hover:text-foreground"
-              }
-            >
-              {label}
-            </a>
-          ))}
+          {LINKS.map(([href, label]) => {
+            const url = toMainSite(href);
+            const active = url === "/" ? path === "/" : url.startsWith("/") && path.startsWith(url);
+            return (
+              <a
+                key={href}
+                href={url}
+                className={
+                  active
+                    ? "text-sm text-foreground"
+                    : "text-sm text-muted-foreground transition-colors hover:text-foreground"
+                }
+              >
+                {label}
+              </a>
+            );
+          })}
           <a
             href={GITHUB_URL}
             target="_blank"
