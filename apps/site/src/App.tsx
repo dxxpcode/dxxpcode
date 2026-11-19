@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUpRight, Moon, Sun } from "lucide-react";
+import { ArrowDown, Moon, Sun } from "lucide-react";
 import { DownloadCount } from "./components/DownloadCount";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
@@ -323,10 +323,9 @@ function StudioHome() {
               <span className="hidden font-mono text-[11px] text-muted-foreground/70 md:inline">
                 {p.kind}
               </span>
-              <ArrowUpRight
-                strokeWidth={1.5}
-                className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
-              />
+              <span className="text-[13px] text-muted-foreground/50 transition-all group-hover:-translate-y-px group-hover:translate-x-px group-hover:text-foreground">
+                Open →
+              </span>
             </span>
           </a>
         ))}
