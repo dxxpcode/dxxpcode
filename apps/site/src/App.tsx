@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDown, Moon, Sun } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Moon, Sun } from "lucide-react";
 import { DownloadCount } from "./components/DownloadCount";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
@@ -34,6 +34,29 @@ function detect(): Platform | null {
 }
 
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
+
+const PROJECTS: { name: string; description: string; url: string }[] = [
+  {
+    name: "DxxpCode",
+    description: "The AI coding agent on your desktop.",
+    url: "https://github.com/dxxpcode/dxxpcode",
+  },
+  {
+    name: "NextDeveloper",
+    description: "A career-path learning platform — lessons, projects, certificates.",
+    url: "https://github.com/dxxpcode/nextdeveloper",
+  },
+  {
+    name: "openmxc",
+    description: "A native macOS browser.",
+    url: "https://github.com/dxxpcode/openmxc",
+  },
+  {
+    name: "ix1",
+    description: "A desktop operating system that maintains itself.",
+    url: "https://github.com/dxxpcode/ix1",
+  },
+];
 
 // Downloads are free by default. Set VITE_LICENSING_ENABLED=1 to restore the
 // paid lifetime-license flow without deleting any of it.
@@ -247,6 +270,69 @@ function FreeDownload() {
   );
 }
 
+function DownloadPage() {
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
+      <h1 className="text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
+        The AI coding agent{" "}
+        <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          on your desktop
+        </span>
+      </h1>
+
+      <div className="mt-7">
+        {LICENSING_ENABLED ? (
+          <LicenseGate>
+            <DownloadButtons />
+          </LicenseGate>
+        ) : (
+          <DownloadButtons />
+        )}
+      </div>
+    </main>
+  );
+}
+
+function StudioHome() {
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16">
+      <h1 className="text-balance text-center text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
+        Independent software,{" "}
+        <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          designed end to end
+        </span>
+      </h1>
+
+      <div className="mt-12 w-full max-w-2xl">
+        {PROJECTS.map((p) => (
+          <a
+            key={p.name}
+            href={p.url}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex items-baseline justify-between gap-6 border-t border-border py-5 transition-colors last:border-b hover:bg-muted/40"
+          >
+            <span className="flex items-baseline gap-6 px-1">
+              <span className="text-[15px] font-medium tracking-tight">{p.name}</span>
+              <span className="text-[13px] text-muted-foreground">{p.description}</span>
+            </span>
+            <ArrowUpRight
+              strokeWidth={1.5}
+              className="h-4 w-4 shrink-0 self-center text-muted-foreground/50 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
+            />
+          </a>
+        ))}
+      </div>
+
+      <p className="mt-8 text-[13px] text-muted-foreground">
+        <a href="https://github.com/dxxpcode" target="_blank" rel="noreferrer" className={quiet}>
+          github.com/dxxpcode →
+        </a>
+      </p>
+    </main>
+  );
+}
+
 function Header({ dark, setDark }: { dark: boolean; setDark: (d: boolean) => void }) {
   return (
     <header className="grid h-16 grid-cols-3 items-center px-6">
@@ -255,6 +341,9 @@ function Header({ dark, setDark }: { dark: boolean; setDark: (d: boolean) => voi
         <Logo className="h-[18px] w-auto" />
       </a>
       <nav className="flex items-center gap-5 justify-self-end text-[13px] text-muted-foreground">
+        <a href="/download" className="transition-colors hover:text-foreground">
+          Download
+        </a>
         <button
           onClick={() => setDark(!dark)}
           aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
@@ -299,28 +388,19 @@ export default function App() {
     );
   }
 
+  if (path === "/download") {
+    return (
+      <div className="flex min-h-[100svh] flex-col bg-background">
+        <Header dark={dark} setDark={setDark} />
+        <DownloadPage />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-[100svh] flex-col bg-background">
       <Header dark={dark} setDark={setDark} />
-
-      <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
-        <h1 className="text-balance text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">
-          The AI coding agent{" "}
-          <span className="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-            on your desktop
-          </span>
-        </h1>
-
-        <div className="mt-7">
-          {LICENSING_ENABLED ? (
-            <LicenseGate>
-              <DownloadButtons />
-            </LicenseGate>
-          ) : (
-            <DownloadButtons />
-          )}
-        </div>
-      </main>
+      <StudioHome />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import { Moon, Sun } from "lucide-react";
 import { Logo } from "./Logo";
 
-export const GITHUB_URL = "https://github.com/thenextdeveloper/DxxpCode-Terminal";
+export const GITHUB_URL = "https://github.com/dxxpcode";
 
 const LINKS = [
+  ["/", "Projects"],
+  ["/download", "Download"],
   ["/docs", "Docs"],
   ["/changelog", "Changelog"],
 ] as const;
@@ -29,7 +31,7 @@ export function Nav({
               key={href}
               href={href}
               className={
-                path.startsWith(href)
+                (href === "/" ? path === "/" : path.startsWith(href))
                   ? "text-sm text-foreground"
                   : "text-sm text-muted-foreground transition-colors hover:text-foreground"
               }
