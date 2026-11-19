@@ -306,11 +306,11 @@ function ProjectMark({ name }: { name: string }) {
   return (
     <span className="flex h-9 w-9 items-center justify-center rounded-full border border-border transition-colors group-hover:border-foreground">
       {name === "DxxpCode" ? (
-        <Logo className="h-[18px] w-auto" />
+        <Logo className="h-auto w-5" />
       ) : (
         <>
-          <img src={`/marks/${base}-light.png`} alt={name} className="h-[18px] w-auto dark:hidden" />
-          <img src={`/marks/${base}-dark.png`} alt={name} className="hidden h-[18px] w-auto dark:block" />
+          <img src={`/marks/${base}-light.png`} alt={name} className="h-auto max-h-5 w-auto max-w-5 object-contain dark:hidden" />
+          <img src={`/marks/${base}-dark.png`} alt={name} className="hidden h-auto max-h-5 w-auto max-w-5 object-contain dark:block" />
         </>
       )}
     </span>
