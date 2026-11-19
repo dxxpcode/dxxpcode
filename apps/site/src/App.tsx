@@ -36,8 +36,7 @@ function detect(): Platform | null {
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
 // Each row links where a visitor can get the project: downloads go to their
-// download page, the web app to its site, and projects without a public
-// download to their repo.
+// download page and the web app to its site.
 const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "DxxpCode",
@@ -52,7 +51,7 @@ const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "openmxc",
     description: "A native macOS browser.",
-    url: "https://github.com/dxxpcode/openmxc",
+    url: "https://openmxc-landing.vercel.app/",
   },
   {
     name: "ix1",
