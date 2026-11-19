@@ -307,7 +307,7 @@ function ProjectMark({ name }: { name: string }) {
   return (
     <>
       <img src={`/marks/${base}-light.png`} alt={name} className="h-6 w-auto dark:hidden" />
-      <img src={`/marks/${base}-dark.png`} alt="" aria-hidden="true" className="hidden h-6 w-auto dark:block" />
+      <img src={`/marks/${base}-dark.png`} alt={name} className="hidden h-6 w-auto dark:block" />
     </>
   );
 }
