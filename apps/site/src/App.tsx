@@ -302,13 +302,18 @@ const MARK_FILES: Record<string, string> = {
 };
 
 function ProjectMark({ name }: { name: string }) {
-  if (name === "DxxpCode") return <Logo className="h-5 w-auto" />;
   const base = MARK_FILES[name];
   return (
-    <>
-      <img src={`/marks/${base}-light.png`} alt={name} className="h-6 w-auto dark:hidden" />
-      <img src={`/marks/${base}-dark.png`} alt={name} className="hidden h-6 w-auto dark:block" />
-    </>
+    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-muted/50">
+      {name === "DxxpCode" ? (
+        <Logo className="h-[18px] w-auto" />
+      ) : (
+        <>
+          <img src={`/marks/${base}-light.png`} alt={name} className="h-[18px] w-auto dark:hidden" />
+          <img src={`/marks/${base}-dark.png`} alt={name} className="hidden h-[18px] w-auto dark:block" />
+        </>
+      )}
+    </span>
   );
 }
 
@@ -328,13 +333,13 @@ function StudioHome() {
             key={p.name}
             href={p.url}
             {...(p.url.startsWith("/") ? {} : { target: "_blank", rel: "noreferrer" })}
-            className="group grid grid-cols-[8rem_1fr_auto] items-baseline gap-x-6 border-t border-border py-5 transition-colors last:border-b hover:bg-muted/40"
+            className="group grid grid-cols-[8rem_1fr_auto] items-center gap-x-6 border-t border-border py-4 transition-colors last:border-b hover:bg-muted/40"
           >
             <span className="flex items-center px-1">
               <ProjectMark name={p.name} />
             </span>
             <span className="text-[13px] text-muted-foreground">{p.description}</span>
-            <span className="flex h-7 w-7 items-center justify-center self-center rounded-full border border-border text-muted-foreground transition-colors group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
               <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5" />
             </span>
           </a>
