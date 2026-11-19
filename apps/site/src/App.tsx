@@ -35,6 +35,9 @@ function detect(): Platform | null {
 
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
+// Each row links where a visitor can reach the project: public repos go to
+// GitHub; NextDeveloper's repo is private and the product is a web app, so
+// its link goes to the app itself.
 const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "DxxpCode",
@@ -44,7 +47,7 @@ const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "NextDeveloper",
     description: "A career-path learning platform — lessons, projects, certificates.",
-    url: "https://github.com/dxxpcode/nextdeveloper",
+    url: "https://nextdeveloper.software",
   },
   {
     name: "openmxc",
@@ -315,6 +318,9 @@ function StudioHome() {
             <span className="flex items-baseline gap-6 px-1">
               <span className="text-[15px] font-medium tracking-tight">{p.name}</span>
               <span className="text-[13px] text-muted-foreground">{p.description}</span>
+            </span>
+            <span className="ml-auto hidden self-center font-mono text-[11px] text-muted-foreground/70 md:inline">
+              {p.url.replace("https://", "")}
             </span>
             <ArrowUpRight
               strokeWidth={1.5}
