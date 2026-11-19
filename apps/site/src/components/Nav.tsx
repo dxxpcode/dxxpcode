@@ -3,9 +3,11 @@ import { Logo } from "./Logo";
 
 export const GITHUB_URL = "https://github.com/dxxpcode";
 
+// Projects and Download live on the main site: developers.dxxp.codes serves
+// its own Devs page for those paths, so these links must leave the dev host.
 const LINKS = [
-  ["/", "Projects"],
-  ["/download", "Download"],
+  ["https://dxxp.codes/", "Projects"],
+  ["https://dxxp.codes/download", "Download"],
   ["/docs", "Docs"],
   ["/changelog", "Changelog"],
 ] as const;
@@ -31,7 +33,7 @@ export function Nav({
               key={href}
               href={href}
               className={
-                (href === "/" ? path === "/" : path.startsWith(href))
+                (href.startsWith("/") && path.startsWith(href))
                   ? "text-sm text-foreground"
                   : "text-sm text-muted-foreground transition-colors hover:text-foreground"
               }
