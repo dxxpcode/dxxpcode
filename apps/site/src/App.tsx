@@ -313,19 +313,19 @@ function StudioHome() {
             href={p.url}
             target="_blank"
             rel="noreferrer"
-            className="group flex items-baseline justify-between gap-6 border-t border-border py-5 transition-colors last:border-b hover:bg-muted/40"
+            className="group grid grid-cols-[8rem_1fr_auto] items-baseline gap-x-6 border-t border-border py-5 transition-colors last:border-b hover:bg-muted/40"
           >
-            <span className="flex items-baseline gap-6 px-1">
-              <span className="text-[15px] font-medium tracking-tight">{p.name}</span>
-              <span className="text-[13px] text-muted-foreground">{p.description}</span>
+            <span className="px-1 text-[15px] font-medium tracking-tight">{p.name}</span>
+            <span className="text-[13px] text-muted-foreground">{p.description}</span>
+            <span className="flex items-baseline gap-3 self-center">
+              <span className="hidden font-mono text-[11px] text-muted-foreground/70 md:inline">
+                {p.url.replace("https://", "")}
+              </span>
+              <ArrowUpRight
+                strokeWidth={1.5}
+                className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
+              />
             </span>
-            <span className="ml-auto hidden self-center font-mono text-[11px] text-muted-foreground/70 md:inline">
-              {p.url.replace("https://", "")}
-            </span>
-            <ArrowUpRight
-              strokeWidth={1.5}
-              className="h-4 w-4 shrink-0 self-center text-muted-foreground/50 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
-            />
           </a>
         ))}
       </div>
