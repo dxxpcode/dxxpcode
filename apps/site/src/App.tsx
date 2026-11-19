@@ -35,34 +35,33 @@ function detect(): Platform | null {
 
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
-// Each row links to the project's clean dxxp.codes path, which hands off to
-// where a visitor can get it (mirrored server-side in vercel.json).
-const PROJECT_REDIRECTS: Record<string, string> = {
-  "/dxxpcode": "/download",
-  "/nextdeveloper": "https://nextdeveloper.software",
-  "/openmxc": "https://openmxc-landing.vercel.app/",
-  "/ix1": "https://dxxpcode.github.io/ix1/",
-};
-const PROJECTS: { name: string; description: string; url: string }[] = [
+// Each project has an official page at dxxp.codes/<name>. `href` is where the
+// visitor can get the product: downloads go to their download page and the
+// web app to its site.
+const PROJECTS: { name: string; description: string; url: string; href: string }[] = [
   {
     name: "DxxpCode",
     description: "An AI coding agent for the desktop.",
     url: "/dxxpcode",
+    href: "/download",
   },
   {
     name: "NextDeveloper",
     description: "A learning platform for developers.",
     url: "/nextdeveloper",
+    href: "https://nextdeveloper.software",
   },
   {
     name: "openmxc",
     description: "A native browser for macOS.",
     url: "/openmxc",
+    href: "https://openmxc-landing.vercel.app/",
   },
   {
     name: "ix1",
     description: "An operating system for the desktop.",
     url: "/ix1",
+    href: "https://dxxpcode.github.io/ix1/",
   },
 ];
 
@@ -307,19 +306,55 @@ const MARK_FILES: Record<string, string> = {
   ix1: "ix1",
 };
 
-function ProjectMark({ name }: { name: string }) {
+function ProjectMark({ name, big = false }: { name: string; big?: boolean }) {
   const base = MARK_FILES[name];
+  const box = big ? "h-14 w-14" : "h-9 w-9";
+  const mark = big ? "max-h-7 max-w-7" : "max-h-5 max-w-5";
   return (
-    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-border transition-colors group-hover:border-foreground">
+    <span
+      className={`flex ${box} items-center justify-center rounded-full border border-border transition-colors group-hover:border-foreground`}
+    >
       {name === "DxxpCode" ? (
-        <Logo className="h-auto w-5" />
+        <Logo className={`h-auto ${big ? "w-7" : "w-5"}`} />
       ) : (
         <>
-          <img src={`/marks/${base}-light.png`} alt={name} className="h-auto max-h-5 w-auto max-w-5 object-contain dark:hidden" />
-          <img src={`/marks/${base}-dark.png`} alt={name} className="hidden h-auto max-h-5 w-auto max-w-5 object-contain dark:block" />
+          <img
+            src={`/marks/${base}-light.png`}
+            alt={name}
+            className={`h-auto w-auto ${mark} object-contain dark:hidden`}
+          />
+          <img
+            src={`/marks/${base}-dark.png`}
+            alt={name}
+            className={`hidden h-auto w-auto ${mark} object-contain dark:block`}
+          />
         </>
       )}
     </span>
+  );
+}
+
+// Official page for each project at dxxp.codes/<name>: mark, name, one line,
+// and the way to get it. DxxpCode's page is the download flow itself.
+function ProjectPage({ p }: { p: (typeof PROJECTS)[number] }) {
+  if (p.name === "DxxpCode") return <DownloadPage />;
+  const host = new URL(p.href).host;
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center px-6 pb-16">
+      <ProjectMark name={p.name} big />
+      <h1 className="mt-6 text-[24px] font-medium tracking-[-0.02em]">{p.name}</h1>
+      <p className="mt-2 text-[13px] text-muted-foreground">{p.description}</p>
+      <a
+        href={p.href}
+        className="mt-8 inline-flex h-11 items-center gap-2.5 rounded-full bg-foreground pl-5 pr-4 text-[14px] font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        {host}
+        <ArrowRight strokeWidth={1.5} className="h-4 w-4 opacity-60" />
+      </a>
+      <a href="/" className="mt-8 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
+        ← All projects
+      </a>
+    </main>
   );
 }
 
@@ -403,10 +438,16 @@ export default function App() {
     window.location.replace(`https://developers.dxxp.codes${path.replace(/^\/devs/, "") || "/"}`);
     return null;
   }
-  const projectRedirect = PROJECT_REDIRECTS[path.length > 1 ? path.replace(/\/+$/, "") : path];
-  if (projectRedirect) {
-    window.location.replace(projectRedirect);
-    return null;
+  const projectPage = PROJECTS.find(
+    (p) => p.url === (path.length > 1 ? path.replace(/\/+$/, "") : path),
+  );
+  if (projectPage) {
+    return (
+      <div className="flex min-h-[100svh] flex-col bg-background">
+        <Header dark={dark} setDark={setDark} />
+        <ProjectPage p={projectPage} />
+      </div>
+    );
   }
   if (devHost && (path === "/notes" || path.startsWith("/notes/"))) return <Notes />;
   if (devHost && !path.startsWith("/docs") && !path.startsWith("/changelog")) return <Devs />;
