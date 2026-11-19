@@ -35,14 +35,14 @@ function detect(): Platform | null {
 
 const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
-// Each row links where a visitor can reach the project: public repos go to
-// GitHub; NextDeveloper's repo is private and the product is a web app, so
-// its link goes to the app itself.
+// Each row links where a visitor can get the project: downloads go to their
+// download page, the web app to its site, and projects without a public
+// download to their repo.
 const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "DxxpCode",
     description: "The AI coding agent on your desktop.",
-    url: "https://github.com/dxxpcode/dxxpcode",
+    url: "/download",
   },
   {
     name: "NextDeveloper",
@@ -57,7 +57,7 @@ const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "ix1",
     description: "A desktop operating system that maintains itself.",
-    url: "https://github.com/dxxpcode/ix1",
+    url: "https://dxxpcode.github.io/ix1/",
   },
 ];
 
@@ -311,8 +311,7 @@ function StudioHome() {
           <a
             key={p.name}
             href={p.url}
-            target="_blank"
-            rel="noreferrer"
+            {...(p.url.startsWith("/") ? {} : { target: "_blank", rel: "noreferrer" })}
             className="group grid grid-cols-[8rem_1fr_auto] items-baseline gap-x-6 border-t border-border py-5 transition-colors last:border-b hover:bg-muted/40"
           >
             <span className="px-1 text-[15px] font-medium tracking-tight">{p.name}</span>
