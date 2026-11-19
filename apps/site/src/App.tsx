@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDown, Moon, Sun } from "lucide-react";
+import { ArrowDown, ArrowRight, Moon, Sun } from "lucide-react";
 import { DownloadCount } from "./components/DownloadCount";
 import { GitHubStars } from "./components/GitHubStars";
 import { Logo } from "./components/Logo";
@@ -37,29 +37,25 @@ const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 
 // Each row links where a visitor can get the project: downloads go to their
 // download page and the web app to its site.
-const PROJECTS: { name: string; description: string; kind: string; url: string }[] = [
+const PROJECTS: { name: string; description: string; url: string }[] = [
   {
     name: "DxxpCode",
     description: "An AI coding agent for the desktop.",
-    kind: "desktop app",
     url: "/download",
   },
   {
     name: "NextDeveloper",
     description: "A learning platform for developers.",
-    kind: "web app",
     url: "https://nextdeveloper.software",
   },
   {
     name: "openmxc",
     description: "A native browser for macOS.",
-    kind: "macOS app",
     url: "https://openmxc-landing.vercel.app/",
   },
   {
     name: "ix1",
     description: "An operating system for the desktop.",
-    kind: "OS",
     url: "https://dxxpcode.github.io/ix1/",
   },
 ];
@@ -319,13 +315,8 @@ function StudioHome() {
           >
             <span className="px-1 text-[15px] font-medium tracking-tight">{p.name}</span>
             <span className="text-[13px] text-muted-foreground">{p.description}</span>
-            <span className="flex items-baseline gap-3 self-center">
-              <span className="hidden font-mono text-[11px] text-muted-foreground/70 md:inline">
-                {p.kind}
-              </span>
-              <span className="text-[13px] text-muted-foreground/50 transition-all group-hover:-translate-y-px group-hover:translate-x-px group-hover:text-foreground">
-                Open →
-              </span>
+            <span className="flex h-7 w-7 items-center justify-center self-center rounded-full border border-border text-muted-foreground transition-colors group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
+              <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5" />
             </span>
           </a>
         ))}
