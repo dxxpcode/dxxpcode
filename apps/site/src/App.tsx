@@ -304,7 +304,7 @@ const MARK_FILES: Record<string, string> = {
 function ProjectMark({ name }: { name: string }) {
   const base = MARK_FILES[name];
   return (
-    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-muted/50">
+    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-border transition-colors group-hover:border-foreground">
       {name === "DxxpCode" ? (
         <Logo className="h-[18px] w-auto" />
       ) : (
