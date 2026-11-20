@@ -1869,7 +1869,7 @@ export default function App() {
         <section className="onboarding" aria-labelledby="ob-title">
           <div className="ob-frame">
             <header className="ob-header">
-              <div className="ob-brand"><Logo className="ob-mark" /><span>Set up DxxpCode</span></div>
+              <div className="ob-brand"><Logo className="ob-mark" /><span>Set up Xavier</span></div>
               <span className="ob-step-label">{obStep === "first" ? "Setup complete · Optional task" : `Step ${obPhase + 1} of ${ONBOARDING_PHASES.length}`}</span>
             </header>
             <ol className="ob-progress" aria-label="Setup progress">
@@ -1895,7 +1895,7 @@ export default function App() {
                   welcome: "Local. Private. Yours.",
                   pick: "Choose the model provider you want to work with.",
                   key: "Enter your provider’s API key to continue.",
-                  project: "Choose the folder the agent will work in.",
+                  project: "Choose the folder Xavier will work in.",
                   first: ready?.provider === "mock" ? "Optional. Try a scripted reply in demo mode." : "Optional. Start with a small task in this project.",
                 }[obStep]}
               </p>
@@ -2005,7 +2005,7 @@ export default function App() {
                 <div className="ob-panel">
                   <div className="ob-panel-title">{ready?.provider === "mock" ? "Example task" : "Write a summary file"}</div>
                   <p className="ob-panel-sub">Create <code>DXXPCODE.md</code> with a one-sentence summary of the project above.</p>
-                  <p className="ob-hint">{ready?.provider === "mock" ? "Demo mode only returns scripted replies. This example will not read or change your project." : "The agent will read this project and use your existing approval settings for any changes."}</p>
+                  <p className="ob-hint">{ready?.provider === "mock" ? "Demo mode only returns scripted replies. This example will not read or change your project." : "Xavier will read this project and use your existing approval settings for any changes."}</p>
                 </div>
               )}
               {obError && <p className="ob-error" id="ob-error" role="alert">{obError}</p>}
@@ -2069,7 +2069,7 @@ export default function App() {
         ))}
         {running && (
           <div className="workline row">
-            <span className="think-shimmer">Working…</span>
+            <span className="think-shimmer">Xavier is working…</span>
             {lastTool && <span className="workline-tool">{lastTool}</span>}
           </div>
         )}
@@ -2085,7 +2085,7 @@ export default function App() {
               <div className="dec-head">
                 <span className="dec-mark"><ListChecks size={12} /></span>
                 <span className="dec-titleblock">
-                  <span className="dec-title">Approval required</span>
+                  <span className="dec-title">{a.kind === "plan" ? "Xavier's plan" : "Xavier wants to"}</span>
                   {a.tool && <span className="dec-meta">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
                 </span>
                 <span className="dec-status">Waiting</span>
@@ -2152,7 +2152,7 @@ export default function App() {
       {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) || queue.length > 0) && (
         <div className="statusline">
           <span className="statusline-act">
-            {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Waiting for approval…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}</>}
+            {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Xavier is waiting…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}</>}
             {queue.length > 0 && <span className="queuecount">{queue.length} queued</span>}
           </span>
         </div>
@@ -2299,7 +2299,7 @@ export default function App() {
             rows={2}
             autoFocus
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
-            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — I'll plan it first…" : "Ask dxxpcode anything…"}
+            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — Xavier will plan it first…" : "Ask Xavier anything…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
