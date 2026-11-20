@@ -26,13 +26,13 @@ function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: numb
       // Reasoning tokens: live dim stream while arriving, collapsible after.
       return item.live ? (
         <div className="think row">
-          <div className="think-head"><span className="think-dot" /><span className="think-shimmer">Thinking</span></div>
+          <div className="think-head"><span className="think-dot" /><span className="think-shimmer">Xavier is thinking</span></div>
           <div className="think-text">{item.text}<span className="caret tool-caret" aria-hidden /></div>
         </div>
       ) : (
         <details className="think row">
           <summary>
-            {item.ms != null ? `Thought for ${Math.max(1, Math.round(item.ms / 1000))}s` : "Thought"}
+            {item.ms != null ? `Xavier thought for ${Math.max(1, Math.round(item.ms / 1000))}s` : "Xavier thought"}
             <span className="think-n">{item.text.trim().split("\n")[0].slice(0, 64)}{(item.text.trim().split("\n")[0] ?? "").length > 64 || item.text.includes("\n") ? "…" : ""}</span>
           </summary>
           <div className="think-text">{item.text}</div>

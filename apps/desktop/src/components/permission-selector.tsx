@@ -99,7 +99,7 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
       </button>
       {open && !disabled && (
         <div className="selector-popover permission-popover" id={`${id}-panel`} role="dialog" aria-label="Mode">
-          <div className="selector-heading"><span>How should dxxpcode work?</span></div>
+          <div className="selector-heading"><span>How should Xavier work?</span></div>
           <div className="selector-options" role="listbox" aria-label="Mode" onKeyDown={keys}>
             {MODE_OPTIONS.map((o, index) => {
               const RowIcon = ICONS[o.value];
