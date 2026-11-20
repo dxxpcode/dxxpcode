@@ -153,7 +153,7 @@ export function App(props: AppProps) {
       setElapsed(0);
       runStartRef.current = Date.now();
       thinkAt.current = Date.now();
-      setSpinLabel("Thinking…");
+      setSpinLabel("Xavier is thinking…");
 
       const flushThought = () => {
         if (!thinkAt.current) return;
@@ -283,7 +283,7 @@ export function App(props: AppProps) {
                 });
               }
               thinkAt.current = Date.now();
-              setSpinLabel("Thinking…");
+              setSpinLabel("Xavier is thinking…");
               break;
             }
             case "todo":
@@ -297,7 +297,7 @@ export function App(props: AppProps) {
               stopSpin();
               push({ kind: "denied", reason: ev.reason });
               thinkAt.current = Date.now();
-              setSpinLabel("Thinking…");
+              setSpinLabel("Xavier is thinking…");
               break;
             case "approval_request":
               break;
@@ -684,7 +684,7 @@ export function App(props: AppProps) {
       )}
       {pending.kind === "plan" && (
         <Menu
-          title="Execute this plan?"
+          title="Execute Xavier's plan?"
           options={["Yes", "No"]}
           descriptions={["run the plan as approved", "discard and stop the task"]}
           sel={menuSel}
@@ -722,7 +722,7 @@ export function App(props: AppProps) {
               accent="yellow"
               lines={[
                 [
-                  { t: "⚠ Approval required — " },
+                  { t: "⚠ Xavier wants to — " },
                   { t: describe(pending.req), bold: true },
                 ],
                 ...(pending.req.reason ?? pending.req.decision.reason
@@ -777,7 +777,7 @@ export function App(props: AppProps) {
             <TextInput
               key={inputKey}
               value={input}
-              placeholder="describe a task · / for commands · @ to attach files"
+              placeholder="ask Xavier · / for commands · @ to attach files"
               onChange={(v) => {
                 setInput(v);
                 setCmdSel(0);

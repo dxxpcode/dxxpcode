@@ -377,7 +377,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
   };
 
   const runOnboarding = async () => {
-    emit({ type: "note", text: "welcome to dxxpcode — connect a provider to get started" });
+    emit({ type: "note", text: "welcome to Xavier — connect a provider to get started" });
     const ok = await connectProvider();
     if (!ok) return;
     await openEffortMenu();
@@ -389,7 +389,7 @@ export async function runAppMode(deps: AppModeDeps): Promise<number> {
       saveConfig({ ...loadConfig(), typeSafeApiKey: key.trim() });
       emit({ type: "note", text: "Jev key saved" });
     }
-    emit({ type: "note", text: "you're all set — ask dxxpcode anything" });
+    emit({ type: "note", text: "you're all set — ask Xavier anything" });
   };
 
   const openSettingsMenu = async () => {
