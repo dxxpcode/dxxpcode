@@ -1080,7 +1080,10 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (ready) setPalOpen((v) => !v);
+        if (ready) {
+          setSettingsOpen(false);
+          setPalOpen((v) => !v);
+        }
       } else if (e.metaKey && e.key.toLowerCase() === "b") {
         e.preventDefault();
         if (ready) setRailOpen((v) => !v);
@@ -1110,7 +1113,10 @@ export default function App() {
       if (event.payload === "new-session") void send({ type: "command", name: "/new" });
       else if (event.payload === "open-project") openProject();
       else if (event.payload === "settings") setSettingsOpen(true);
-      else if (event.payload === "search-sessions") setPalOpen(true);
+      else if (event.payload === "search-sessions") {
+        setSettingsOpen(false);
+        setPalOpen(true);
+      }
     });
     return () => { void unlisten.then((f) => f()); };
   }, [ready, openProject]);
