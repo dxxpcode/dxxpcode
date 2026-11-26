@@ -896,8 +896,8 @@ export default function App() {
   useEffect(() => {
     if (nav !== "files") return;
     setBrowseFiles(null);
-    void send({ type: "list_files", id: 999999, text: "" });
-  }, [nav]);
+    void send({ type: "list_files", id: 999999, text: "", browse: true });
+  }, [nav, ready?.project.name]);
 
   // Ask the CLI for @mention completions whenever the fragment changes.
   useEffect(() => {
@@ -2222,7 +2222,7 @@ export default function App() {
           <div className="filetree">
             {browseFiles === null && <p className="view-empty">Loading project files…</p>}
             {browseFiles !== null && browseFiles.length === 0 && <p className="view-empty">No files in this project.</p>}
-            {browseFiles !== null && browseFiles.slice(0, 500).map((f) => {
+            {browseFiles !== null && [...browseFiles].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 500).map((f) => {
               const isDir = f.name.endsWith("/");
               const depth = f.name.replace(/\/$/, "").split("/").length - 1;
               const base = f.name.replace(/\/$/, "").split("/").pop() ?? f.name;
@@ -2255,7 +2255,15 @@ export default function App() {
           <div className="pg-grid">
             {commands.length === 0 && <p className="view-empty">No custom commands in this project.</p>}
             {commands.map((c) => (
-              <button key={c.name} type="button" className="pg-card" onClick={() => { setInput(c.name + " "); setNav("home"); taRef.current?.focus(); }}>
+              <button key={c.name} type="button" className="pg-card" onClick={() => {
+                setInput((v) => {
+                  const t = v.trim();
+                  if (!t) return c.name + " ";
+                  if (t.startsWith("/")) return c.name + " " + (t.split(/\s+/).slice(1).join(" ") || "");
+                  return c.name + " " + t;
+                });
+                setNav("home"); taRef.current?.focus();
+              }}>
                 <Sparkles size={15} className="pg-icon" />
                 <span className="pg-name mono">{c.name}</span>
                 <span className="pg-desc">{c.desc}</span>
