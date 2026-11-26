@@ -1078,19 +1078,19 @@ export default function App() {
   // ⌘K/Ctrl+K toggles the session palette; Esc closes it from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (e.metaKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (ready) setPalOpen((v) => !v);
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+      } else if (e.metaKey && e.key.toLowerCase() === "b") {
         e.preventDefault();
         if (ready) setRailOpen((v) => !v);
-      } else if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+      } else if (e.metaKey && e.key === ",") {
         e.preventDefault();
         if (ready) setSettingsOpen((v) => !v);
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
+      } else if (e.metaKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         if (ready) void send({ type: "command", name: "/new" });
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
+      } else if (e.metaKey && e.key.toLowerCase() === "o") {
         e.preventDefault();
         if (ready) openProject();
       } else if (e.key === "Escape" && palOpen) {
