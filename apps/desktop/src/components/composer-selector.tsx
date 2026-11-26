@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react";
 import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
 import { EFFORT_OPTIONS, displayModel, displayProvider, effortOption, filterModels, nextOption } from "../lib/composer-selector";
 import { ProviderIcon, providerIconKey } from "./provider-icons";
+import { usePopoverPlacement } from "./use-popover-placement";
 
 export function ComposerSelector({
   model, models, provider, effort, disabled, disabledReason,
@@ -30,6 +31,7 @@ export function ComposerSelector({
   const modelRows = useRef<(HTMLButtonElement | null)[]>([]);
   const effortRows = useRef<(HTMLButtonElement | null)[]>([]);
   const id = useId();
+  const popover = usePopoverPlacement(open);
   const modelListId = `${id}-models`;
   const effortListId = `${id}-efforts`;
   const filtered = filterModels(models, model, query);
@@ -126,7 +128,7 @@ export function ComposerSelector({
         <ChevronsUpDown size={11} aria-hidden="true" className="selector-chevron" />
       </button>
       {open && !disabled && (
-        <div className="selector-popover selector-unified-popover" id={`${id}-panel`}
+        <div ref={popover} className="selector-popover selector-unified-popover" id={`${id}-panel`}
           role="dialog" aria-label="Choose model and reasoning effort">
           <div className="selector-heading"><span>Model</span>
             <span className="selector-provider" title={provider}>
