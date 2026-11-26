@@ -2257,15 +2257,15 @@ export default function App() {
             {commands.map((c) => (
               <button key={c.name} type="button" className="pg-card" onClick={() => {
                 const t = input.trim();
+                // Cards never execute anything: destructive commands (/undo
+                // restoring checkpoints, /exit closing the window) must not fire
+                // from a browse click, and merging a draft into the command line
+                // corrupts argumentless commands. The composer is always the
+                // review step — the draft stays on its own line, untouched.
                 if (!t || t.startsWith("/")) {
-                  // Editing a command already — replace the token, nothing else at risk.
                   setInput(t.startsWith("/") ? c.name + " " + (t.split(/\s+/).slice(1).join(" ") || "") : c.name + " ");
                 } else {
-                  // A real draft is in the composer: merging it into the command
-                  // would corrupt argumentless commands (/model saving the draft as
-                  // a model id), and replacing it would lose the draft — so run the
-                  // command directly and leave the composer untouched.
-                  cmd(c.name);
+                  setInput(input.replace(/\s*$/, "") + "\n" + c.name);
                 }
                 setNav("home"); taRef.current?.focus();
               }}>
