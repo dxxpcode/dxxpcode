@@ -1741,8 +1741,24 @@ export default function App() {
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && !ready && <Logo className="logo-mark" />}
+          {ready && !onboarding && (
+            <div className="header-context">
+              <span className="geo-triangle" aria-hidden="true" />
+              <span className="header-product">Xavier</span>
+              <span className="header-separator">/</span>
+              <button type="button" className="header-project" title="Change project" onClick={openProject}>
+                {ready.project.name}
+              </button>
+            </div>
+          )}
         </div>
         <span className="spacer" />
+        {ready && !onboarding && (
+          <div className="header-status" aria-live="polite">
+            <span className="header-status-dot" data-running={running || undefined} />
+            <span>{running ? "Running" : "Ready"}</span>
+          </div>
+        )}
         {ready && !IS_MAC && (
           <div className="hact">
             <Button variant="ghost" size="icon" title="Minimize" aria-label="Minimize window" onClick={() => void win.minimize()}>
@@ -2047,12 +2063,18 @@ export default function App() {
         )}
         {idle && ready && bootGone && (
           <div className="hero">
-            <Logo className="hero-mark" />
-            <div className="hero-title">What should we build in
-              <button className="hero-proj" title="Change project" onClick={openProject}>
-                {ready.project.name}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </button>?
+            <div className="hero-frame">
+              <div className="hero-kicker mono"><span className="geo-triangle" aria-hidden="true" />Agent console</div>
+              <Logo className="hero-mark" />
+              <div className="hero-title">What should we build in
+                <button className="hero-proj" title="Change project" onClick={openProject}>
+                  {ready.project.name}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>?
+              </div>
+              <div className="hero-meta mono">
+                {displayProvider(ready.provider)} · {displayModel(ready.model)} · {effortOption(ready.effort ?? "default").label}
+              </div>
             </div>
           </div>
         )}
