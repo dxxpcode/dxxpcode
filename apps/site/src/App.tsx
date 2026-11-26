@@ -30,6 +30,28 @@ const quiet = "text-muted-foreground transition-colors hover:text-foreground";
 // paid lifetime-license flow without deleting any of it.
 const LICENSING_ENABLED = ["1", "true"].includes(import.meta.env.VITE_LICENSING_ENABLED ?? "");
 
+function ReleaseLinks() {
+  return (
+    <>
+      <a href={RELEASES} className={quiet}>
+        All releases
+      </a>
+      {" · "}
+      {LICENSING_ENABLED && (
+        <>
+          <a href="/pricing" className={quiet}>
+            Pricing →
+          </a>
+          {" · "}
+        </>
+      )}
+      <a href="https://developers.dxxp.codes" className={quiet}>
+        Developer API →
+      </a>
+    </>
+  );
+}
+
 function DownloadButtons() {
   const [os] = useState(detect);
   const primary = DOWNLOADS.find((d) => d.os === os);
@@ -48,7 +70,15 @@ function DownloadButtons() {
             </span>
           ))}
         </p>
-        <GitHubStars />
+        <div className="flex flex-wrap items-start justify-center gap-3">
+          <GitHubStars />
+          <DownloadCount />
+        </div>
+        <p className="animate-gate-in-late text-[13px] text-muted-foreground">
+          macOS only
+          {" · "}
+          <ReleaseLinks />
+        </p>
       </div>
     );
   }
@@ -83,21 +113,7 @@ function DownloadButtons() {
       <p className="mt-6 animate-gate-in-late text-[13px] text-muted-foreground">
         macOS only
         {" · "}
-        <a href={RELEASES} className={quiet}>
-          All releases
-        </a>
-        {" · "}
-        {LICENSING_ENABLED && (
-          <>
-            <a href="/pricing" className={quiet}>
-              Pricing →
-            </a>
-            {" · "}
-          </>
-        )}
-        <a href="https://developers.dxxp.codes" className={quiet}>
-          Developer API →
-        </a>
+        <ReleaseLinks />
       </p>
     </div>
   );
