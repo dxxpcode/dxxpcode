@@ -1227,9 +1227,14 @@ export default function App() {
     : undefined;
   const doneWorkers = wtasks.filter((w) => w.phase === "done");
   const failedWorkers = wtasks.filter((w) => w.phase === "failed");
-  const scrollTranscriptBottom = () => {
-    const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  const scrollToReview = (kind: "approval" | "diff") => {
+    if (railIsOverlay) setRailOpen(false);
+    setSettingsOpen(false);
+    requestAnimationFrame(() => {
+      const review = scrollRef.current?.querySelector<HTMLElement>(`[data-pending-review="${kind}"]`);
+      review?.focus({ preventScroll: true });
+      review?.scrollIntoView({ block: "end", behavior: "smooth" });
+    });
   };
   const scrollRailWorkers = () => document.getElementById("rail-workers")?.scrollIntoView({ block: "nearest" });
   const attentionItems = [
@@ -1237,13 +1242,13 @@ export default function App() {
       id: "approvals", icon: ListChecks, tone: "warn",
       title: "Approval needed",
       detail: `${pendingApprovals.length} action${pendingApprovals.length === 1 ? "" : "s"} waiting`,
-      action: scrollTranscriptBottom,
+      action: () => scrollToReview("approval"),
     }] : []),
     ...(pendingDiffs.length ? [{
       id: "diffs", icon: Files, tone: "warn",
       title: "Review changes",
       detail: `${pendingDiffs.length} diff${pendingDiffs.length === 1 ? "" : "s"} waiting`,
-      action: scrollTranscriptBottom,
+      action: () => scrollToReview("diff"),
     }] : []),
     ...(doneWorkers.length ? [{
       id: "workers-done", icon: GitBranch, tone: "warn",
@@ -2128,7 +2133,7 @@ export default function App() {
                 ),
               )}
               {planApproval?.steps && (
-                <div className="task-review" key={planApproval.id}>
+                <div className="task-review" key={planApproval.id} data-pending-review="approval" tabIndex={-1}>
                   <PlanApproval
                     summary={planApproval.summary}
                     steps={planApproval.steps}
@@ -2154,7 +2159,7 @@ export default function App() {
               {a.tool && <span className="dres-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
           ) : (
-            <div className="row decision decision-card" key={`ap${a.id}`}>
+            <div className="row decision decision-card" key={`ap${a.id}`} data-pending-review="approval" tabIndex={-1}>
               <div className="dec-head">
                 <span className="dec-mark"><ListChecks size={12} /></span>
                 <span className="dec-titleblock">
@@ -2201,7 +2206,7 @@ export default function App() {
             );
           }
           return (
-            <div className="row decision decision-card" key={`df${d.id}`}>
+            <div className="row decision decision-card" key={`df${d.id}`} data-pending-review="diff" tabIndex={-1}>
               <div className="dec-head">
                 <span className="dec-mark"><Files size={12} /></span>
                 <span className="dec-titleblock">
