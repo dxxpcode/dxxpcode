@@ -1794,7 +1794,7 @@ export default function App() {
               onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
               onCommit={() => taRef.current?.focus()}
             />
-            <span className="workspace-status">{ready.provider === "mock" ? "Demo mode" : "Ready"}</span>
+            {ready.provider === "mock" && <span className="workspace-status">Demo mode</span>}
           </div>
         )}
         {ready && !IS_MAC && (

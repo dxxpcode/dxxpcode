@@ -362,12 +362,12 @@ button { transition: color var(--duration-fast) var(--ease), background-color va
 .rail-sess { position: relative; }
 .rail-sessrow {
   display: flex; align-items: center;
-  min-height: 54px; padding-right: 5px; margin: 2px 0;
+  min-height: 44px; padding-right: 5px; margin: 2px 0;
   border-radius: 11px;
   color: var(--dim);
 }
 .rail-sesspick {
-  flex: 1; min-width: 0; height: auto; min-height: 54px;
+  flex: 1; min-width: 0; height: auto; min-height: 44px;
   align-items: center;
   padding: 7px 2px 7px 9px; gap: 8px;
   justify-content: flex-start; text-align: left;
@@ -1154,7 +1154,7 @@ pre.codeblock:hover .code-copy, pre.codeblock:focus-within .code-copy, .code-cop
 .pill:hover { border-color: var(--border-strong); }
 .pill:active:not(:disabled) { opacity: 0.8; }
 .pill:focus-visible { outline: 1px solid var(--focus); outline-offset: 2px; box-shadow: none; }
-.pill.allow { background: var(--text); color: var(--surface); border-color: var(--text); }
+.pill.allow { background: var(--xavier-gradient); color: #fff; border-color: rgb(147 132 255 / .45); box-shadow: var(--shadow-sm); }
 .pill.allow:hover { opacity: 0.85; }
 .pill.deny { background: var(--surface); color: var(--text); }
 .pill.ghost { border-color: transparent; background: none; color: var(--faint); }
@@ -1956,7 +1956,7 @@ html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
   .statusline-act { max-width: 100%; }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 840px) {
   .app { --nav-width: 62px; }
   .workspace-nav { padding-inline: 8px; }
   .workspace-brand { align-items: center; min-height: 92px; padding-inline: 0; }
