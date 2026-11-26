@@ -1,9 +1,23 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, CircleDashed, Search, SlidersHorizontal } from "lucide-react";
 import { EFFORT_OPTIONS, displayModel, displayProvider, effortOption, filterModels, nextOption } from "../lib/composer-selector";
 import { ProviderIcon, providerIconKey } from "./provider-icons";
-import { usePopoverPlacement } from "./use-popover-placement";
+
+function EffortMeter({ value }: { value: string }) {
+  const { tier } = effortOption(value);
+  if (!tier) return value === "auto (Jev)"
+    ? <SlidersHorizontal size={15} aria-hidden="true" />
+    : <CircleDashed size={15} aria-hidden="true" />;
+  return (
+    <svg className="selector-meter" width="21" height="16" viewBox="0 0 21 16" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, index) => (
+        <rect key={index} x={index * 3.5} y={12 - index * 2} width="2" height={4 + index * 2}
+          rx="0.7" fill="currentColor" opacity={index < tier ? 1 : 0.2} />
+      ))}
+    </svg>
+  );
+}
 
 export function ComposerSelector({
   model, models, provider, effort, disabled, disabledReason,
@@ -31,7 +45,6 @@ export function ComposerSelector({
   const modelRows = useRef<(HTMLButtonElement | null)[]>([]);
   const effortRows = useRef<(HTMLButtonElement | null)[]>([]);
   const id = useId();
-  const popover = usePopoverPlacement(open);
   const modelListId = `${id}-models`;
   const effortListId = `${id}-efforts`;
   const filtered = filterModels(models, model, query);
@@ -125,10 +138,10 @@ export function ComposerSelector({
         <ProviderIcon icon={providerIconKey(provider, model)} />
         <span className="selector-model-name">{displayModel(model)}</span>
         <span className="selector-effort-name">{currentEffort.label}</span>
-        <ChevronsUpDown size={11} aria-hidden="true" className="selector-chevron" />
+        <ChevronDown size={12} aria-hidden="true" className={open ? "selector-chevron open" : "selector-chevron"} />
       </button>
       {open && !disabled && (
-        <div ref={popover} className="selector-popover selector-unified-popover" id={`${id}-panel`}
+        <div className="selector-popover selector-unified-popover" id={`${id}-panel`}
           role="dialog" aria-label="Choose model and reasoning effort">
           <div className="selector-heading"><span>Model</span>
             <span className="selector-provider" title={provider}>
@@ -163,8 +176,7 @@ export function ComposerSelector({
           </div>
           <div className="selector-footer selector-footer-models">
             <button type="button" className="selector-custom" onClick={() => { close(); onCustomModel(); }}>
-              <Plus size={13} aria-hidden="true" />
-              <span>Custom model…</span>
+              Custom model… <span aria-hidden="true">↗</span>
             </button>
           </div>
           <div className="selector-heading selector-effort-heading"><span>Reasoning effort</span><span>Next task</span></div>
@@ -177,7 +189,9 @@ export function ComposerSelector({
                 title={option.description}
                 className={`selector-option selector-effort-row${option.value === "auto (Jev)" ? " selector-auto" : ""}`}
                 onFocus={() => setActiveEffort(option.value)} onClick={() => chooseEffort(option.value)}>
+                <span className="selector-option-meter"><EffortMeter value={option.value} /></span>
                 <span className="selector-option-text">{option.label}</span>
+                <span className="selector-effort-desc">{option.description}</span>
                 {option.value === effort && <Check size={14} aria-hidden="true" />}
               </button>
             ))}

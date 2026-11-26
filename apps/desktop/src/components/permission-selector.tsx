@@ -1,10 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { Check, ChevronsUpDown, ListChecks, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, ListChecks, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { MODE_OPTIONS, composerMode } from "../lib/permission-mode";
 import type { ComposerMode, PermissionMode } from "../lib/permission-mode";
 import { nextOption } from "../lib/composer-selector";
-import { usePopoverPlacement } from "./use-popover-placement";
 
 const ICONS = { ask: Shield, smart: ShieldCheck, "always-approve": ShieldAlert, plan: ListChecks } as const;
 
@@ -25,7 +24,6 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
   const trigger = useRef<HTMLButtonElement>(null);
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
   const id = useId();
-  const popover = usePopoverPlacement(open);
   const option = MODE_OPTIONS.find((o) => o.value === current)!;
   const Icon = ICONS[current];
 
@@ -87,8 +85,8 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
       <button ref={trigger} type="button"
         className={`permission-trigger${current === "always-approve" || current === "plan" ? " full" : ""}`}
         disabled={disabled}
-        title={disabled ? "Complete setup to change permissions" : `Permissions: ${option.label} (⇧Tab toggles Plan)`}
-        aria-label={`Permissions: ${option.label}`}
+        title={disabled ? "Complete setup to change permissions" : `Mode: ${option.label} (⇧Tab toggles Plan)`}
+        aria-label={`Mode: ${option.label}`}
         aria-haspopup="dialog" aria-expanded={open}
         aria-controls={open ? `${id}-panel` : undefined}
         onClick={toggle}
@@ -97,12 +95,12 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
         }}>
         <Icon size={13} strokeWidth={1.9} aria-hidden="true" />
         <span>{option.short}</span>
-        <ChevronsUpDown size={11} aria-hidden="true" className="selector-chevron" />
+        <ChevronDown size={12} aria-hidden="true" className={open ? "selector-chevron open" : "selector-chevron"} />
       </button>
       {open && !disabled && (
-        <div ref={popover} className="selector-popover permission-popover" id={`${id}-panel`} role="dialog" aria-label="Permissions">
-          <div className="selector-heading"><span>Permissions</span></div>
-          <div className="selector-options" role="listbox" aria-label="Permissions" onKeyDown={keys}>
+        <div className="selector-popover permission-popover" id={`${id}-panel`} role="dialog" aria-label="Mode">
+          <div className="selector-heading"><span>How should Xavier work?</span></div>
+          <div className="selector-options" role="listbox" aria-label="Mode" onKeyDown={keys}>
             {MODE_OPTIONS.map((o, index) => {
               const RowIcon = ICONS[o.value];
               return (
@@ -115,9 +113,7 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
                   onMouseEnter={() => setActive(o.value)}
                   onFocus={() => setActive(o.value)}
                   onClick={() => choose(o.value)}>
-                  <span className="permission-option-icon" aria-hidden="true">
-                    <RowIcon size={13} strokeWidth={1.9} />
-                  </span>
+                  <RowIcon size={15} strokeWidth={1.8} aria-hidden="true" className="permission-option-icon" />
                   <span className="permission-option-body">
                     <span className="selector-option-text">{o.label}</span>
                     <span className="permission-option-desc">{o.description}</span>
