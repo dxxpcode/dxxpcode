@@ -195,8 +195,8 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
-    invoke("set_window_theme", { theme: shownTheme }).catch(() => {});
-  }, [dark, theme, shownTheme]);
+    invoke("set_window_theme", { theme: artSrc ? "dark" : shownTheme }).catch(() => {});
+  }, [artSrc, dark, theme, shownTheme]);
   useEffect(() => {
     localStorage.setItem("railOpen", railOpen ? "1" : "0");
     if (!railOpen) {
