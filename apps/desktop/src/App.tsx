@@ -5,21 +5,21 @@ import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2 } from "lucide-react";
+import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2, House, FileText, Paperclip, Wrench } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import QRCode from "qrcode";
 import type { Approval, Item, MenuState, Plan, PromptState, ReadyInfo, Todo } from "./types";
 import { closePartialMd, md } from "./lib/markdown";
-import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, Md } from "./transcript";
+import { ItemView, TGroup, ApprovalSummary, PlanApproval, Diff, diffStats, groupTurns, groupItems, Logo, XavierMark, Md } from "./transcript";
 import { ComposerSelector } from "./components/composer-selector";
 import { PermissionSelector } from "./components/permission-selector";
 import { PERMISSION_OPTIONS, permissionMode, permissionOption } from "./lib/permission-mode";
 import { DesktopDialog } from "./components/desktop-dialog";
 import { EFFORT_LEVELS, displayModel, displayProvider, effortOption } from "./lib/composer-selector";
 import { TOOL_DISPLAY, toolArg } from "./types";
-import { clampRailWidth, COLLAPSED_RAIL_WIDTH, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
+import { clampRailWidth, DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH, sessionAge } from "./lib/sidebar-layout";
 import { composerAction } from "./lib/composer-layout";
 import { ONBOARDING_PHASES, ONBOARDING_PROVIDERS, onboardingBack, onboardingPhase, onboardingSetup } from "./lib/onboarding-layout";
 import type { OnboardingStep } from "./lib/onboarding-layout";
@@ -60,6 +60,7 @@ export default function App() {
   const [ready, setReady] = useState<ReadyInfo | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const activeTask = useRef<Approval["task"]>(undefined);
   const [diffs, setDiffs] = useState<{ id: number; path: string; diff: string; decided?: string }[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -145,17 +146,20 @@ export default function App() {
   const [palOpen, setPalOpen] = useState(false);
   const [palQuery, setPalQuery] = useState("");
   const [palIdx, setPalIdx] = useState(0);
-  const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
+  const [railOpen, setRailOpen] = useState(() => {
+    const saved = localStorage.getItem("railOpen");
+    return saved === null ? window.innerWidth > 680 : saved !== "0";
+  });
   const [railWidth, setRailWidth] = useState(() => clampRailWidth(Number(localStorage.getItem("railWidth") ?? DEFAULT_RAIL_WIDTH)));
   const [projectExpanded, setProjectExpanded] = useState(() => localStorage.getItem("railProjectExpanded") !== "0");
   const [railResizing, setRailResizing] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const railIsOverlay = windowWidth <= 680;
   const maxRailWidth = Math.max(MIN_RAIL_WIDTH, Math.min(MAX_RAIL_WIDTH, Math.floor(windowWidth * 0.45)));
   const displayedRailWidth = Math.min(railWidth, maxRailWidth);
   const railDrag = useRef<{ x: number; width: number } | null>(null);
+  const sessionsToggleRef = useRef<HTMLButtonElement>(null);
   const [bootGone, setBootGone] = useState(false);
-  const composerRef = useRef<HTMLDivElement>(null);
-  const composerTop = useRef<number | null>(null);
   const [sessions, setSessions] = useState<{ id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]>([]);
   const [sessMenu, setSessMenu] = useState<string | null>(null);
   const [renamingSess, setRenamingSess] = useState<string | null>(null);
@@ -283,6 +287,10 @@ export default function App() {
   const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
   const atFrag = palette.length === 0 && atMatch ? atMatch[1].split("#")[0] : null;
   const files = atFrag !== null ? fileSugs.items : [];
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    suggestionsRef.current?.querySelector(".sel")?.scrollIntoView({ block: "nearest" });
+  }, [cmdSel, input, palette.length, files.length]);
   // Replies arrive as whole blocks, not a token stream: `appendText` just
   // accumulates into textBuf; the block is pushed when the next event lands
   // (push/done/idle). Think still streams dim inside its own row.
@@ -368,17 +376,21 @@ export default function App() {
         // reset the transcript so the new session starts clean.
         setItems([]);
         setApprovals([]);
+        activeTask.current = undefined;
         setSessionInfo({ id: null, tokens: 0 });
         setChatMode(false);
         break;
       }
-      case "user":
+      case "user": {
         // A new run supersedes any leftover "Build this plan" cue.
         setItems((prev) => prev.filter((it) => it.k !== "build" && it.k !== "replan"));
-        push({ k: "user", text: String(ev.text) });
+        const task = { k: "user" as const, text: String(ev.text) };
+        activeTask.current = task;
+        push(task);
         setRunning(true);
         runStart.current = Date.now();
         break;
+      }
       case "state":
         setReady((prev) =>
           prev
@@ -504,7 +516,7 @@ export default function App() {
             }
           }
         }
-        if (restored.length) setItems(restored);
+        setItems(restored);
         break;
       }
       case "plan": {
@@ -627,7 +639,8 @@ export default function App() {
       case "compacted":
         push({ k: "note", text: `compacted context — ${ev.blocks} old result(s) summarized` });
         break;
-      case "approval":
+      case "approval": {
+        const task = ev.kind === "plan" ? activeTask.current : undefined;
         setApprovals((prev) => [
           ...prev,
           {
@@ -636,9 +649,11 @@ export default function App() {
             allowAlways: ev.allowAlways === true,
             extraChoice: ev.extraChoice as { choice: string; label: string } | undefined,
             steps: Array.isArray(ev.steps) ? (ev.steps as string[]) : undefined,
+            task,
           },
         ]);
         break;
+      }
       case "diff_review":
         setDiffs((prev) => [
           ...prev,
@@ -694,6 +709,7 @@ export default function App() {
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
         stopRate();
+        activeTask.current = undefined;
         setRunning(false);
         setStatus(null);
         // Auto-start the queued backlog as fresh sessions — but not after a
@@ -905,6 +921,13 @@ export default function App() {
     taRef.current?.focus();
   };
 
+  const attachFile = () => {
+    if (railIsOverlay) setRailOpen(false);
+    setInput((value) => /(?:^|\s)@[^\s]*$/.test(value) ? value : `${value.trimEnd()}${value.trim() ? " " : ""}@`);
+    setCmdSel(0);
+    taRef.current?.focus();
+  };
+
   const submitAction = composerAction(
     input, running, files.length > 0 && atFrag !== null,
     palette.length > 0 && !input.trim().includes(" ") && palette[Math.min(cmdSel, palette.length - 1)]?.name !== input.trim(),
@@ -1070,18 +1093,20 @@ export default function App() {
     const ap = approvals.find((a) => a.id === id);
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, answered: choice } : a)));
     void send({ type: "approve", id, choice, plan: steps ? { steps } : undefined });
-    if (ap?.kind === "plan") {
+    if (ap?.task) {
       // Answered plans fold into a summary line; a denial adds a "Re-plan" cue.
       setItems((prev) => {
-        const next = [...prev];
-        for (let i = next.length - 1; i >= 0; i--) {
-          const it = next[i];
-          if (it.k === "plan") {
-            next[i] = { k: "plan", plan: { ...it.plan, collapsed: true } };
-            break;
-          }
-          if (it.k === "user" || it.k === "done") break;
+        let taskIndex = prev.length - 1;
+        let planIndex = -1;
+        for (; taskIndex >= 0; taskIndex--) {
+          const item = prev[taskIndex];
+          if (item.k === "user" || item.k === "done") break;
+          if (item.k === "plan" && planIndex === -1) planIndex = taskIndex;
         }
+        if (prev[taskIndex] !== ap.task) return prev;
+        const next = [...prev];
+        const plan = prev[planIndex];
+        if (plan?.k === "plan") next[planIndex] = { k: "plan", plan: { ...plan.plan, collapsed: true } };
         if (choice === "n") next.push({ k: "replan" });
         return next;
       });
@@ -1196,11 +1221,20 @@ export default function App() {
   // expand control.
   const pendingApprovals = approvals.filter((a) => !a.answered);
   const pendingDiffs = diffs.filter((d) => !d.decided);
+  const lastTurnStart = turns.at(-1)?.[0];
+  const taskPlanApproval = lastTurnStart && !Array.isArray(lastTurnStart) && lastTurnStart.item.k === "user"
+    ? pendingApprovals.find((a) => a.task === lastTurnStart.item && a.steps)
+    : undefined;
   const doneWorkers = wtasks.filter((w) => w.phase === "done");
   const failedWorkers = wtasks.filter((w) => w.phase === "failed");
-  const scrollTranscriptBottom = () => {
-    const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  const scrollToReview = (kind: "approval" | "diff") => {
+    if (railIsOverlay) setRailOpen(false);
+    setSettingsOpen(false);
+    requestAnimationFrame(() => {
+      const review = scrollRef.current?.querySelector<HTMLElement>(`[data-pending-review="${kind}"]`);
+      review?.focus({ preventScroll: true });
+      review?.scrollIntoView({ block: "end", behavior: "smooth" });
+    });
   };
   const scrollRailWorkers = () => document.getElementById("rail-workers")?.scrollIntoView({ block: "nearest" });
   const attentionItems = [
@@ -1208,13 +1242,13 @@ export default function App() {
       id: "approvals", icon: ListChecks, tone: "warn",
       title: "Approval needed",
       detail: `${pendingApprovals.length} action${pendingApprovals.length === 1 ? "" : "s"} waiting`,
-      action: scrollTranscriptBottom,
+      action: () => scrollToReview("approval"),
     }] : []),
     ...(pendingDiffs.length ? [{
       id: "diffs", icon: Files, tone: "warn",
       title: "Review changes",
       detail: `${pendingDiffs.length} diff${pendingDiffs.length === 1 ? "" : "s"} waiting`,
-      action: scrollTranscriptBottom,
+      action: () => scrollToReview("diff"),
     }] : []),
     ...(doneWorkers.length ? [{
       id: "workers-done", icon: GitBranch, tone: "warn",
@@ -1310,24 +1344,8 @@ export default function App() {
     }
   };
 
-  const idle = items.length === 0 && approvals.length === 0 && !onboarding;
-  useLayoutEffect(() => {
-    const el = composerRef.current;
-    if (!el) return;
-    if (idle) {
-      composerTop.current = el.getBoundingClientRect().top;
-      return;
-    }
-    const from = composerTop.current;
-    composerTop.current = null;
-    if (from === null || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const dy = from - el.getBoundingClientRect().top;
-    if (Math.abs(dy) < 1) return;
-    el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 340, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
-  });
-
   return (
-    <div className={artSrc ? "app has-art" : "app"} data-resizing={railResizing || undefined}>
+    <div className={artSrc ? "app has-art" : "app"} data-resizing={railResizing || undefined} data-onboarding={onboarding || undefined} data-mac={IS_MAC || undefined}>
       {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
         <DesktopDialog title="Sessions" navigation returnFocusRef={taRef}
@@ -1412,49 +1430,70 @@ export default function App() {
         </DesktopDialog>
       )}
       {ready && !onboarding && (
-        <aside className={`rail${railOpen ? "" : " rail-collapsed"}`} id="sessions-sidebar" aria-label="Sessions" style={{ width: railOpen ? displayedRailWidth : COLLAPSED_RAIL_WIDTH }}>
-          <div className="rail-brand" data-tauri-drag-region>
-            <Logo className="logo-mark" />
-            {railOpen && (
-              <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Collapse sidebar" title={IS_MAC ? "Collapse sidebar (⌘B)" : "Collapse sidebar (Ctrl B)"} onClick={() => setRailOpen(false)}>
-                <PanelLeft size={15} />
-              </Button>
-            )}
+        <aside className="workspace-nav" aria-label="Workspace">
+          <div className="workspace-brand" data-tauri-drag-region>
+            <XavierMark />
+            <span>Xavier</span>
           </div>
-          <nav className="rail-head" aria-label="Session actions">
-            <Button variant="ghost" className="rail-navrow rail-new" onClick={() => cmd("/new")}>
-              <Plus size={15} />
-              <span>New session</span>
+          <nav aria-label="Workspace navigation">
+            <Button variant="ghost" className="workspace-link" aria-current="page" aria-label="Home" title="Home" onClick={() => {
+              if (railIsOverlay) setRailOpen(false);
+              scrollRef.current?.scrollTo({ top: 0 });
+              taRef.current?.focus();
+            }}>
+              <House size={18} /><span>Home</span>
             </Button>
-            <Button variant="ghost" className="rail-search" onClick={() => setPalOpen(true)}>
-              <Search size={14} />
-              <span>Search</span>
-              <kbd className="rail-shortcut">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
+            <Button ref={sessionsToggleRef} variant="ghost" className="workspace-link workspace-sessions" aria-label={needsAttention ? "Sessions (attention needed)" : "Sessions"} aria-controls="sessions-sidebar" aria-expanded={railOpen}
+              title={IS_MAC ? "Sessions (⌘B)" : "Sessions (Ctrl B)"} onClick={() => setRailOpen((open) => !open)}>
+              <History size={18} /><span>Sessions</span>{needsAttention && <span className="rail-attn" />}
+            </Button>
+            <Button variant="ghost" className="workspace-link" aria-label="Files" title="Mention a project file" disabled={input.startsWith("/")} onClick={attachFile}>
+              <Folder size={18} /><span>Files</span>
+            </Button>
+            <Button variant="ghost" className="workspace-link" aria-label="Settings" title={IS_MAC ? "Settings (⌘,)" : "Settings (Ctrl ,)"} onClick={() => cmd("/settings")}>
+              <SlidersHorizontal size={18} /><span>Settings</span>
             </Button>
           </nav>
-          {!railOpen && (
-            <nav className="rail-strip" aria-label="Session actions">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`rail-strip-btn rail-strip-expand${needsAttention ? " attn" : ""}`}
-                aria-label="Expand sidebar"
-                aria-expanded={false}
-                aria-controls="sessions-sidebar"
-                title={`${IS_MAC ? "Expand sidebar (⌘B)" : "Expand sidebar (Ctrl B)"}${needsAttention ? " — attention needed" : ""}`}
-                onClick={() => setRailOpen(true)}
-              >
-                <PanelLeft size={15} />
-                {needsAttention && <span className="rail-attn" />}
-              </Button>
-              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="New session" title="New session" onClick={() => cmd("/new")}>
-                <Plus size={15} />
-              </Button>
-              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Search sessions" title={IS_MAC ? "Search sessions (⌘K)" : "Search sessions (Ctrl K)"} onClick={() => setPalOpen(true)}>
-                <Search size={15} />
-              </Button>
-            </nav>
-          )}
+          <div className="workspace-footer">
+            <Button variant="ghost" className="workspace-project" aria-label={`Change project: ${ready.project.name}`} title={projectPath || ready.project.name} onClick={openProject}>
+              <span className="workspace-project-icon"><Folder size={15} /></span>
+              <span className="workspace-project-copy">
+                <span className="truncate">{ready.project.name}</span>
+                {ready.project.git && <span className="workspace-project-branch truncate">
+                  {ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}
+                </span>}
+              </span>
+              <ChevronDown size={13} className="workspace-project-caret" />
+            </Button>
+          </div>
+        </aside>
+      )}
+      {ready && !onboarding && (
+        <aside className="rail" hidden={!railOpen} id="sessions-sidebar" aria-label="Sessions" style={{ width: displayedRailWidth }}>
+          <div className="rail-brand" data-tauri-drag-region>
+            <h2>Sessions</h2>
+            <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Collapse sidebar" title={IS_MAC ? "Collapse sidebar (⌘B)" : "Collapse sidebar (Ctrl B)"} onClick={() => {
+              setRailOpen(false);
+              sessionsToggleRef.current?.focus();
+            }}>
+              <PanelLeft size={15} />
+            </Button>
+          </div>
+          <nav className="rail-head" aria-label="Session actions">
+            <Button variant="ghost" className="rail-search" aria-label="Search sessions" onClick={() => setPalOpen(true)}>
+              <Search size={14} />
+              <span>Search sessions…</span>
+              <kbd className="rail-shortcut">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
+            </Button>
+            <Button variant="ghost" className="rail-navrow rail-new" onClick={() => {
+              if (railIsOverlay) setRailOpen(false);
+              cmd("/new");
+              taRef.current?.focus();
+            }}>
+              <Plus size={16} />
+              <span>New session</span>
+            </Button>
+          </nav>
           <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
             <div className="rail-workspace">
               <Button variant="ghost" className="rail-workspace-main" aria-expanded={projectExpanded} aria-controls="workspace-sessions" onClick={() => setProjectExpanded((v) => !v)}>
@@ -1541,12 +1580,6 @@ export default function App() {
                   ))}
               </div>
             )}
-            <div className="rail-section-head">
-              <span>Sessions</span>
-              <Button variant="ghost" size="icon" aria-label="New session" title="New session" onClick={() => cmd("/new")}>
-                <Plus size={14} />
-              </Button>
-            </div>
             <div id="workspace-sessions" className="rail-sessions" hidden={!projectExpanded}>
             {railGroups.length === 0 && (
               <div className="rail-empty">
@@ -1559,7 +1592,7 @@ export default function App() {
             )}
             {railGroups.map(([label, group]) => (
               <div key={label}>
-                <div className="pal-group-label">{label}</div>
+                <div className="pal-group-label">{label === "Pinned" ? <Pin size={14} /> : <History size={14} />}{label}</div>
                 {group.map((s) => {
                   const current = s.id === sessionInfo.id;
                   const state = sessionState(s, current);
@@ -1579,13 +1612,20 @@ export default function App() {
                           className="rail-sesspick"
                           aria-current={current || undefined}
                           title={s.title}
-                          onClick={() => { if (!current) void send({ type: "resume", id: s.id }); }}
+                          onClick={() => {
+                            if (!current) void send({ type: "resume", id: s.id });
+                            if (railIsOverlay) {
+                              setRailOpen(false);
+                              taRef.current?.focus();
+                            }
+                          }}
                         >
-                          <span
+                          <span className="rail-file-icon" aria-hidden="true">
+                            <FileText size={19} />
+                            {state.kind !== "none" && <span
                             className={`rail-glyph ${state.kind === "running" ? "rail-live" : state.kind}`}
-                            data-empty={state.kind === "none" || undefined}
-                            title={state.kind === "warn" ? state.label : undefined}
-                          />
+                            />}
+                          </span>
                           <span className="rail-sessmain">
                             {renamingSess === s.id ? (
                               <input
@@ -1612,11 +1652,12 @@ export default function App() {
                             ) : (
                               <>
                                 <span className="rail-sesstitle truncate">{s.title || "Untitled"}</span>
-                                {state.label && <span className={`rail-sessmeta ${state.kind}`}>{state.label}</span>}
+                                <span className={`rail-sessmeta ${state.kind}`} title={state.label}>
+                                  {state.kind === "none" ? sessionAge(s.when) || state.label : state.label}
+                                </span>
                               </>
                             )}
                           </span>
-                          <span className="rail-time">{sessionAge(s.when)}</span>
                         </Button>
                         {renamingSess !== s.id && (
                           <>
@@ -1693,20 +1734,6 @@ export default function App() {
             ))}
             </div>
           </ScrollArea>
-          {!railOpen && (
-            <div className="rail-strip-footer">
-              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Settings" title={IS_MAC ? "Settings (⌘,)" : "Settings (Ctrl ,)"} onClick={() => cmd("/settings")}>
-                <SlidersHorizontal size={15} />
-              </Button>
-            </div>
-          )}
-          <div className="rail-footer">
-            <Button variant="ghost" className="rail-navrow" onClick={() => cmd("/settings")}>
-              <SlidersHorizontal size={15} />
-              <span>Settings</span>
-              <kbd className="rail-shortcut">{IS_MAC ? "⌘," : "Ctrl ,"}</kbd>
-            </Button>
-          </div>
           <div
             className="rail-resize"
             role="separator"
@@ -1749,12 +1776,27 @@ export default function App() {
           />
         </aside>
       )}
-      <div className={`main${idle ? " idle" : ""}`}>
+      <main className="main">
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && !ready && <Logo className="logo-mark" />}
         </div>
         <span className="spacer" />
+        {ready && !onboarding && (
+          <div className="workspace-controls">
+            <ComposerSelector
+              model={ready.model} models={modelOpts} provider={ready.provider}
+              effort={ready.effort ?? "default"} disabled={running}
+              disabledReason="Available after this run"
+              onModelsOpen={() => void send({ type: "command", name: "/models" })}
+              onModelChange={(v) => void send({ type: "command", name: `/model ${v}` })}
+              onCustomModel={() => cmd("/model")}
+              onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
+              onCommit={() => taRef.current?.focus()}
+            />
+            <span className="workspace-status">{ready.provider === "mock" ? "Demo mode" : "Ready"}</span>
+          </div>
+        )}
         {ready && !IS_MAC && (
           <div className="hact">
             <Button variant="ghost" size="icon" title="Minimize" aria-label="Minimize window" onClick={() => void win.minimize()}>
@@ -1881,7 +1923,7 @@ export default function App() {
         <section className="onboarding" aria-labelledby="ob-title">
           <div className="ob-frame">
             <header className="ob-header">
-              <div className="ob-brand"><Logo className="ob-mark" /><span>Set up Xavier</span></div>
+              <div className="ob-brand"><XavierMark className="ob-mark" gradient /><span>Set up Xavier</span></div>
               <span className="ob-step-label">{obStep === "first" ? "Setup complete · Optional task" : `Step ${obPhase + 1} of ${ONBOARDING_PHASES.length}`}</span>
             </header>
             <ol className="ob-progress" aria-label="Setup progress">
@@ -1895,7 +1937,7 @@ export default function App() {
             <div className="ob-content" key={obStep}>
               <h1 className="ob-title" id="ob-title" ref={obTitleRef} tabIndex={-1}>
                 {{
-                  welcome: "Your coding agent, on your desktop.",
+                  welcome: "Welcome to Xavier",
                   pick: "Connect a provider.",
                   key: `${obSelected?.name ?? "Provider"} API key`,
                   project: "Choose your project.",
@@ -1904,7 +1946,7 @@ export default function App() {
               </h1>
               <p className="ob-desc">
                 {{
-                  welcome: "Local. Private. Yours.",
+                  welcome: "Your coding agent, on your desktop.",
                   pick: "Choose the model provider you want to work with.",
                   key: "Enter your provider’s API key to continue.",
                   project: "Choose the folder Xavier will work in.",
@@ -2057,35 +2099,59 @@ export default function App() {
             <span className="boot-word">starting engine…</span>
           </div>
         )}
-        {idle && ready && bootGone && (
+        {ready && bootGone && !onboarding && (
           <div className="hero">
-            <Logo className="hero-mark" />
-            <div className="hero-title">What should we build in
-              <button className="hero-proj" title="Change project" onClick={openProject}>
-                {ready.project.name}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </button>?
-            </div>
+            <XavierMark className="hero-mark" gradient />
+            <h1 className="hero-title">Welcome to <span>Xavier</span></h1>
+            <button className="hero-proj" title="Change project" onClick={openProject}>
+              <Folder size={15} />{ready.project.name}<ChevronDown size={14} />
+            </button>
           </div>
         )}
-        {turns.map((turn, ti) => (
-          <div className="turn" key={ti}>
-            {turn.map((seg, si) =>
-              Array.isArray(seg) ? (
-                <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} onCmd={cmd} />
-              ) : (
-                <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} onCmd={cmd} />
-              ),
-            )}
-          </div>
-        ))}
+        {turns.map((turn, ti) => {
+          const first = turn[0];
+          const task = !Array.isArray(first) && first.item.k === "user" ? first.item.text : undefined;
+          const planApproval = ti === turns.length - 1 ? taskPlanApproval : undefined;
+          const completed = turn.reduce((done, seg) =>
+            !Array.isArray(seg) && seg.item.k === "done" ? seg.item.status === "completed" : done, false);
+          return (
+            <div className={task ? "turn task-card" : "turn"} key={ti}>
+              {task && (
+                <div className="task-heading">
+                  <span className="task-icon"><FileText size={20} aria-hidden="true" /></span>
+                  <h2>{task}</h2>
+                  {planApproval ? <span className="dec-status">Awaiting approval</span>
+                    : completed && <span className="task-complete"><Check size={13} aria-hidden="true" />Completed</span>}
+                </div>
+              )}
+              {(task ? turn.slice(1) : turn).map((seg, si) =>
+                Array.isArray(seg) ? (
+                  <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} onCmd={cmd} />
+                ) : (
+                  planApproval && seg.item.k === "plan" ? null
+                    : <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} onCmd={cmd} />
+                ),
+              )}
+              {planApproval?.steps && (
+                <div className="task-review" key={planApproval.id} data-pending-review="approval" tabIndex={-1}>
+                  <PlanApproval
+                    summary={planApproval.summary}
+                    steps={planApproval.steps}
+                    extraChoice={planApproval.extraChoice}
+                    onAnswer={(choice, steps) => answer(planApproval.id, choice, steps)}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
         {running && !thinking && !approvals.some((a) => !a.answered) && !diffs.some((d) => !d.decided) && (
           <div className="workline row">
             <span className="think-shimmer">Xavier is working…</span>
             {lastTool && <span className="workline-tool">{lastTool}</span>}
           </div>
         )}
-        {approvals.map((a) => (
+        {approvals.filter((a) => a !== taskPlanApproval).map((a) => (
           a.answered ? (
             <div className={`dresolved row${a.answered === "n" ? " deny" : " ok"}`} key={`ap${a.id}`}>
               <span className="dres-mark">{a.answered === "n" ? "✗" : "✓"}</span>
@@ -2093,14 +2159,15 @@ export default function App() {
               {a.tool && <span className="dres-tool">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
             </div>
           ) : (
-            <div className="row decision decision-card" key={`ap${a.id}`}>
+            <div className="row decision decision-card" key={`ap${a.id}`} data-pending-review="approval" tabIndex={-1}>
               <div className="dec-head">
                 <span className="dec-mark"><ListChecks size={12} /></span>
                 <span className="dec-titleblock">
                   <span className="dec-title">{a.kind === "plan" ? "Xavier's plan" : "Xavier wants to"}</span>
+                  {a.task && <span className="dec-meta" title={a.task.text}>{a.task.text}</span>}
                   {a.tool && <span className="dec-meta">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
                 </span>
-                <span className="dec-status">Waiting</span>
+                <span className="dec-status">Awaiting approval</span>
               </div>
               {a.kind === "plan" && a.steps ? (
                 <PlanApproval
@@ -2116,11 +2183,11 @@ export default function App() {
                     {a.reason && <div className="reason">Reason: {a.reason}</div>}
                   </div>
                   <div className="dec-acts">
-                    <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow once</button>
                     <button className="pill deny" onClick={() => answer(a.id, "n")}>Deny</button>
                     {(a.allowAlways || a.extraChoice) && <span className="dec-sep" />}
                     {a.allowAlways && <button className="pill ghost" onClick={() => answer(a.id, "a")}>Always allow</button>}
                     {a.extraChoice && <button className="pill ghost" onClick={() => answer(a.id, a.extraChoice!.choice)}>{a.extraChoice.label}</button>}
+                    <button className="pill allow" onClick={() => answer(a.id, "y")}>Allow once</button>
                   </div>
                 </>
               )}
@@ -2139,7 +2206,7 @@ export default function App() {
             );
           }
           return (
-            <div className="row decision decision-card" key={`df${d.id}`}>
+            <div className="row decision decision-card" key={`df${d.id}`} data-pending-review="diff" tabIndex={-1}>
               <div className="dec-head">
                 <span className="dec-mark"><Files size={12} /></span>
                 <span className="dec-titleblock">
@@ -2212,9 +2279,9 @@ export default function App() {
           </div>
         </div>
       )}
-      <div className="composer" ref={composerRef}>
+      <div className="composer">
         {palette.length > 0 && (
-          <div className="palette">
+          <div className="palette" ref={suggestionsRef}>
             {palette.map((c, i) => (
               <button
                 key={c.name}
@@ -2233,7 +2300,7 @@ export default function App() {
           </div>
         )}
         {palette.length === 0 && files.length > 0 && (
-          <div className="palette">
+          <div className="palette" ref={suggestionsRef}>
             {files.map((f, i) => (
               <button
                 key={f.name}
@@ -2304,7 +2371,6 @@ export default function App() {
               ))}
           </div>
         )}
-        <div className="composer-stack">
         <div className="inputbox">
           <textarea
             ref={taRef}
@@ -2346,17 +2412,12 @@ export default function App() {
             <div className="composer-controls">
               {ready && (
                 <>
-                  <ComposerSelector
-                    model={ready.model} models={modelOpts} provider={ready.provider}
-                    effort={ready.effort ?? "default"} disabled={running || onboarding}
-                    disabledReason={running ? "Available after this run" : "Complete setup to change model and effort"}
-                    onModelsOpen={() => void send({ type: "command", name: "/models" })}
-                    onModelChange={(v) => void send({ type: "command", name: `/model ${v}` })}
-                    onCustomModel={() => cmd("/model")}
-                    onEffortChange={(v) => void send({ type: "command", name: `/effort ${v}` })}
-                    onCommit={() => taRef.current?.focus()}
-                  />
-                  <span className="composer-divider" aria-hidden="true" />
+                  <Button variant="ghost" className="composer-tool" aria-label="Attach a project file" title="Attach a project file" disabled={input.startsWith("/")} onClick={attachFile}>
+                    <Paperclip size={15} /><span>Attach</span>
+                  </Button>
+                  <Button variant="ghost" className="composer-tool" aria-label="List custom tools" title="List custom tools" disabled={running} onClick={() => cmd("/tools")}>
+                    <Wrench size={15} /><span>Tools</span>
+                  </Button>
                   <PermissionSelector
                     mode={ready.mode} plan={planMode} disabled={onboarding} planLocked={running}
                     onChange={(v) => void send({ type: "command", name: `/approval ${v}` })}
@@ -2380,24 +2441,8 @@ export default function App() {
             </div>
           </div>
         </div>
-        {ready && (
-          <div className="composer-tray">
-            <button type="button" className="tray-item" aria-label={`Change project: ${ready.project.name}`} title="Change project" onClick={openProject}>
-              <Folder size={12} />
-              <span className="tray-label">{ready.project.name}</span>
-              <ChevronDown size={11} className="tray-chevron" />
-            </button>
-            {ready.project.git && (
-              <span className="tray-item static" title={ready.project.git.dirty ? `On ${ready.project.git.branch} · uncommitted changes` : `On ${ready.project.git.branch}`}>
-                <GitBranch size={12} />
-                <span className="tray-label mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-              </span>
-            )}
-          </div>
-        )}
-        </div>
       </div>
-      </div>
+      </main>
     </div>
   );
 }
