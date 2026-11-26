@@ -287,6 +287,10 @@ export default function App() {
   const atMatch = input.match(/(?:^|\s)@([^\s]*)$/);
   const atFrag = palette.length === 0 && atMatch ? atMatch[1].split("#")[0] : null;
   const files = atFrag !== null ? fileSugs.items : [];
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    suggestionsRef.current?.querySelector(".sel")?.scrollIntoView({ block: "nearest" });
+  }, [cmdSel, input, palette.length, files.length]);
   // Replies arrive as whole blocks, not a token stream: `appendText` just
   // accumulates into textBuf; the block is pushed when the next event lands
   // (push/done/idle). Think still streams dim inside its own row.
@@ -2272,7 +2276,7 @@ export default function App() {
       )}
       <div className="composer">
         {palette.length > 0 && (
-          <div className="palette">
+          <div className="palette" ref={suggestionsRef}>
             {palette.map((c, i) => (
               <button
                 key={c.name}
@@ -2291,7 +2295,7 @@ export default function App() {
           </div>
         )}
         {palette.length === 0 && files.length > 0 && (
-          <div className="palette">
+          <div className="palette" ref={suggestionsRef}>
             {files.map((f, i) => (
               <button
                 key={f.name}
