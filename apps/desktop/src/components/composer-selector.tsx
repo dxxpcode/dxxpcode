@@ -78,6 +78,12 @@ export function ComposerSelector({
     if (value !== effort) onEffortChange(value);
     onCommit();
   };
+  const focusEffort = (index: number) => {
+    const value = options[index]?.value;
+    if (!value) return;
+    setActiveEffort(value);
+    effortRows.current[index]?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -111,7 +117,7 @@ export function ComposerSelector({
       const match = ordered.find((option) => option.label.toLowerCase().startsWith(event.key.toLowerCase()));
       if (match) {
         event.preventDefault();
-        setActiveEffort(match.value);
+        focusEffort(options.findIndex((option) => option.value === match.value));
       }
       return;
     }
@@ -120,7 +126,7 @@ export function ComposerSelector({
     const current = options.findIndex((option) => option.value === activeEffort);
     const index = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
       : nextOption(current, options.length, event.key === "ArrowDown" ? 1 : -1);
-    setActiveEffort(options[index].value);
+    focusEffort(index);
   };
 
   return (
@@ -197,7 +203,7 @@ export function ComposerSelector({
                 aria-selected={option.value === effort}
                 aria-label={`${option.label} — ${option.description}`}
                 title={option.description}
-                className={`selector-option selector-effort-row${option.value === "auto (Jev)" ? " selector-auto" : ""}`}
+                className={`selector-option selector-effort-row${option.value === activeEffort ? " active" : ""}${option.value === "auto (Jev)" ? " selector-auto" : ""}`}
                 onFocus={() => setActiveEffort(option.value)} onClick={() => chooseEffort(option.value)}>
                 <span className="selector-option-meter"><EffortMeter value={option.value} /></span>
                 <span className="selector-option-text">{option.label}</span>
