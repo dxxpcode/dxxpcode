@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { Check, ChevronDown, ListChecks, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, ChevronsUpDown, ListChecks, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { MODE_OPTIONS, composerMode } from "../lib/permission-mode";
 import type { ComposerMode, PermissionMode } from "../lib/permission-mode";
 import { nextOption } from "../lib/composer-selector";
@@ -95,7 +95,7 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
         }}>
         <Icon size={13} strokeWidth={1.9} aria-hidden="true" />
         <span>{option.short}</span>
-        <ChevronDown size={12} aria-hidden="true" className={open ? "selector-chevron open" : "selector-chevron"} />
+        <ChevronsUpDown size={11} aria-hidden="true" className="selector-chevron" />
       </button>
       {open && !disabled && (
         <div className="selector-popover permission-popover" id={`${id}-panel`} role="dialog" aria-label="Mode">

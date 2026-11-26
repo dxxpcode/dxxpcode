@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { Check, ChevronDown, CircleDashed, Search, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronsUpDown, CircleDashed, Search, SlidersHorizontal } from "lucide-react";
 import { EFFORT_OPTIONS, displayModel, displayProvider, effortOption, filterModels, nextOption } from "../lib/composer-selector";
 import { ProviderIcon, providerIconKey } from "./provider-icons";
 
@@ -138,7 +138,7 @@ export function ComposerSelector({
         <ProviderIcon icon={providerIconKey(provider, model)} />
         <span className="selector-model-name">{displayModel(model)}</span>
         <span className="selector-effort-name">{currentEffort.label}</span>
-        <ChevronDown size={12} aria-hidden="true" className={open ? "selector-chevron open" : "selector-chevron"} />
+        <ChevronsUpDown size={11} aria-hidden="true" className="selector-chevron" />
       </button>
       {open && !disabled && (
         <div className="selector-popover selector-unified-popover" id={`${id}-panel`}

@@ -2127,19 +2127,44 @@ html[data-theme="dark"] .inputbox {
 .composer-toolbar { align-items: center; }
 .composer-controls { gap: 5px; }
 .selector-unified, .permission-trigger {
-  height: 28px; padding: 0 9px;
-  border: 0; border-radius: 999px;
-  background: rgb(120 120 128 / 0.1);
-  color: var(--dim);
-  font-size: 12px; font-weight: 400;
+  height: 29px; padding: 0 10px;
+  border: 0.5px solid rgb(0 0 0 / 0.09);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(242 242 245 / 0.62));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.045), inset 0 1px 0 rgb(255 255 255 / 0.72), inset 0 -0.5px 0 rgb(0 0 0 / 0.025);
+  backdrop-filter: blur(18px) saturate(1.55);
+  -webkit-backdrop-filter: blur(18px) saturate(1.55);
+  color: var(--text);
+  font-size: 12px; font-weight: 500;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
-html[data-theme="dark"] .selector-unified, html[data-theme="dark"] .permission-trigger { background: rgb(255 255 255 / 0.075); }
+html[data-theme="dark"] .selector-unified, html[data-theme="dark"] .permission-trigger {
+  border-color: rgb(255 255 255 / 0.12);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.115), rgb(255 255 255 / 0.072));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.24), inset 0 1px 0 rgb(255 255 255 / 0.075), inset 0 -0.5px 0 rgb(0 0 0 / 0.16);
+}
 .selector-unified:hover:not(:disabled), .selector-unified[aria-expanded="true"],
 .permission-trigger:hover:not(:disabled), .permission-trigger[aria-expanded="true"] {
-  color: var(--text); background: rgb(120 120 128 / 0.16);
+  border-color: rgb(0 0 0 / 0.13);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(246 246 248 / 0.76));
+  color: var(--text);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.055), inset 0 1px 0 rgb(255 255 255 / 0.82), inset 0 -0.5px 0 rgb(0 0 0 / 0.03);
 }
 html[data-theme="dark"] .selector-unified:hover:not(:disabled), html[data-theme="dark"] .selector-unified[aria-expanded="true"],
-html[data-theme="dark"] .permission-trigger:hover:not(:disabled), html[data-theme="dark"] .permission-trigger[aria-expanded="true"] { background: rgb(255 255 255 / 0.12); }
+html[data-theme="dark"] .permission-trigger:hover:not(:disabled), html[data-theme="dark"] .permission-trigger[aria-expanded="true"] {
+  border-color: rgb(255 255 255 / 0.17);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.095));
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.1), inset 0 -0.5px 0 rgb(0 0 0 / 0.16);
+}
+.composer .selector-unified:focus-visible, .composer .permission-trigger:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+  box-shadow: 0 0 0 3px var(--ring), inset 0 1px 0 rgb(255 255 255 / 0.72);
+}
+.selector-model-name { font-weight: 550; letter-spacing: -0.01em; }
+.selector-effort-name { font-weight: 400; opacity: 0.68; }
+.selector-chevron { opacity: 0.54; }
+.permission-trigger.full svg:first-child { color: var(--accent); opacity: 1; }
 .composer-divider { display: none; }
 .composer-submit, .composer-stop {
   width: 30px; height: 30px; border-radius: 50%;
