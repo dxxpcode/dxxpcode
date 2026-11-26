@@ -64,6 +64,17 @@ export function PermissionSelector({ mode, plan, disabled, planLocked, onChange,
   }, [open, active]);
 
   const keys = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (/^[\p{L}\p{N}]$/u.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      const index = MODE_OPTIONS.findIndex((o) => o.value === active);
+      const ordered = [...MODE_OPTIONS.slice(index + 1), ...MODE_OPTIONS.slice(0, index + 1)];
+      const match = ordered.find((o) => o.label.toLowerCase().startsWith(event.key.toLowerCase())
+        || o.short.toLowerCase().startsWith(event.key.toLowerCase()));
+      if (match) {
+        event.preventDefault();
+        setActive(match.value);
+      }
+      return;
+    }
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const index = MODE_OPTIONS.findIndex((o) => o.value === active);

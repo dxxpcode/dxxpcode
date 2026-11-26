@@ -1032,14 +1032,14 @@ export default function App() {
     if (ready && !ready.needsSetup) void send({ type: "command", name: "/models" });
   }, [ready?.provider, ready?.needsSetup]);
 
-  const openProject = () => {
+  const openProject = useCallback(() => {
     void invoke<string | null>("pick_folder").then((dir) => {
       if (dir) {
         projectSwitchPending.current = true;
         void invoke("restart_sidecar", { cwd: dir });
       }
     });
-  };
+  }, []);
 
   const submitPrompt = () => {
     const p = promptReq;
@@ -1087,6 +1087,12 @@ export default function App() {
       } else if ((e.metaKey || e.ctrlKey) && e.key === ",") {
         e.preventDefault();
         if (ready) setSettingsOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        if (ready) void send({ type: "command", name: "/new" });
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        if (ready) openProject();
       } else if (e.key === "Escape" && palOpen) {
         setPalOpen(false);
       } else if (e.key === "Escape" && sessMenu) {
@@ -1095,7 +1101,19 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ready, palOpen, sessMenu]);
+  }, [ready, palOpen, sessMenu, openProject]);
+
+  // Native macOS menu commands mirror the in-app keyboard shortcuts.
+  useEffect(() => {
+    const unlisten = listen<string>("menu-action", (event) => {
+      if (!ready) return;
+      if (event.payload === "new-session") void send({ type: "command", name: "/new" });
+      else if (event.payload === "open-project") openProject();
+      else if (event.payload === "settings") setSettingsOpen(true);
+      else if (event.payload === "search-sessions") setPalOpen(true);
+    });
+    return () => { void unlisten.then((f) => f()); };
+  }, [ready, openProject]);
 
   // Boot hand-off: when ready lands, the boot mark fades/scales out over
   // ~300ms while the hero fades in, then unmounts.
@@ -1700,7 +1718,7 @@ export default function App() {
           {!onboarding && !ready && <Logo className="logo-mark" />}
           {ready && !onboarding && (
             <div className="window-titleblock">
-              <button type="button" className="window-title" title="Change project" onClick={openProject}>{ready.project.name}</button>
+              <button type="button" className="window-title" title="Change project (⌘O)" onClick={openProject}>{ready.project.name}</button>
               {ready.project.git && (
                 <span className="window-subtitle">{ready.project.git.branch}{ready.project.git.dirty ? " · edited" : ""}</span>
               )}
@@ -1713,7 +1731,7 @@ export default function App() {
             <button type="button" className="toolbar-button" title="Search sessions (⌘K)" aria-label="Search sessions" onClick={() => setPalOpen(true)}>
               <Search size={15} />
             </button>
-            <button type="button" className="toolbar-button" title="New session" aria-label="New session" onClick={() => cmd("/new")}>
+            <button type="button" className="toolbar-button" title="New session (⌘N)" aria-label="New session" onClick={() => cmd("/new")}>
               <Plus size={16} />
             </button>
             <button type="button" className="toolbar-button" title="Settings (⌘,)" aria-label="Settings" onClick={() => cmd("/settings")}>
@@ -2258,6 +2276,9 @@ export default function App() {
             ref={taRef}
             rows={2}
             autoFocus
+            spellCheck
+            autoCorrect="on"
+            autoCapitalize="sentences"
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
             placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — Xavier will plan it first…" : "Describe a task…"}
             value={input}
@@ -2311,7 +2332,7 @@ export default function App() {
                     onPlanChange={setPlanMode}
                     onCommit={() => taRef.current?.focus()}
                   />
-                  {ready.variant && (
+                  {ready.variant && ready.variant !== "default" && (
                     <>
                       <span className="composer-divider" aria-hidden="true" />
                       <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>

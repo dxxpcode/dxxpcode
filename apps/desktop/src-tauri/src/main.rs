@@ -2,6 +2,7 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::Mutex;
+use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -584,6 +585,92 @@ fn worktree_discard(root: String, dir: String, branch: String) -> Result<(), Str
     Ok(())
 }
 
+fn window_bounds_path() -> std::path::PathBuf {
+    dxxpcode_home().join("window-bounds.json")
+}
+
+fn write_window_bounds(window: &tauri::WebviewWindow) {
+    if window.is_fullscreen().unwrap_or(true) || window.is_maximized().unwrap_or(true) {
+        return;
+    }
+    let (Ok(size), Ok(position)) = (window.inner_size(), window.outer_position()) else {
+        return;
+    };
+    if size.width < 320 || size.height < 240 {
+        return;
+    }
+    let json = serde_json::json!({
+        "width": size.width,
+        "height": size.height,
+        "x": position.x,
+        "y": position.y,
+    });
+    let path = window_bounds_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, serde_json::to_vec(&json).unwrap_or_default());
+}
+
+fn save_window_bounds(window: &tauri::WebviewWindow, force: bool) {
+    static SAVE_GENERATION: Mutex<u64> = Mutex::new(0);
+    if force {
+        write_window_bounds(window);
+        return;
+    }
+    let generation = {
+        let mut generation = SAVE_GENERATION.lock().unwrap();
+        *generation += 1;
+        *generation
+    };
+    let window = window.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        if *SAVE_GENERATION.lock().unwrap() == generation {
+            write_window_bounds(&window);
+        }
+    });
+}
+
+fn restore_window_bounds(window: &tauri::WebviewWindow) {
+    let Ok(text) = std::fs::read_to_string(window_bounds_path()) else {
+        return;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return;
+    };
+    let (Some(width), Some(height), Some(x), Some(y)) = (
+        value.get("width").and_then(|v| v.as_u64()),
+        value.get("height").and_then(|v| v.as_u64()),
+        value.get("x").and_then(|v| v.as_i64()),
+        value.get("y").and_then(|v| v.as_i64()),
+    ) else {
+        return;
+    };
+    if !(320..=10000).contains(&width) || !(240..=10000).contains(&height) {
+        return;
+    }
+    let visible = window
+        .available_monitors()
+        .map(|monitors| {
+            monitors.iter().any(|monitor| {
+                let left = monitor.position().x as i64;
+                let top = monitor.position().y as i64;
+                let right = left + monitor.size().width as i64;
+                let bottom = top + monitor.size().height as i64;
+                let overlap_x = (x + width as i64).min(right) - x.max(left);
+                let overlap_y = (y + height as i64).min(bottom) - y.max(top);
+                overlap_x >= 160 && overlap_y >= 100
+            })
+        })
+        .unwrap_or(true);
+    if !visible {
+        return;
+    }
+    let _ = window.set_size(tauri::PhysicalSize::new(width as u32, height as u32));
+    let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
+}
+
 fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -606,6 +693,74 @@ fn main() {
         .manage(Companion(Mutex::new(None)))
         .setup(|app| {
             #[cfg(target_os = "macos")]
+            {
+                let handle = app.handle();
+                let settings = MenuItemBuilder::with_id("settings", "Settings…")
+                    .accelerator("CmdOrControl+,")
+                    .build(handle)?;
+                let new_session = MenuItemBuilder::with_id("new-session", "New Session")
+                    .accelerator("CmdOrControl+N")
+                    .build(handle)?;
+                let open_project = MenuItemBuilder::with_id("open-project", "Open Project…")
+                    .accelerator("CmdOrControl+O")
+                    .build(handle)?;
+                let search_sessions =
+                    MenuItemBuilder::with_id("search-sessions", "Search Sessions")
+                        .accelerator("CmdOrControl+K")
+                        .build(handle)?;
+                let about = PredefinedMenuItem::about(handle, None, None)?;
+                let app_menu = SubmenuBuilder::new(handle, "dxxpcode")
+                    .item(&about)
+                    .separator()
+                    .item(&settings)
+                    .separator()
+                    .services()
+                    .separator()
+                    .hide()
+                    .hide_others()
+                    .show_all()
+                    .separator()
+                    .quit()
+                    .build()?;
+                let file_menu = SubmenuBuilder::new(handle, "File")
+                    .item(&new_session)
+                    .item(&open_project)
+                    .separator()
+                    .close_window()
+                    .build()?;
+                let edit_menu = SubmenuBuilder::new(handle, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .build()?;
+                let view_menu = SubmenuBuilder::new(handle, "View")
+                    .item(&search_sessions)
+                    .separator()
+                    .fullscreen()
+                    .build()?;
+                let window_menu = SubmenuBuilder::new(handle, "Window")
+                    .minimize()
+                    .maximize()
+                    .separator()
+                    .bring_all_to_front()
+                    .build()?;
+                let menu = MenuBuilder::new(handle)
+                    .item(&app_menu)
+                    .item(&file_menu)
+                    .item(&edit_menu)
+                    .item(&view_menu)
+                    .item(&window_menu)
+                    .build()?;
+                let _ = handle.set_menu(menu)?;
+                handle.on_menu_event(|handle, event| {
+                    let _ = handle.emit("menu-action", event.id().0.clone());
+                });
+            }
+            #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window_vibrancy::apply_vibrancy(
                     &window,
@@ -613,6 +768,17 @@ fn main() {
                     Some(window_vibrancy::NSVisualEffectState::Active),
                     Some(12.0),
                 );
+                restore_window_bounds(&window);
+                let bounds_window = window.clone();
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
+                        save_window_bounds(&bounds_window, false)
+                    }
+                    tauri::WindowEvent::CloseRequested { .. } => {
+                        save_window_bounds(&bounds_window, true)
+                    }
+                    _ => {}
+                });
             }
             // Spawn dxxpcode: DXXPCODE_BIN overrides for dev; otherwise the
             // bundled sidecar (next to the exe or in the resource dir); finally

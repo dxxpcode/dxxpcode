@@ -105,6 +105,16 @@ export function ComposerSelector({
     }
   };
   const effortKeys = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (/^[\p{L}\p{N}]$/u.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      const current = options.findIndex((option) => option.value === activeEffort);
+      const ordered = [...options.slice(current + 1), ...options.slice(0, current + 1)];
+      const match = ordered.find((option) => option.label.toLowerCase().startsWith(event.key.toLowerCase()));
+      if (match) {
+        event.preventDefault();
+        setActiveEffort(match.value);
+      }
+      return;
+    }
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const current = options.findIndex((option) => option.value === activeEffort);
