@@ -1897,11 +1897,23 @@ pub fn run_app(deps: AppDeps) -> i32 {
                             Some((std::time::Instant::now(), list_project_files(&dinfo.root)));
                     }
                     let prefix = cmd.get("text").and_then(|v| v.as_str()).unwrap_or("");
-                    let items: Vec<Value> =
-                        file_suggestions(&file_index.as_ref().unwrap().1, prefix)
+                    let idx = &file_index.as_ref().unwrap().1;
+                    let items: Vec<Value> = if cmd.get("browse").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        // Files view: the full index, not the 8-row suggestion cap —
+                        // dirs first with a trailing slash, then files, both sorted.
+                        let mut rows: Vec<Value> = idx
+                            .dirs
+                            .iter()
+                            .map(|d| json!({"name": format!("{d}/"), "desc": "dir"}))
+                            .collect();
+                        rows.extend(idx.files.iter().map(|f| json!({"name": f, "desc": "file"})));
+                        rows
+                    } else {
+                        file_suggestions(idx, prefix)
                             .into_iter()
                             .map(|(name, desc)| json!({"name": name, "desc": desc}))
-                            .collect();
+                            .collect()
+                    };
                     emit(json!({"type": "files", "id": id, "items": items}));
                 }
             }
