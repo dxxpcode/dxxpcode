@@ -322,12 +322,16 @@ pub struct FileIndex {
 }
 
 fn git_files(root: &str) -> Option<Vec<String>> {
-    let text = git_stdout_ok(root, &["ls-files", "-co", "--exclude-standard"])?;
+    // `-z` gives raw NUL-separated paths — without it git quotes non-ASCII
+    // filenames as octal escapes ("caf\303\251.md"), which don't match
+    // anything on disk.
+    let text = git_stdout_ok(root, &["ls-files", "-coz", "--exclude-standard"])?;
     if text.is_empty() {
         return None;
     }
     Some(
-        text.lines()
+        text.split('\0')
+            .filter(|l| !l.is_empty())
             .take(MAX_INDEX_ENTRIES)
             .map(String::from)
             .collect(),
