@@ -1875,3 +1875,254 @@ html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
     background: none; color: var(--dim); -webkit-text-fill-color: currentColor;
   }
 }
+
+
+/* ============================================================
+   XAVIER SKIN — violet accent, rounded cards, pill controls
+   ============================================================ */
+:root {
+  --xv: #6c63f0;
+  --xv2: #8b5cf6;
+  --xv-grad: linear-gradient(135deg, #5e6bff, #8b5cf6);
+  --xv-dim: rgba(108, 99, 240, 0.14);
+  --rx: 18px;
+  --rx-lg: 22px;
+}
+
+/* ---------- nav rail ---------- */
+.navrail {
+  width: 172px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  padding: 14px 10px 10px;
+  gap: 4px;
+}
+.nv-brand {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 6px 8px 16px;
+}
+.nv-brand .logo-mark { width: 22px; height: 22px; }
+.nv-word {
+  font-size: 10px; letter-spacing: 0.32em; font-weight: 400;
+  color: var(--faint); padding-left: 2px;
+}
+.nv-items { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.nv-row {
+  display: flex; align-items: center; gap: 10px;
+  height: 38px; padding: 0 12px;
+  border: none; border-radius: 12px;
+  background: none; color: var(--dim);
+  font-family: var(--font-sans); font-size: 13px; font-weight: 400;
+  cursor: pointer; text-align: left;
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+.nv-row:hover { background: var(--surface2); color: var(--text); }
+.nv-row.cur {
+  background: var(--xv-dim); color: var(--text);
+  box-shadow: inset 1.5px 0 0 var(--xv);
+}
+.nv-row.cur svg { color: var(--xv); }
+.nv-user {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px 4px; margin-top: auto;
+  border-top: 1px solid var(--border);
+}
+.nv-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--xv-grad); color: #fff;
+  font-size: 11px; flex-shrink: 0;
+}
+.nv-usercopy { display: flex; flex-direction: column; min-width: 0; }
+.nv-username { font-size: 12px; color: var(--text); }
+.nv-userplan { font-size: 10.5px; color: var(--faint); }
+
+/* ---------- sessions panel inside skin ---------- */
+.rail { border-right: 1px solid var(--border); }
+.rail-brand { display: none; }
+
+/* ---------- views (files / plugins) ---------- */
+.main[data-nav="files"] .transcript,
+.main[data-nav="files"] .composer,
+.main[data-nav="plugins"] .transcript,
+.main[data-nav="plugins"] .composer { display: none; }
+.view {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 40px 32px 32px;
+  width: 100%; max-width: 860px; margin-inline: auto;
+}
+.view-head { margin-bottom: 22px; }
+.view-title { margin: 0; font-size: 26px; font-weight: 400; letter-spacing: -0.01em; }
+.view-sub { margin: 6px 0 0; font-size: 13px; color: var(--dim); }
+.view-empty { color: var(--faint); font-size: 12.5px; padding: 12px 2px; }
+.filetree { display: flex; flex-direction: column; gap: 1px; }
+.ft-row {
+  display: flex; align-items: center; gap: 8px;
+  height: 30px; padding-right: 10px;
+  border: none; border-radius: 8px;
+  background: none; color: var(--dim);
+  font-family: var(--font-mono); font-size: 12px;
+  cursor: pointer; text-align: left; min-width: 0;
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+.ft-row:hover { background: var(--surface2); color: var(--text); }
+.ft-row.dir { color: var(--text); cursor: default; }
+.ft-row svg { flex-shrink: 0; opacity: 0.7; }
+.ft-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft-path { margin-left: auto; font-size: 10.5px; color: var(--faint); }
+.pg-section { margin: 26px 0 10px; font-size: 12px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.pg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.pg-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 14px 16px; text-align: left;
+  border-radius: var(--rx);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.pg-card:hover { border-color: var(--xv); }
+.pg-card.static { cursor: default; }
+.pg-card.static:hover { border-color: var(--border); }
+.pg-icon { color: var(--xv); }
+.pg-name { font-size: 12.5px; color: var(--text); }
+.pg-desc { font-size: 12px; color: var(--dim); line-height: 1.45; }
+
+/* ---------- hero ---------- */
+.hero-title {
+  font-size: 34px !important; letter-spacing: -0.02em;
+  background: linear-gradient(120deg, var(--text) 40%, var(--xv2));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-sub { font-size: 14.5px; color: var(--dim); margin-top: 6px; }
+.hero-proj { font: inherit; color: var(--xv); }
+.hero-mark { width: 34px; height: 34px; color: var(--xv); }
+
+/* ---------- cards: rounded, filled, soft borders ---------- */
+.card, .decision-card, .menu-card {
+  border-radius: var(--rx) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.card { border-top: 1px solid var(--border) !important; border-bottom: 1px solid var(--border) !important; }
+.card .card-title { padding: 12px 16px !important; border-bottom: 1px solid var(--border) !important; }
+.card .card-body { padding: 12px 16px 14px !important; }
+.decision-card::before { background: linear-gradient(to bottom, #5e6bff, #8b5cf6) !important; width: 3px !important; }
+
+/* ---------- composer: floating rounded card ---------- */
+.inputbox {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--rx-lg) !important;
+  padding: 14px 14px 10px !important;
+  box-shadow: var(--shadow-md) !important;
+}
+.inputbox:focus-within {
+  border-color: var(--xv) !important;
+  border-top-color: var(--xv) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ---------- send + primary buttons: gradient pills ---------- */
+.sendbtn, .inputbox .send, button.send {
+  background: var(--xv-grad) !important;
+  border-radius: 50% !important;
+  color: #fff !important;
+}
+.btn-primary, .approve, .dec-actions .pill.approve, button.approve {
+  background: var(--xv-grad) !important;
+  border: none !important; color: #fff !important;
+  border-radius: 999px !important;
+  padding: 7px 18px !important;
+}
+.pill, .btn {
+  border-radius: 999px !important;
+}
+
+/* ---------- attention / accent usage ---------- */
+.rail-glyph.rail-live { background: var(--xv); }
+.rail-sessrow[data-active] { box-shadow: inset 1.5px 0 0 var(--xv); }
+.text a, .reply a { color: var(--xv); }
+::selection { background: rgba(108, 99, 240, 0.28); }
+
+
+/* ---------- skin fixes: real selectors + pure base themes ---------- */
+html[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #101012;
+  --surface2: #17171b;
+  --surface3: #212127;
+  --sidebar: #000000;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
+}
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f4f4f7;
+  --surface3: #ececf1;
+  --sidebar: #fafafc;
+  --border: rgba(20, 20, 30, 0.09);
+  --border-strong: rgba(20, 20, 30, 0.2);
+}
+
+/* composer submit: gradient circle */
+.composer-submit {
+  background: var(--xv-grad) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 50% !important;
+}
+.composer-submit:disabled { opacity: 0.45; }
+
+/* approve / primary action: gradient pill */
+.pill.allow {
+  background: var(--xv-grad) !important;
+  border: none !important; color: #fff !important;
+  border-radius: 999px !important;
+}
+.pill.deny, .pill.ghost { border-radius: 999px !important; }
+
+/* sessions panel: search field + gradient new-session button */
+.rail-search {
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  background: var(--surface) !important;
+}
+.rail-new {
+  background: var(--xv-grad) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 12px !important;
+  height: 38px !important;
+  font-weight: 400 !important;
+}
+.rail-new:hover { background: var(--xv-grad) !important; filter: brightness(1.08); color: #fff !important; }
+.rail-new svg { color: #fff; }
+
+/* workspace card rounds out in the skin */
+.rail-workspace { border-radius: 12px !important; }
+
+/* attention inbox pill */
+.rail-inbox { border-radius: 14px !important; }
+
+/* waiting pill accent */
+.dec-waiting, .waiting { color: var(--xv2) !important; }
+
+/* user message: soft violet-tinted bubble */
+.usermsg {
+  background: var(--xv-dim) !important;
+  border-radius: 16px !important;
+  padding: 10px 14px !important;
+  text-align: left !important;
+}
+
+/* hero mark gradient tint */
+.hero-mark { color: var(--xv); }
+
+/* sessions panel: old footer superseded by nav rail settings */
+.rail-footer { display: none !important; }
+.rail { border-bottom: none; }

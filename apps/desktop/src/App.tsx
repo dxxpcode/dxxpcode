@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2 } from "lucide-react";
+import { Home, Clock, Puzzle, Sparkles, Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -64,6 +64,8 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState("");
+  const [nav, setNav] = useState<"home" | "sessions" | "files" | "plugins">("home");
+  const [browseFiles, setBrowseFiles] = useState<{ name: string; desc: string }[] | null>(null);
   const [chatMode, setChatMode] = useState(false);
   const [planMode, setPlanMode] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -434,7 +436,8 @@ export default function App() {
         setSessions(Array.isArray(ev.items) ? (ev.items as { id: string; title: string; desc: string; task?: string; files?: string[]; status?: string; when?: string; pinned?: boolean }[]) : []);
         break;
       case "files":
-        if (Number(ev.id) === fileReqId.current)
+        if (Number(ev.id) === 999999) setBrowseFiles(ev.items as { name: string; desc: string }[]);
+        else if (Number(ev.id) === fileReqId.current)
           setFileSugs({ id: fileReqId.current, items: ev.items as { name: string; desc: string }[] });
         break;
       case "models":
@@ -889,6 +892,13 @@ export default function App() {
     setWtasks((ts) => ts.map((w) => w.id === id ? { ...w, phase: "discarded" } : w));
   };
 
+  // Files view: pull the project file index once per entry.
+  useEffect(() => {
+    if (nav !== "files") return;
+    setBrowseFiles(null);
+    void send({ type: "list_files", id: 999999, text: "" });
+  }, [nav]);
+
   // Ask the CLI for @mention completions whenever the fragment changes.
   useEffect(() => {
     if (atFrag === null) return;
@@ -1328,6 +1338,38 @@ export default function App() {
 
   return (
     <div className={artSrc ? "app has-art" : "app"} data-resizing={railResizing || undefined}>
+      {ready && !onboarding && (
+        <nav className="navrail" aria-label="App">
+          <div className="nv-brand" data-tauri-drag-region>
+            <Logo className="logo-mark" />
+            <span className="nv-word">XAVIER</span>
+          </div>
+          <div className="nv-items">
+            {([
+              ["home", Home, "Home"],
+              ["sessions", Clock, "Sessions"],
+              ["files", Files, "Files"],
+              ["plugins", Puzzle, "Plugins"],
+            ] as const).map(([key, Icon, label]) => (
+              <button key={key} type="button" className={`nv-row${nav === key ? " cur" : ""}`} aria-current={nav === key ? "page" : undefined} onClick={() => setNav(key)}>
+                <Icon size={16} />
+                <span>{label}</span>
+              </button>
+            ))}
+            <button type="button" className="nv-row" onClick={() => setSettingsOpen(true)}>
+              <SlidersHorizontal size={16} />
+              <span>Settings</span>
+            </button>
+          </div>
+          <div className="nv-user">
+            <span className="nv-avatar" aria-hidden>X</span>
+            <span className="nv-usercopy">
+              <span className="nv-username">Local</span>
+              <span className="nv-userplan">On this Mac</span>
+            </span>
+          </div>
+        </nav>
+      )}
       {artSrc && <div className="art-bg" style={{ backgroundImage: `url(${artSrc})` }} />}
       {palOpen && ready && (
         <DesktopDialog title="Sessions" navigation returnFocusRef={taRef}
@@ -1411,7 +1453,7 @@ export default function App() {
             </ScrollArea>
         </DesktopDialog>
       )}
-      {ready && !onboarding && (
+      {ready && !onboarding && nav === "sessions" && (
         <aside className={`rail${railOpen ? "" : " rail-collapsed"}`} id="sessions-sidebar" aria-label="Sessions" style={{ width: railOpen ? displayedRailWidth : COLLAPSED_RAIL_WIDTH }}>
           <div className="rail-brand" data-tauri-drag-region>
             <Logo className="logo-mark" />
@@ -1749,7 +1791,7 @@ export default function App() {
           />
         </aside>
       )}
-      <div className={`main${idle ? " idle" : ""}`}>
+      <div className={`main${idle ? " idle" : ""}`} data-nav={nav}>
       <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && !ready && <Logo className="logo-mark" />}
@@ -2060,11 +2102,12 @@ export default function App() {
         {idle && ready && bootGone && (
           <div className="hero">
             <Logo className="hero-mark" />
-            <div className="hero-title">What should we build in
+            <div className="hero-title">Welcome back</div>
+            <div className="hero-sub">Let&rsquo;s turn your ideas into action in
               <button className="hero-proj" title="Change project" onClick={openProject}>
                 {ready.project.name}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </button>?
+              </button>.
             </div>
           </div>
         )}
@@ -2167,6 +2210,67 @@ export default function App() {
             {(status || tokRate > 0 || approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided)) && <><span className="pulse" /><span className="statustext">{approvals.some((a) => !a.answered) || diffs.some((d) => !d.decided) ? "Xavier is waiting…" : status}</span>{tokRate > 0 && <span className="tokrate">{tokRate} tok/s</span>}</>}
             {queue.length > 0 && <span className="queuecount">{queue.length} queued</span>}
           </span>
+        </div>
+      )}
+
+      {nav === "files" && (
+        <div className="view filesview">
+          <div className="view-head">
+            <h1 className="view-title">Files</h1>
+            <p className="view-sub">{ready.project.name} — select a file to reference it in chat</p>
+          </div>
+          <div className="filetree">
+            {browseFiles === null && <p className="view-empty">Loading project files…</p>}
+            {browseFiles !== null && browseFiles.length === 0 && <p className="view-empty">No files in this project.</p>}
+            {browseFiles !== null && browseFiles.slice(0, 500).map((f) => {
+              const isDir = f.name.endsWith("/");
+              const depth = f.name.replace(/\/$/, "").split("/").length - 1;
+              const base = f.name.replace(/\/$/, "").split("/").pop() ?? f.name;
+              return (
+                <button key={f.name} type="button" className={`ft-row${isDir ? " dir" : ""}`} style={{ paddingLeft: 14 + depth * 16 }}
+                  title={isDir ? f.name : `Reference ${f.name} in chat`}
+                  onClick={() => {
+                    if (isDir) return;
+                    setInput((v) => (v ? v.replace(/\s*$/, "") + " " : "") + `@${f.name} `);
+                    setNav("home");
+                    taRef.current?.focus();
+                  }}>
+                  {isDir ? <Folder size={13} /> : <Files size={13} />}
+                  <span className="ft-name">{base}{isDir ? "/" : ""}</span>
+                </button>
+              );
+            })}
+            {browseFiles !== null && browseFiles.length > 500 && <p className="view-empty">+ {browseFiles.length - 500} more — use @ in the composer to find them</p>}
+          </div>
+        </div>
+      )}
+
+      {nav === "plugins" && (
+        <div className="view pluginsview">
+          <div className="view-head">
+            <h1 className="view-title">Plugins</h1>
+            <p className="view-sub">Commands and tools available in this project</p>
+          </div>
+          <h2 className="pg-section">Commands</h2>
+          <div className="pg-grid">
+            {commands.length === 0 && <p className="view-empty">No custom commands in this project.</p>}
+            {commands.map((c) => (
+              <button key={c.name} type="button" className="pg-card" onClick={() => { setInput(c.name + " "); setNav("home"); taRef.current?.focus(); }}>
+                <Sparkles size={15} className="pg-icon" />
+                <span className="pg-name mono">{c.name}</span>
+                <span className="pg-desc">{c.desc}</span>
+              </button>
+            ))}
+          </div>
+          <h2 className="pg-section">Built-in tools</h2>
+          <div className="pg-grid">
+            {Object.entries(TOOL_DISPLAY).map(([key, label]) => (
+              <div key={key} className="pg-card static">
+                <span className="pg-name mono">{label}</span>
+                <span className="pg-desc">{key}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
