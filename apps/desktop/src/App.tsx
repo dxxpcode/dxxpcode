@@ -264,6 +264,18 @@ export default function App() {
     }
     return null;
   }, [items]);
+  // Reasoning in progress: a live think block is the most recent activity
+  // of the current turn. While it streams it is the single status shimmer —
+  // the "working…" line below stays hidden so the two never coexist.
+  const thinking = useMemo(() => {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.k === "user") break;
+      if (it.k === "think" && it.live) return true;
+      if (it.k === "tool") return false;
+    }
+    return false;
+  }, [items]);
   const turns = useMemo(() => groupTurns(groupItems(items)), [items]);
   const palette = input.startsWith("/")
     ? commands.filter((c) => c.name.startsWith(input.split(/\s/)[0]))
@@ -2067,7 +2079,7 @@ export default function App() {
             )}
           </div>
         ))}
-        {running && (
+        {running && !thinking && !approvals.some((a) => !a.answered) && !diffs.some((d) => !d.decided) && (
           <div className="workline row">
             <span className="think-shimmer">Xavier is working…</span>
             {lastTool && <span className="workline-tool">{lastTool}</span>}
