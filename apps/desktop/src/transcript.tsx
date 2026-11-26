@@ -26,7 +26,7 @@ function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: numb
       // Reasoning tokens: live dim stream while arriving, collapsible after.
       return item.live ? (
         <div className="think row">
-          <div className="think-head"><span className="think-dot" /><span className="think-shimmer">Xavier is thinking</span></div>
+          <div className="think-head"><span className="think-dot" /><span className="think-shimmer">Xavier is thinking…</span></div>
           <div className="think-text">{item.text}<span className="caret tool-caret" aria-hidden /></div>
         </div>
       ) : (
