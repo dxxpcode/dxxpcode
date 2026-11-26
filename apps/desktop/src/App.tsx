@@ -2293,7 +2293,7 @@ export default function App() {
           <div className="composer-toolbar">
             <div className="composer-controls">
               {ready && (
-                <>
+                <div className="composer-controlgroup" role="group" aria-label="Model and permission controls">
                   <ComposerSelector
                     model={ready.model} models={modelOpts} provider={ready.provider}
                     effort={ready.effort ?? "default"} disabled={running || onboarding}
@@ -2317,7 +2317,7 @@ export default function App() {
                       <span className="composer-variant" title={`Model variant: ${ready.variant}`}>{ready.variant}</span>
                     </>
                   )}
-                </>
+                </div>
               )}
             </div>
             <div className="composer-actions">

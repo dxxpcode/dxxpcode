@@ -1,15 +1,15 @@
 export type PermissionMode = "ask" | "smart" | "always-approve";
 
 export const PERMISSION_OPTIONS: { value: PermissionMode; label: string; short: string; description: string }[] = [
-  { value: "ask", label: "Ask for approval", short: "Ask", description: "Asks before editing files or running commands." },
-  { value: "smart", label: "Approve for me", short: "Auto-review", description: "Jev approves safe actions and asks about the rest. Requires a Jev key." },
-  { value: "always-approve", label: "Full access", short: "Full access", description: "Edits files and runs commands without asking." },
+  { value: "ask", label: "Ask for approval", short: "Ask", description: "Review each edit and command." },
+  { value: "smart", label: "Approve for me", short: "Auto-review", description: "Jev reviews safe actions for you." },
+  { value: "always-approve", label: "Full access", short: "Full access", description: "Run without approval prompts." },
 ];
 
 export type ComposerMode = PermissionMode | "plan";
 
 export const PLAN_OPTION: { value: "plan"; label: string; short: string; description: string } = {
-  value: "plan", label: "Plan first", short: "Plan", description: "Plans for your review before changing anything.",
+  value: "plan", label: "Plan first", short: "Plan", description: "Review a plan before changes.",
 };
 
 export const MODE_OPTIONS = [...PERMISSION_OPTIONS, PLAN_OPTION];
