@@ -1875,3 +1875,457 @@ html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
     background: none; color: var(--dim); -webkit-text-fill-color: currentColor;
   }
 }
+
+/* ---------- macOS native interface ----------
+   Liquid Glass is reserved for navigation and controls (sidebar, toolbar,
+   composer, transient popovers). The transcript and approval content stay on
+   standard opaque materials, per Apple's current materials guidance. */
+:root {
+  color-scheme: light;
+  --bg: #f5f5f7;
+  --surface: rgb(255 255 255 / 0.82);
+  --surface2: rgb(120 120 128 / 0.10);
+  --surface3: rgb(120 120 128 / 0.16);
+  --sidebar: rgb(246 246 247 / 0.76);
+  --border: rgb(0 0 0 / 0.085);
+  --border-strong: rgb(0 0 0 / 0.18);
+  --text: #1d1d1f;
+  --dim: rgb(60 60 67 / 0.76);
+  --faint: rgb(60 60 67 / 0.54);
+  --accent: #007aff;
+  --blue: #007aff;
+  --green: #34c759;
+  --amber: #ff9500;
+  --red: #ff3b30;
+  --purple: #af52de;
+  --focus: #007aff;
+  --ring: rgb(0 122 255 / 0.28);
+  --overlay: rgb(0 0 0 / 0.22);
+  --selection: rgb(0 122 255 / 0.18);
+  --radius: 13px;
+  --radius-sm: 8px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-chat: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 24px 64px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.06);
+  --glass-border: rgb(255 255 255 / 0.48);
+  --glass-shadow: inset 0 1px 0 rgb(255 255 255 / 0.58), inset 0 -1px 0 rgb(0 0 0 / 0.035);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161617;
+  --surface: rgb(31 31 33 / 0.78);
+  --surface2: rgb(255 255 255 / 0.075);
+  --surface3: rgb(255 255 255 / 0.12);
+  --sidebar: rgb(28 28 30 / 0.72);
+  --border: rgb(255 255 255 / 0.105);
+  --border-strong: rgb(255 255 255 / 0.2);
+  --text: #f5f5f7;
+  --dim: rgb(235 235 245 / 0.72);
+  --faint: rgb(235 235 245 / 0.52);
+  --accent: #0a84ff;
+  --blue: #0a84ff;
+  --green: #30d158;
+  --amber: #ff9f0a;
+  --red: #ff453a;
+  --purple: #bf5af2;
+  --focus: #0a84ff;
+  --ring: rgb(10 132 255 / 0.32);
+  --overlay: rgb(0 0 0 / 0.48);
+  --selection: rgb(10 132 255 / 0.32);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.28);
+  --shadow-md: 0 10px 28px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.25);
+  --shadow-lg: 0 24px 70px rgb(0 0 0 / 0.48), 0 2px 8px rgb(0 0 0 / 0.3);
+  --glass-border: rgb(255 255 255 / 0.16);
+  --glass-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 -1px 0 rgb(0 0 0 / 0.18);
+}
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: normal;
+  letter-spacing: -0.002em;
+  background:
+    radial-gradient(circle at 22% -18%, rgb(0 122 255 / 0.07), transparent 32rem),
+    linear-gradient(180deg, #f7f7f9 0%, var(--bg) 42%, #ededf0 100%);
+}
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 20% -18%, rgb(10 132 255 / 0.12), transparent 32rem),
+    linear-gradient(180deg, #1b1b1d 0%, var(--bg) 48%, #111112 100%);
+}
+button, input, textarea { font-family: var(--font-sans); letter-spacing: inherit; }
+.mono, code, pre, kbd { font-family: var(--font-mono); }
+.app { isolation: isolate; background: transparent; }
+.main { --conversation-width: 720px; --conversation-gutter: 32px; background: transparent; }
+
+/* Traffic-light-safe sidebar: a regular Liquid Glass navigation layer. */
+.rail {
+  --rail-bg: transparent;
+  --rail-row: rgb(120 120 128 / 0.09);
+  background: var(--sidebar);
+  border-right: 0;
+  box-shadow: inset -1px 0 0 var(--border);
+  backdrop-filter: blur(30px) saturate(1.65);
+  -webkit-backdrop-filter: blur(30px) saturate(1.65);
+}
+html[data-theme="dark"] .rail { --rail-row: rgb(255 255 255 / 0.07); }
+.rail::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.16), transparent 34%);
+  opacity: 0.32;
+}
+html[data-theme="dark"] .rail::before { opacity: 0.1; }
+.rail > * { position: relative; }
+.rail-brand {
+  height: 52px;
+  padding: 0 10px 0 78px;
+  align-items: center;
+}
+.rail-title { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
+.rail-toggle { width: 28px; height: 28px; border-radius: 8px; color: var(--faint); }
+.rail-toggle:hover { color: var(--text); background: var(--rail-row); }
+.rail-head { padding: 2px 10px 10px; gap: 5px; }
+.rail-search { display: none; }
+.rail-navrow, .rail-new {
+  height: 32px; border: 0; border-radius: 8px; box-shadow: none;
+  background: transparent; color: var(--dim); font-size: 13px; font-weight: 400;
+}
+.rail-navrow:hover, .rail-new:hover { background: var(--rail-row); border-color: transparent; color: var(--text); }
+.rail-list { padding: 0 8px 10px; }
+.rail .pal-group-label, .rail-section-head {
+  color: var(--faint); font-size: 11px; font-weight: 600;
+  padding-inline: 8px;
+}
+.rail .pal-group-label { background: transparent; }
+.rail-workspace {
+  margin: 0 0 8px; padding: 4px 6px;
+  background: transparent; border: 0; border-radius: 10px;
+}
+.rail-workspace:hover { background: var(--rail-row); border-color: transparent; }
+.rail-workspace-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: rgb(120 120 128 / 0.12); color: var(--dim);
+}
+.rail-workspace-title { font-size: 13px; font-weight: 600; }
+.rail-workspace-meta { font-size: 11px; }
+.rail-sessrow { min-height: 40px; border-radius: 9px; }
+.rail-sessrow:hover { background: var(--rail-row); }
+.rail-sessrow[data-active] {
+  background: rgb(120 120 128 / 0.15);
+  box-shadow: none;
+}
+html[data-theme="dark"] .rail-sessrow[data-active] { background: rgb(255 255 255 / 0.1); }
+.rail-sesspick { min-height: 40px; padding-block: 5px; }
+.rail-sesstitle { font-size: 13px; font-weight: 400; letter-spacing: -0.003em; }
+.rail-sessrow[data-active] .rail-sesstitle { font-weight: 600; }
+.rail-time { font-size: 10px; }
+.rail-inbox-item, .rail-worker-row, .pal-row { border-radius: 8px; }
+.rail-footer { border-top: 0; padding: 8px; box-shadow: inset 0 1px 0 var(--border); }
+.rail-footer .rail-navrow { height: 32px; }
+.rail-resize { right: -2px; width: 4px; }
+.rail-collapsed .rail-brand { width: 100%; height: 52px; padding: 0; }
+.rail-collapsed .rail-strip { padding-top: 0; }
+
+/* Unified macOS toolbar. */
+.header {
+  height: 52px; padding: 0 16px;
+  background: color-mix(in srgb, var(--bg) 66%, transparent);
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 var(--border);
+  backdrop-filter: blur(24px) saturate(1.55);
+  -webkit-backdrop-filter: blur(24px) saturate(1.55);
+}
+.window-titleblock { display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 0; }
+.window-title {
+  border: 0; padding: 0; background: none; cursor: pointer;
+  color: var(--text); font-size: 13px; font-weight: 600; line-height: 1.25;
+  text-align: left; max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.window-subtitle {
+  color: var(--faint); font-size: 11px; line-height: 1.35;
+  max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.toolbar-actions {
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px; border: 1px solid var(--border); border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+  box-shadow: var(--glass-shadow);
+}
+.toolbar-button {
+  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 8px; background: transparent; color: var(--dim); cursor: pointer;
+}
+.toolbar-button:hover { color: var(--text); background: var(--surface2); }
+
+/* Content remains calm and opaque; only state-bearing cards use material. */
+.transcript { padding: 34px var(--conversation-gutter) 22px; gap: 18px; }
+.turn { gap: 15px; }
+.turn + .turn { margin-top: 32px; }
+.usermsg {
+  border-radius: 18px;
+  background: rgb(120 120 128 / 0.12);
+  padding: 9px 13px;
+  font-size: 14.5px;
+}
+html[data-theme="dark"] .usermsg { background: rgb(255 255 255 / 0.1); }
+.reply, .text { font-size: 14.5px; line-height: 1.62; }
+.reply-title, .text h1, .text h2, .text h3, .text h4 { font-weight: 600; }
+.text pre, .reply .text pre {
+  border-radius: 12px;
+  background: rgb(120 120 128 / 0.09);
+  border: 0;
+}
+html[data-theme="dark"] .text pre, html[data-theme="dark"] .reply .text pre { background: rgb(255 255 255 / 0.065); }
+.decision-card, .tool, .card, .menu-card {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.decision-card { overflow: hidden; }
+.pill, .btn {
+  border-radius: 8px;
+  min-height: 30px;
+}
+.pill.allow, .btn.allow, .btn.primary, .composer-submit {
+  background: var(--accent);
+  color: white;
+  border-color: transparent;
+}
+.pill.allow:hover, .btn.allow:hover, .btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+html[data-theme="dark"] .pill.allow:hover, html[data-theme="dark"] .btn.allow:hover, html[data-theme="dark"] .btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+
+/* Composer: the single prominent custom Liquid Glass control. */
+.composer { max-width: calc(var(--conversation-width) + var(--conversation-gutter) * 2); padding: 8px var(--conversation-gutter) 22px; }
+.composer-stack { max-width: 680px; }
+.inputbox {
+  max-width: 680px;
+  gap: 10px;
+  padding: 15px 15px 9px;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: var(--glass-shadow), 0 14px 34px rgb(0 0 0 / 0.09), 0 1px 3px rgb(0 0 0 / 0.05);
+  backdrop-filter: blur(28px) saturate(1.75);
+  -webkit-backdrop-filter: blur(28px) saturate(1.75);
+}
+html[data-theme="dark"] .inputbox {
+  background: rgb(35 35 37 / 0.66);
+  box-shadow: var(--glass-shadow), 0 16px 40px rgb(0 0 0 / 0.32), 0 1px 3px rgb(0 0 0 / 0.25);
+}
+.inputbox:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--glass-border));
+  box-shadow: var(--glass-shadow), 0 0 0 3px var(--ring), 0 16px 38px rgb(0 0 0 / 0.1);
+}
+.inputbox textarea {
+  font-size: 15px;
+  line-height: 1.48;
+  min-height: 45px;
+}
+.inputbox textarea::placeholder { color: var(--faint); opacity: 0.86; }
+.composer-toolbar { align-items: center; }
+.composer-controls { gap: 5px; }
+.selector-unified, .permission-trigger {
+  height: 28px; padding: 0 9px;
+  border: 0; border-radius: 999px;
+  background: rgb(120 120 128 / 0.1);
+  color: var(--dim);
+  font-size: 12px; font-weight: 400;
+}
+html[data-theme="dark"] .selector-unified, html[data-theme="dark"] .permission-trigger { background: rgb(255 255 255 / 0.075); }
+.selector-unified:hover:not(:disabled), .selector-unified[aria-expanded="true"],
+.permission-trigger:hover:not(:disabled), .permission-trigger[aria-expanded="true"] {
+  color: var(--text); background: rgb(120 120 128 / 0.16);
+}
+html[data-theme="dark"] .selector-unified:hover:not(:disabled), html[data-theme="dark"] .selector-unified[aria-expanded="true"],
+html[data-theme="dark"] .permission-trigger:hover:not(:disabled), html[data-theme="dark"] .permission-trigger[aria-expanded="true"] { background: rgb(255 255 255 / 0.12); }
+.composer-divider { display: none; }
+.composer-submit, .composer-stop {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.composer-submit {
+  box-shadow: 0 2px 8px rgb(0 122 255 / 0.28);
+}
+.composer-submit:disabled {
+  background: rgb(120 120 128 / 0.18); color: var(--faint);
+  box-shadow: none; opacity: 1;
+}
+html[data-theme="dark"] .composer-submit:disabled { background: rgb(255 255 255 / 0.1); }
+.composer-stop { color: var(--dim); }
+.composer-stop:hover { color: var(--text); background: var(--surface2); }
+.composer-tray {
+  margin: 6px 14px 0; padding: 0 2px;
+  background: transparent; border: 0; border-radius: 0;
+}
+.tray-item { height: 22px; border-radius: 999px; font-size: 11.5px; }
+.queuelist { max-width: 680px; }
+.queuerow { border-radius: 10px; background: color-mix(in srgb, var(--surface) 76%, transparent); }
+.palette, .selector-popover, .sesspal-dialog {
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  box-shadow: var(--glass-shadow), var(--shadow-lg);
+  backdrop-filter: blur(28px) saturate(1.7);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+}
+.palette-row.sel, .pal-row[data-active], .selector-option.active, .selector-option:hover,
+.permission-option.active, .permission-option:hover {
+  background: rgb(120 120 128 / 0.13);
+}
+html[data-theme="dark"] .palette-row.sel, html[data-theme="dark"] .pal-row[data-active],
+html[data-theme="dark"] .selector-option.active, html[data-theme="dark"] .selector-option:hover,
+html[data-theme="dark"] .permission-option.active, html[data-theme="dark"] .permission-option:hover { background: rgb(255 255 255 / 0.1); }
+.sesspal { background: var(--overlay); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.dialog-head { min-height: 50px; }
+.dialog-title { font-size: 13px; font-weight: 600; }
+
+/* Empty state: almost no chrome, one question, one input. */
+.hero {
+  gap: 10px;
+  padding: 24px 24px 30px;
+}
+.hero-kicker {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 26px; padding: 0 10px;
+  border-radius: 999px;
+  background: rgb(120 120 128 / 0.1);
+  color: var(--dim);
+  font-size: 12px;
+}
+html[data-theme="dark"] .hero-kicker { background: rgb(255 255 255 / 0.075); }
+.hero-kicker svg { opacity: 0.66; }
+.hero-proj {
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; cursor: pointer;
+}
+.hero-proj:hover { color: var(--text); }
+.hero-title {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(25px, 3.8vw, 32px);
+  line-height: 1.16;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+.hero-meta {
+  margin: 0;
+  color: var(--faint);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.hero-meta::before { content: ""; }
+.statusline {
+  min-height: 24px;
+  font-size: 11.5px;
+}
+.pulse { background: var(--accent); }
+.workline { font-size: 12px; }
+
+/* Onboarding follows the same standard-material content hierarchy. */
+.onboarding { inset: 52px 0 0; background: transparent; }
+.ob-frame { width: min(480px, 100%); }
+.ob-title { font-size: 28px; font-weight: 650; letter-spacing: -0.04em; }
+.ob-prov, .ob-project, .ob-input {
+  border-radius: 12px;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+}
+.onboarding .btn.primary {
+  background: var(--accent); color: white; border-color: transparent;
+}
+.onboarding .btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, white); opacity: 1; }
+.onboarding .btn { border-radius: 8px; }
+
+/* Art mode still works, but controls keep the regular material for legibility. */
+.app.has-art .rail { background: rgb(20 20 22 / 0.42); }
+.app.has-art .header { background: rgb(20 20 22 / 0.28); color: white; }
+.app.has-art .inputbox { background: rgb(22 22 24 / 0.58); border-color: rgb(255 255 255 / 0.2); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .rail, .header, .inputbox, .palette, .selector-popover, .sesspal-dialog {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .rail { background: var(--bg); }
+  .header, .inputbox, .palette, .selector-popover, .sesspal-dialog { background: var(--surface); }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --border: rgb(0 0 0 / 0.28);
+    --border-strong: rgb(0 0 0 / 0.42);
+  }
+  html[data-theme="dark"] {
+    --border: rgb(255 255 255 / 0.30);
+    --border-strong: rgb(255 255 255 / 0.46);
+  }
+  .inputbox, .toolbar-actions, .sesspal-dialog { border-width: 1.5px; }
+}
+
+/* Final macOS proportion pass: a narrower split-view sidebar and clearer materials. */
+:root {
+  --bg: #f5f5f7;
+  --sidebar: rgb(240 240 245 / 0.82);
+}
+html[data-theme="dark"] {
+  --bg: #1e1e20;
+  --sidebar: rgb(43 43 47 / 0.76);
+}
+.main { background: var(--bg); }
+.rail { background: var(--sidebar); }
+.rail-list { padding: 0 8px 12px; }
+.rail-section-head {
+  margin-top: 10px;
+  padding: 0 8px 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(60 60 67 / 0.52);
+}
+html[data-theme="dark"] .rail-section-head { color: rgb(235 235 245 / 0.46); }
+.rail-empty {
+  margin: 2px 0 0;
+  padding: 14px 10px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.rail-empty p { font-size: 12px; color: var(--faint); }
+.rail-empty .btn {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.rail-toggle { color: var(--faint); }
+.rail-toggle:hover { color: var(--text); background: rgb(120 120 128 / 0.12); }
+.window-titleblock { gap: 1px; }
+.window-title { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.window-subtitle { font-size: 11px; }
+.toolbar-actions {
+  height: 30px;
+  padding: 2px;
+  border-radius: 9px;
+  border: 0;
+  background: rgb(120 120 128 / 0.11);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-theme="dark"] .toolbar-actions { background: rgb(255 255 255 / 0.08); }
+.toolbar-button { width: 30px; height: 26px; border-radius: 7px; color: var(--dim); }
+.toolbar-button:hover { color: var(--text); background: rgb(255 255 255 / 0.58); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
+html[data-theme="dark"] .toolbar-button:hover { background: rgb(255 255 255 / 0.11); box-shadow: none; }
+.hero { transform: translateY(-4vh); }
+.inputbox:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: var(--glass-shadow), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 14px 34px rgb(0 0 0 / 0.09);
+}
+html[data-theme="dark"] .inputbox:focus-within {
+  box-shadow: var(--glass-shadow), 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent), 0 18px 44px rgb(0 0 0 / 0.30);
+}
+
+/* The native window supplies macOS material; web layers stay translucent over it. */
+body, html[data-theme="dark"] body { background: transparent; }
+.main { background: transparent; }

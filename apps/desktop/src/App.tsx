@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Plus, Search, Minus, Square, X, ChevronDown, ChevronRight, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2 } from "lucide-react";
+import { Plus, Search, Square, X, ChevronDown, Folder, SlidersHorizontal, Cpu, Palette, History, Info, ListEnd, GitBranch, PanelLeft, ArrowUp, CornerDownLeft, ArrowLeft, ArrowRight, Check, ExternalLink, Pin, ListChecks, MoreHorizontal, RotateCcw, Pencil, Files, Copy, Trash2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -43,9 +43,6 @@ const ART_PIECES = [
 
 const send = (cmd: object) => invoke("pty_write", { data: JSON.stringify(cmd) + "\n" });
 
-const win = getCurrentWindow();
-// macOS gets native overlay traffic lights; Linux/Windows need our own.
-const IS_MAC = navigator.userAgent.includes("Macintosh");
 
 interface Ev { type: string; [k: string]: unknown }
 
@@ -147,7 +144,6 @@ export default function App() {
   const [palIdx, setPalIdx] = useState(0);
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("railOpen") !== "0");
   const [railWidth, setRailWidth] = useState(() => clampRailWidth(Number(localStorage.getItem("railWidth") ?? DEFAULT_RAIL_WIDTH)));
-  const [projectExpanded, setProjectExpanded] = useState(() => localStorage.getItem("railProjectExpanded") !== "0");
   const [railResizing, setRailResizing] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const maxRailWidth = Math.max(MIN_RAIL_WIDTH, Math.min(MAX_RAIL_WIDTH, Math.floor(windowWidth * 0.45)));
@@ -161,7 +157,7 @@ export default function App() {
   const [renamingSess, setRenamingSess] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     const saved = localStorage.getItem("theme");
-    return saved === "light" || saved === "dark" || saved === "system" ? saved : "dark";
+    return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
   });
   const [sysDark, setSysDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
   useEffect(() => {
@@ -199,7 +195,8 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("theme", theme);
-  }, [dark, theme]);
+    invoke("set_window_theme", { theme: shownTheme }).catch(() => {});
+  }, [dark, theme, shownTheme]);
   useEffect(() => {
     localStorage.setItem("railOpen", railOpen ? "1" : "0");
     if (!railOpen) {
@@ -215,9 +212,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("railWidth", String(railWidth));
   }, [railWidth]);
-  useEffect(() => {
-    localStorage.setItem("railProjectExpanded", projectExpanded ? "1" : "0");
-  }, [projectExpanded]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -1402,24 +1396,13 @@ export default function App() {
       {ready && !onboarding && (
         <aside className={`rail${railOpen ? "" : " rail-collapsed"}`} id="sessions-sidebar" aria-label="Sessions" style={{ width: railOpen ? displayedRailWidth : COLLAPSED_RAIL_WIDTH }}>
           <div className="rail-brand" data-tauri-drag-region>
-            <Logo className="logo-mark" />
+            {railOpen && <span />}
             {railOpen && (
-              <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Collapse sidebar" title={IS_MAC ? "Collapse sidebar (⌘B)" : "Collapse sidebar (Ctrl B)"} onClick={() => setRailOpen(false)}>
+              <Button variant="ghost" size="icon" className="rail-toggle" aria-label="Collapse sidebar" title="Collapse sidebar (⌘B)" onClick={() => setRailOpen(false)}>
                 <PanelLeft size={15} />
               </Button>
             )}
           </div>
-          <nav className="rail-head" aria-label="Session actions">
-            <Button variant="ghost" className="rail-navrow rail-new" onClick={() => cmd("/new")}>
-              <Plus size={15} />
-              <span>New session</span>
-            </Button>
-            <Button variant="ghost" className="rail-search" onClick={() => setPalOpen(true)}>
-              <Search size={14} />
-              <span>Search</span>
-              <kbd className="rail-shortcut">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
-            </Button>
-          </nav>
           {!railOpen && (
             <nav className="rail-strip" aria-label="Session actions">
               <Button
@@ -1429,7 +1412,7 @@ export default function App() {
                 aria-label="Expand sidebar"
                 aria-expanded={false}
                 aria-controls="sessions-sidebar"
-                title={`${IS_MAC ? "Expand sidebar (⌘B)" : "Expand sidebar (Ctrl B)"}${needsAttention ? " — attention needed" : ""}`}
+                title={`Expand sidebar (⌘B)${needsAttention ? " — attention needed" : ""}`}
                 onClick={() => setRailOpen(true)}
               >
                 <PanelLeft size={15} />
@@ -1438,27 +1421,12 @@ export default function App() {
               <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="New session" title="New session" onClick={() => cmd("/new")}>
                 <Plus size={15} />
               </Button>
-              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Search sessions" title={IS_MAC ? "Search sessions (⌘K)" : "Search sessions (Ctrl K)"} onClick={() => setPalOpen(true)}>
+              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Search sessions" title="Search sessions (⌘K)" onClick={() => setPalOpen(true)}>
                 <Search size={15} />
               </Button>
             </nav>
           )}
           <ScrollArea className="rail-list" onClick={() => setSessMenu(null)}>
-            <div className="rail-workspace">
-              <Button variant="ghost" className="rail-workspace-main" aria-expanded={projectExpanded} aria-controls="workspace-sessions" onClick={() => setProjectExpanded((v) => !v)}>
-                <span className="rail-workspace-icon"><Folder size={15} /></span>
-                <span className="rail-workspace-copy">
-                  <span className="rail-workspace-title truncate">{ready.project.name}</span>
-                  <span className="rail-workspace-meta truncate">
-                    {ready.project.git ? `${ready.project.git.branch}${ready.project.git.dirty ? "*" : ""} · ` : ""}{sessions.length} session{sessions.length === 1 ? "" : "s"} · {ready.model}
-                  </span>
-                </span>
-                {projectExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              </Button>
-              <Button variant="ghost" size="icon" className="rail-workspace-open" aria-label="Open a project" title="Open a project" onClick={openProject}>
-                <ExternalLink size={13} />
-              </Button>
-            </div>
             {attentionItems.length > 0 && (
               <>
                 <div className="rail-section-head rail-inbox-head">
@@ -1535,14 +1503,10 @@ export default function App() {
                 <Plus size={14} />
               </Button>
             </div>
-            <div id="workspace-sessions" className="rail-sessions" hidden={!projectExpanded}>
+            <div id="workspace-sessions" className="rail-sessions">
             {railGroups.length === 0 && (
               <div className="rail-empty">
                 <p>No sessions yet</p>
-                <Button variant="outline" onClick={() => cmd("/new")}>
-                  <Plus size={13} />
-                  Start one
-                </Button>
               </div>
             )}
             {railGroups.map(([label, group]) => (
@@ -1683,18 +1647,11 @@ export default function App() {
           </ScrollArea>
           {!railOpen && (
             <div className="rail-strip-footer">
-              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Settings" title={IS_MAC ? "Settings (⌘,)" : "Settings (Ctrl ,)"} onClick={() => cmd("/settings")}>
+              <Button variant="ghost" size="icon" className="rail-strip-btn" aria-label="Settings" title="Settings (⌘,)" onClick={() => cmd("/settings")}>
                 <SlidersHorizontal size={15} />
               </Button>
             </div>
           )}
-          <div className="rail-footer">
-            <Button variant="ghost" className="rail-navrow" onClick={() => cmd("/settings")}>
-              <SlidersHorizontal size={15} />
-              <span>Settings</span>
-              <kbd className="rail-shortcut">{IS_MAC ? "⌘," : "Ctrl ,"}</kbd>
-            </Button>
-          </div>
           <div
             className="rail-resize"
             role="separator"
@@ -1738,22 +1695,30 @@ export default function App() {
         </aside>
       )}
       <div className={`main${idle ? " idle" : ""}`}>
-      <header className={`header${IS_MAC ? " mac" : ""}`} data-tauri-drag-region>
+      <header className="header" data-tauri-drag-region>
         <div className="hctx" data-tauri-drag-region>
           {!onboarding && !ready && <Logo className="logo-mark" />}
+          {ready && !onboarding && (
+            <div className="window-titleblock">
+              <button type="button" className="window-title" title="Change project" onClick={openProject}>{ready.project.name}</button>
+              {ready.project.git && (
+                <span className="window-subtitle">{ready.project.git.branch}{ready.project.git.dirty ? " · edited" : ""}</span>
+              )}
+            </div>
+          )}
         </div>
         <span className="spacer" />
-        {ready && !IS_MAC && (
-          <div className="hact">
-            <Button variant="ghost" size="icon" title="Minimize" aria-label="Minimize window" onClick={() => void win.minimize()}>
-              <Minus size={14} />
-            </Button>
-            <Button variant="ghost" size="icon" title="Maximize" aria-label="Maximize window" onClick={() => void win.toggleMaximize()}>
-              <Square size={12} />
-            </Button>
-            <Button variant="ghost" size="icon" title="Close" aria-label="Close window" className="win-close" onClick={() => void win.close()}>
-              <X size={14} />
-            </Button>
+        {ready && !onboarding && (
+          <div className="toolbar-actions" aria-label="Workspace actions">
+            <button type="button" className="toolbar-button" title="Search sessions (⌘K)" aria-label="Search sessions" onClick={() => setPalOpen(true)}>
+              <Search size={15} />
+            </button>
+            <button type="button" className="toolbar-button" title="New session" aria-label="New session" onClick={() => cmd("/new")}>
+              <Plus size={16} />
+            </button>
+            <button type="button" className="toolbar-button" title="Settings (⌘,)" aria-label="Settings" onClick={() => cmd("/settings")}>
+              <SlidersHorizontal size={15} />
+            </button>
           </div>
         )}
       </header>
@@ -2047,13 +2012,8 @@ export default function App() {
         )}
         {idle && ready && bootGone && (
           <div className="hero">
-            <Logo className="hero-mark" />
-            <div className="hero-title">What should we build in
-              <button className="hero-proj" title="Change project" onClick={openProject}>
-                {ready.project.name}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </button>?
-            </div>
+            <h1 className="hero-title">What would you like to build?</h1>
+            <p className="hero-meta">{displayProvider(ready.provider)} · {displayModel(ready.model)} · {effortOption(ready.effort ?? "default").label}</p>
           </div>
         )}
         {turns.map((turn, ti) => (
@@ -2299,7 +2259,7 @@ export default function App() {
             rows={2}
             autoFocus
             aria-label={chatMode ? "Codebase question" : "Task prompt"}
-            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — Xavier will plan it first…" : "Ask Xavier anything…"}
+            placeholder={chatMode ? "Ask about this codebase…" : planMode ? "Describe the task — Xavier will plan it first…" : "Describe a task…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -2368,19 +2328,12 @@ export default function App() {
             </div>
           </div>
         </div>
-        {ready && (
+        {ready?.project.git && (
           <div className="composer-tray">
-            <button type="button" className="tray-item" aria-label={`Change project: ${ready.project.name}`} title="Change project" onClick={openProject}>
-              <Folder size={12} />
-              <span className="tray-label">{ready.project.name}</span>
-              <ChevronDown size={11} className="tray-chevron" />
-            </button>
-            {ready.project.git && (
-              <span className="tray-item static" title={ready.project.git.dirty ? `On ${ready.project.git.branch} · uncommitted changes` : `On ${ready.project.git.branch}`}>
-                <GitBranch size={12} />
-                <span className="tray-label mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
-              </span>
-            )}
+            <span className="tray-item static" title={ready.project.git.dirty ? `On ${ready.project.git.branch} · uncommitted changes` : `On ${ready.project.git.branch}`}>
+              <GitBranch size={12} />
+              <span className="tray-label mono">{ready.project.git.branch}{ready.project.git.dirty ? "*" : ""}</span>
+            </span>
           </div>
         )}
         </div>

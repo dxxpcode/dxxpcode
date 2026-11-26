@@ -563,6 +563,19 @@ fn worktree_merge(root: String, dir: String, branch: String) -> Result<String, S
     Ok(stat)
 }
 
+#[tauri::command]
+fn set_window_theme(app: tauri::AppHandle, theme: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window missing".to_string())?;
+    let theme = match theme.as_str() {
+        "light" => Some(tauri::Theme::Light),
+        "dark" => Some(tauri::Theme::Dark),
+        _ => None,
+    };
+    window.set_theme(theme).map_err(|e| e.to_string())
+}
+
 /// Remove the worktree and its branch without applying anything.
 #[tauri::command]
 fn worktree_discard(root: String, dir: String, branch: String) -> Result<(), String> {
@@ -592,6 +605,15 @@ fn main() {
         .manage(SessionCwd(Mutex::new(String::new())))
         .manage(Companion(Mutex::new(None)))
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window_vibrancy::apply_vibrancy(
+                    &window,
+                    window_vibrancy::NSVisualEffectMaterial::ContentBackground,
+                    Some(window_vibrancy::NSVisualEffectState::Active),
+                    Some(12.0),
+                );
+            }
             // Spawn dxxpcode: DXXPCODE_BIN overrides for dev; otherwise the
             // bundled sidecar (next to the exe or in the resource dir); finally
             // fall back to a `dxxpcode` on PATH.
@@ -618,7 +640,8 @@ fn main() {
             worktree_discard,
             companion_start,
             companion_stop,
-            companion_status
+            companion_status,
+            set_window_theme
         ])
         .build(tauri::generate_context!())
         .expect("error while running dxxpcode desktop");

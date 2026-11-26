@@ -47,7 +47,7 @@ No dozens of commands — the CLI stays small.
 
 - **Product name:** DxxpCode
 - **CLI binary:** `dxxpcode`
-- **Supported OS:** macOS and Linux first; Windows via WSL.
+- **Supported OS:** macOS.
 - **Initial providers:** Anthropic (`ANTHROPIC_API_KEY`) and OpenAI (`OPENAI_API_KEY`), auto-detected; `DXXPCODE_PROVIDER` / `DXXPCODE_MODEL` override.
 - **Licensing:** Apache License 2.0.
 - **Supported languages for project detection:** JavaScript/TypeScript, Python, Rust, Go, Java, .NET (manifest-based).

@@ -16,20 +16,11 @@ const RELEASES = `https://github.com/dxxpcode/DxxpCode-Terminal/releases/tag/des
 
 const DOWNLOADS: { os: Platform; url: string; build: string; alts?: { label: string; url: string }[] }[] = [
   { os: "macOS", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_aarch64.dmg`, build: "Apple Silicon · .dmg" },
-  { os: "Windows", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_x64-setup.exe`, build: "x64 · .exe" },
-  {
-    os: "Linux",
-    url: `${RELEASE}/dxxpcode-desktop_${VERSION}_amd64.AppImage`,
-    build: "x64 · AppImage",
-    alts: [{ label: ".deb", url: `${RELEASE}/dxxpcode-desktop_${VERSION}_amd64.deb` }],
-  },
 ];
 
 function detect(): Platform | null {
   const ua = navigator.userAgent;
-  if (/Android|iPhone|iPad|iPod|Mobi/i.test(ua)) return null;
-  if (/Win/i.test(ua)) return "Windows";
-  if (/Linux|X11|CrOS/i.test(ua)) return "Linux";
+  if (/Android|iPhone|iPad|iPod|Mobi|Win|Linux|X11|CrOS/i.test(ua)) return null;
   return "macOS";
 }
 
@@ -62,7 +53,6 @@ function DownloadButtons() {
     );
   }
 
-  const others = DOWNLOADS.filter((d) => d !== primary);
   return (
     <div className="flex flex-col items-center">
       <div className="flex flex-wrap items-start justify-center gap-3">
@@ -91,15 +81,7 @@ function DownloadButtons() {
         <DownloadCount />
       </div>
       <p className="mt-6 animate-gate-in-late text-[13px] text-muted-foreground">
-        Also available for{" "}
-        {others.map((d, i) => (
-          <span key={d.os}>
-            {i > 0 && " · "}
-            <a href={d.url} className="text-foreground/80 transition-colors hover:text-foreground">
-              {d.os}
-            </a>
-          </span>
-        ))}
+        macOS only
         {" · "}
         <a href={RELEASES} className={quiet}>
           All releases

@@ -57,7 +57,7 @@ A fixture is a directory with real files plus `eval.json` (`task`, `verify` {com
 
 ## Releases
 
-Versioning is driven by `desktop-v*` tags — bump the app, Tauri config, Rust crate, and site download links together, then push the tag to trigger the release matrix (macOS/Windows/Linux installers). Do not publish packages to npm.
+Versioning is driven by `desktop-v*` tags — bump the app, Tauri config, Rust crate, and site download links together, then push the tag to trigger the macOS release build. Do not publish packages to npm.
 
 ## License
 

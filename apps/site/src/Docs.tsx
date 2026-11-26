@@ -116,11 +116,7 @@ export default function Docs() {
             <p>
               Download the desktop app — it bundles everything; no Node install required:
             </p>
-            <ul className="list-disc space-y-1.5 pl-5">
-              <li>macOS — <Inline>.dmg</Inline></li>
-              <li>Windows — <Inline>.msi</Inline> or <Inline>.exe</Inline></li>
-              <li>Linux — <Inline>.deb</Inline> or <Inline>.AppImage</Inline></li>
-            </ul>
+            <p>macOS only — download the Apple Silicon <Inline>.dmg</Inline>.</p>
             <p>
               Launch it inside any project directory — DxxpCode detects languages, git state, and
               project instructions automatically. First run opens a guided setup card.

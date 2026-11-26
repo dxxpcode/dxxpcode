@@ -18,11 +18,7 @@ Proceed?   Allow / Always / Deny
 
 ## Install
 
-Download the app — it bundles the agent; nothing else to install:
-
-- **macOS** — `.dmg`
-- **Windows** — `.msi` or `.exe`
-- **Linux** — `.deb` or `.AppImage`
+Download the macOS app — it bundles the agent; nothing else to install. DxxpCode is available for Apple Silicon Macs as a `.dmg`.
 
 Latest installers live on the [releases page](https://github.com/dxxpcode/dxxpcode/releases).
 

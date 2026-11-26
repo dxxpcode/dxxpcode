@@ -1,17 +1,17 @@
 /** In-app reference rendered by /docs — kept in sync with apps/site docs. */
 export const DOCS_MD = `# install
 
-- download the desktop app from GitHub releases — \`.dmg\` (macOS), \`.msi\`/\`.exe\` (Windows), \`.deb\`/\`.AppImage\` (Linux)
+- download the macOS desktop app from GitHub releases — Apple Silicon \`.dmg\`
 - the app bundles the agent — no Node or separate CLI install required
 - first run opens a setup card; re-open it anytime via Settings → Run setup
 
 # in the app
 
 - \`/\` opens the command palette; \`@\` opens file mentions (\`@file#L-M\`, \`@dir/\`)
-- \`⌘K\` search sessions · \`⌘B\` collapse the sidebar · \`⌘,\` Settings · \`⇧Tab\` plan mode (Ctrl on Windows/Linux)
+- \`⌘K\` search sessions · \`⌘B\` collapse the sidebar · \`⌘,\` Settings · \`⇧Tab\` plan mode
 - approvals are clickable (Allow / Always / Deny); type mid-run to steer; \`Esc\` interrupts
 - the model picker (bottom-left of the composer) sets both model and reasoning effort
-- theme lives in Settings → Appearance — light, pure-black dark, or system
+- theme lives in Settings → Appearance — light, dark, or system
 
 # cli engine
 

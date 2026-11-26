@@ -8,34 +8,31 @@
     "devUrl": "http://localhost:5173"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "dxxpcode",
         "width": 1000,
         "height": 700,
-        "decorations": false,
+        "decorations": true,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "transparent": true
       }
     ]
   },
   "bundle": {
     "active": true,
     "targets": [
-      "deb",
-      "appimage",
       "app",
-      "dmg",
-      "msi",
-      "nsis"
+      "dmg"
     ],
     "externalBin": [
       "binaries/dxxpcode"
     ],
     "icon": [
       "icons/icon.icns",
-      "icons/icon.png",
-      "icons/icon.ico"
+      "icons/icon.png"
     ],
     "createUpdaterArtifacts": true
   },
