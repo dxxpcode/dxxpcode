@@ -2099,7 +2099,7 @@ export default function App() {
             <span className="boot-word">starting engine…</span>
           </div>
         )}
-        {ready && bootGone && !onboarding && items.length === 0 && approvals.length === 0 && (
+        {ready && bootGone && !onboarding && !items.some((it) => it.k !== "note") && approvals.length === 0 && (
           <div className="hero">
             <XavierMark className="hero-mark" gradient />
             <h1 className="hero-title">Welcome to <span>Xavier</span></h1>
