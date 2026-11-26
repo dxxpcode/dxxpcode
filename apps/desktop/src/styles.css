@@ -1976,7 +1976,7 @@ html[data-theme="dark"] .rail { --rail-row: rgb(255 255 255 / 0.07); }
   opacity: 0.32;
 }
 html[data-theme="dark"] .rail::before { opacity: 0.1; }
-.rail > * { position: relative; }
+.rail > *:not(.rail-resize) { position: relative; }
 .rail-brand {
   height: 52px;
   padding: 0 10px 0 78px;
