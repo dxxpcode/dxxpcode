@@ -1736,6 +1736,9 @@ button.settings-navitem.bg-\[var\(--surface2\)\] {
   background: var(--xavier-gradient); -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
 }
+@media (forced-colors: active) {
+  .hero-title span { background: none; -webkit-text-fill-color: currentColor; color: CanvasText; }
+}
 .hero-proj {
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
   color: var(--dim); font: 400 clamp(14px, 2cqi, 20px)/1.5 var(--font-sans);
