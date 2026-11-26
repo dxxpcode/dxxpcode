@@ -61,6 +61,7 @@ export interface Approval {
   allowAlways: boolean;
   extraChoice?: { choice: string; label: string };
   steps?: string[];
+  task?: Extract<Item, { k: "user" }>;
   answered?: string;
 }
 

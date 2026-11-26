@@ -60,6 +60,7 @@ export default function App() {
   const [ready, setReady] = useState<ReadyInfo | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const activeTask = useRef<Approval["task"]>(undefined);
   const [diffs, setDiffs] = useState<{ id: number; path: string; diff: string; decided?: string }[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -371,17 +372,21 @@ export default function App() {
         // reset the transcript so the new session starts clean.
         setItems([]);
         setApprovals([]);
+        activeTask.current = undefined;
         setSessionInfo({ id: null, tokens: 0 });
         setChatMode(false);
         break;
       }
-      case "user":
+      case "user": {
         // A new run supersedes any leftover "Build this plan" cue.
         setItems((prev) => prev.filter((it) => it.k !== "build" && it.k !== "replan"));
-        push({ k: "user", text: String(ev.text) });
+        const task = { k: "user" as const, text: String(ev.text) };
+        activeTask.current = task;
+        push(task);
         setRunning(true);
         runStart.current = Date.now();
         break;
+      }
       case "state":
         setReady((prev) =>
           prev
@@ -507,7 +512,7 @@ export default function App() {
             }
           }
         }
-        if (restored.length) setItems(restored);
+        setItems(restored);
         break;
       }
       case "plan": {
@@ -630,7 +635,8 @@ export default function App() {
       case "compacted":
         push({ k: "note", text: `compacted context — ${ev.blocks} old result(s) summarized` });
         break;
-      case "approval":
+      case "approval": {
+        const task = ev.kind === "plan" ? activeTask.current : undefined;
         setApprovals((prev) => [
           ...prev,
           {
@@ -639,9 +645,11 @@ export default function App() {
             allowAlways: ev.allowAlways === true,
             extraChoice: ev.extraChoice as { choice: string; label: string } | undefined,
             steps: Array.isArray(ev.steps) ? (ev.steps as string[]) : undefined,
+            task,
           },
         ]);
         break;
+      }
       case "diff_review":
         setDiffs((prev) => [
           ...prev,
@@ -697,6 +705,7 @@ export default function App() {
         if (thinkTimer.current) { clearTimeout(thinkTimer.current); flushThink(); }
         closeThink();
         stopRate();
+        activeTask.current = undefined;
         setRunning(false);
         setStatus(null);
         // Auto-start the queued backlog as fresh sessions — but not after a
@@ -1080,18 +1089,20 @@ export default function App() {
     const ap = approvals.find((a) => a.id === id);
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, answered: choice } : a)));
     void send({ type: "approve", id, choice, plan: steps ? { steps } : undefined });
-    if (ap?.kind === "plan") {
+    if (ap?.task) {
       // Answered plans fold into a summary line; a denial adds a "Re-plan" cue.
       setItems((prev) => {
-        const next = [...prev];
-        for (let i = next.length - 1; i >= 0; i--) {
-          const it = next[i];
-          if (it.k === "plan") {
-            next[i] = { k: "plan", plan: { ...it.plan, collapsed: true } };
-            break;
-          }
-          if (it.k === "user" || it.k === "done") break;
+        let taskIndex = prev.length - 1;
+        let planIndex = -1;
+        for (; taskIndex >= 0; taskIndex--) {
+          const item = prev[taskIndex];
+          if (item.k === "user" || item.k === "done") break;
+          if (item.k === "plan" && planIndex === -1) planIndex = taskIndex;
         }
+        if (prev[taskIndex] !== ap.task) return prev;
+        const next = [...prev];
+        const plan = prev[planIndex];
+        if (plan?.k === "plan") next[planIndex] = { k: "plan", plan: { ...plan.plan, collapsed: true } };
         if (choice === "n") next.push({ k: "replan" });
         return next;
       });
@@ -1208,7 +1219,7 @@ export default function App() {
   const pendingDiffs = diffs.filter((d) => !d.decided);
   const lastTurnStart = turns.at(-1)?.[0];
   const taskPlanApproval = lastTurnStart && !Array.isArray(lastTurnStart) && lastTurnStart.item.k === "user"
-    ? pendingApprovals.find((a) => a.kind === "plan" && a.steps)
+    ? pendingApprovals.find((a) => a.task === lastTurnStart.item && a.steps)
     : undefined;
   const doneWorkers = wtasks.filter((w) => w.phase === "done");
   const failedWorkers = wtasks.filter((w) => w.phase === "failed");
@@ -2144,6 +2155,7 @@ export default function App() {
                 <span className="dec-mark"><ListChecks size={12} /></span>
                 <span className="dec-titleblock">
                   <span className="dec-title">{a.kind === "plan" ? "Xavier's plan" : "Xavier wants to"}</span>
+                  {a.task && <span className="dec-meta" title={a.task.text}>{a.task.text}</span>}
                   {a.tool && <span className="dec-meta">{TOOL_DISPLAY[a.tool] ?? a.tool}</span>}
                 </span>
                 <span className="dec-status">Awaiting approval</span>
