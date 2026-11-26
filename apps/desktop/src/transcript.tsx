@@ -1,5 +1,5 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Folder } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, FileText, Folder } from "lucide-react";
 import type { Item } from "./types";
 import { TOOL_DISPLAY } from "./types";
 import { md } from "./lib/markdown";
@@ -55,7 +55,10 @@ function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: numb
                   <li
                     className={`plan-step${status === "completed" ? " done" : status === "in_progress" ? " active" : ""}`}
                     key={i}
-                  >{s}</li>
+                  >
+                    <span className="task-step-mark" aria-hidden="true">{status === "completed" ? <Check size={12} /> : i + 1}</span>
+                    {s}
+                  </li>
                 );
               })}
             </ol>
@@ -97,7 +100,7 @@ function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: numb
           <ul className="todo-list reply-body">
             {item.items.map((t, i) => (
               <li className={`todo-item ${t.status === "completed" ? "done" : t.status === "in_progress" ? "active" : ""}`} key={i}>
-                <span className="mark">{t.status === "completed" ? "✓" : t.status === "in_progress" ? "▶" : "○"}</span>
+                <span className="task-step-mark" aria-hidden="true">{t.status === "completed" ? <Check size={12} /> : t.status === "in_progress" ? "▶" : ""}</span>
                 <span className="lbl">{t.status === "in_progress" && t.activeForm ? t.activeForm : t.content}</span>
               </li>
             ))}
@@ -185,8 +188,8 @@ function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: numb
           <span className="worked-label">{label}{item.secs != null ? ` for ${fmtDuration(item.secs)}` : ""}</span>
           {meta && <span className="meta">{meta}</span>}
           {item.filesChanged.length > 0 && (
-            <div className="fchips">
-              {item.filesChanged.map((f) => <FileChip key={f} path={f} />)}
+            <div className="task-files">
+              {item.filesChanged.map((path) => <FileChip key={path} path={path} result />)}
             </div>
           )}
         </div>
@@ -285,19 +288,23 @@ export const TGroup = memo(TGroupImpl, (a, b) =>
   a.seg.every((g, i) => g.idx === b.seg[i].idx && g.item === b.seg[i].item),
 );
 
-function FileChip({ path }: { path: string }) {
+function FileChip({ path, result }: { path: string; result?: boolean }) {
   const base = path.split("/").pop() ?? path;
   const dir = path.slice(0, path.length - base.length);
+  const [copied, setCopied] = useState(false);
   return (
     <button
-      className="fchip"
+      className={result ? "fchip task-file" : "fchip"}
       title={`${path} — click to copy`}
-      onClick={() => void navigator.clipboard.writeText(path)}
+      aria-label={`Copy path: ${path}`}
+      onClick={() => void navigator.clipboard.writeText(path).then(() => setCopied(true))}
     >
+      {result && <FileText size={18} aria-hidden="true" />}
       <span className="dc-path">
         <span className="dc-base">{base}</span>
         {dir && <span className="dc-dir">{dir}</span>}
       </span>
+      {result && <span className="task-file-action" aria-live="polite">{copied ? <Check size={13} /> : <Copy size={13} />}<span>{copied ? "Copied" : "Copy path"}</span></span>}
     </button>
   );
 }
@@ -427,7 +434,6 @@ export function PlanApproval({
         <button className="plan-edit-add" onClick={() => setEdited((cur) => [...cur, ""])}>+ add step</button>
       </div>
       <div className="dec-acts">
-        <button className="pill allow" onClick={() => onAnswer("y", finalSteps())}>Approve plan</button>
         <button className="pill deny" onClick={() => onAnswer("n", [])}>Deny</button>
         {extraChoice && <span className="dec-sep" />}
         {extraChoice && (
@@ -435,6 +441,7 @@ export function PlanApproval({
             {extraChoice.label}
           </button>
         )}
+        <button className="pill allow" onClick={() => onAnswer("y", finalSteps())}>Approve plan</button>
       </div>
     </>
   );
@@ -590,3 +597,20 @@ export function Logo({ className }: { className?: string }) {
   );
 }
 
+export function XavierMark({ className, gradient = false }: { className?: string; gradient?: boolean }) {
+  const id = useId();
+  return (
+    <svg className={className} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      {gradient && (
+        <defs>
+          <linearGradient id={id} x1="22" y1="5" x2="42" y2="59" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#478DFF" />
+            <stop offset=".58" stopColor="#605EFF" />
+            <stop offset="1" stopColor="#9953FF" />
+          </linearGradient>
+        </defs>
+      )}
+      <path d="M8 8l15 15m33-15L8 56m24-24 24 24" stroke={gradient ? `url(#${id})` : "currentColor"} strokeWidth="10" strokeLinecap="round" />
+    </svg>
+  );
+}
