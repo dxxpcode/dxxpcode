@@ -599,11 +599,13 @@ fn write_window_bounds(window: &tauri::WebviewWindow) {
     if size.width < 320 || size.height < 240 {
         return;
     }
+    let scale = window.scale_factor().unwrap_or(1.0).max(0.1);
     let json = serde_json::json!({
-        "width": size.width,
-        "height": size.height,
-        "x": position.x,
-        "y": position.y,
+        "logical": true,
+        "width": size.width as f64 / scale,
+        "height": size.height as f64 / scale,
+        "x": position.x as f64 / scale,
+        "y": position.y as f64 / scale,
     });
     let path = window_bounds_path();
     if let Some(parent) = path.parent() {
@@ -639,36 +641,48 @@ fn restore_window_bounds(window: &tauri::WebviewWindow) {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
         return;
     };
-    let (Some(width), Some(height), Some(x), Some(y)) = (
-        value.get("width").and_then(|v| v.as_u64()),
-        value.get("height").and_then(|v| v.as_u64()),
-        value.get("x").and_then(|v| v.as_i64()),
-        value.get("y").and_then(|v| v.as_i64()),
+    let (Some(mut width), Some(mut height), Some(mut x), Some(mut y)) = (
+        value.get("width").and_then(|v| v.as_f64()),
+        value.get("height").and_then(|v| v.as_f64()),
+        value.get("x").and_then(|v| v.as_f64()),
+        value.get("y").and_then(|v| v.as_f64()),
     ) else {
         return;
     };
-    if !(320..=10000).contains(&width) || !(240..=10000).contains(&height) {
+    if !value
+        .get("logical")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        let scale = window.scale_factor().unwrap_or(1.0).max(0.1);
+        width /= scale;
+        height /= scale;
+        x /= scale;
+        y /= scale;
+    }
+    if !(320.0..=10000.0).contains(&width) || !(240.0..=10000.0).contains(&height) {
         return;
     }
     let visible = window
         .available_monitors()
         .map(|monitors| {
             monitors.iter().any(|monitor| {
-                let left = monitor.position().x as i64;
-                let top = monitor.position().y as i64;
-                let right = left + monitor.size().width as i64;
-                let bottom = top + monitor.size().height as i64;
-                let overlap_x = (x + width as i64).min(right) - x.max(left);
-                let overlap_y = (y + height as i64).min(bottom) - y.max(top);
-                overlap_x >= 160 && overlap_y >= 100
+                let scale = monitor.scale_factor().max(0.1);
+                let left = monitor.position().x as f64 / scale;
+                let top = monitor.position().y as f64 / scale;
+                let right = left + monitor.size().width as f64 / scale;
+                let bottom = top + monitor.size().height as f64 / scale;
+                let overlap_x = (x + width).min(right) - x.max(left);
+                let overlap_y = (y + height).min(bottom) - y.max(top);
+                overlap_x >= 160.0 && overlap_y >= 100.0
             })
         })
         .unwrap_or(true);
     if !visible {
         return;
     }
-    let _ = window.set_size(tauri::PhysicalSize::new(width as u32, height as u32));
-    let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    let _ = window.set_position(tauri::LogicalPosition::new(x, y));
 }
 
 fn main() {
