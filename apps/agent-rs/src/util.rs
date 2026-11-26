@@ -335,11 +335,16 @@ fn git_files(root: &str) -> Option<Vec<String>> {
 }
 
 pub fn list_project_files(root: &str) -> FileIndex {
-    let files = git_files(root).unwrap_or_else(|| {
+    let mut files = git_files(root).unwrap_or_else(|| {
         let mut out = vec![];
         walk_files_limited(Path::new(root), "", &mut out, MAX_INDEX_ENTRIES);
         out
     });
+    // `git ls-files` tracks the index, not the worktree: a file deleted but
+    // not yet staged still lists. Drop anything no longer on disk so neither
+    // the Files view nor @-completion offer references to missing files.
+    let rootp = Path::new(root);
+    files.retain(|f| rootp.join(f).exists());
     let mut dirs: HashSet<String> = HashSet::new();
     for f in &files {
         let mut p = Path::new(f).parent();
