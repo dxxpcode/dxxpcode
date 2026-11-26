@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -61,6 +61,7 @@ export default function App() {
   const [items, setItems] = useState<Item[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const activeTask = useRef<Approval["task"]>(undefined);
+  const lastPlan = useRef<Plan | undefined>(undefined);
   const [diffs, setDiffs] = useState<{ id: number; path: string; diff: string; decided?: string }[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -375,6 +376,8 @@ export default function App() {
         // A fresh ready = respawned sidecar (project switch) or first boot —
         // reset the transcript so the new session starts clean.
         setItems([]);
+      lastPlan.current = undefined;
+        lastPlan.current = undefined;
         setApprovals([]);
         activeTask.current = undefined;
         setSessionInfo({ id: null, tokens: 0 });
@@ -521,6 +524,7 @@ export default function App() {
       }
       case "plan": {
         const plan = { ...(ev.plan as Plan), amended: ev.amended === true };
+        lastPlan.current = plan;
         // A re-emitted plan (user edited steps before approving, or a
         // re-proposal) replaces the previous card rather than stacking.
         setItems((prev) => {
@@ -699,6 +703,8 @@ export default function App() {
           filesChanged: r.filesChanged ?? [],
           secs: runStart.current ? Math.round((Date.now() - runStart.current) / 1000) : undefined,
           tokens: r.usage ? (r.usage.inputTokens ?? 0) + (r.usage.outputTokens ?? 0) : undefined,
+          steps: lastPlan.current?.steps,
+          stepStatus: lastPlan.current?.stepStatus,
         });
         // Plan-only runs park here — the saved plan waits for "Build".
         if (r.status === "plan_only") push({ k: "build" });
@@ -920,6 +926,11 @@ export default function App() {
     setFileSugs({ id: -1, items: [] });
     taRef.current?.focus();
   };
+
+  const viewFile = useCallback((path: string) => {
+    const abs = path.startsWith("/") ? path : `${projectPath.replace(/\/$/, "")}/${path}`;
+    void openPath(abs).catch(() => void navigator.clipboard.writeText(abs));
+  }, [projectPath]);
 
   const attachFile = () => {
     if (railIsOverlay) setRailOpen(false);
@@ -2129,7 +2140,7 @@ export default function App() {
                   <TGroup key={`g${si}`} seg={seg} running={running} lastIdx={items.length - 1} onCmd={cmd} />
                 ) : (
                   planApproval && seg.item.k === "plan" ? null
-                    : <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} onCmd={cmd} />
+                    : <ItemView key={seg.idx} item={seg.item} toolCount={turnTools.get(seg.idx)} onCmd={cmd} onViewFile={viewFile} />
                 ),
               )}
               {planApproval?.steps && (

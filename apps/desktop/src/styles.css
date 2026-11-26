@@ -1997,3 +1997,17 @@ html[data-theme="dark"] .docviewer { background: rgb(30 30 30 / 0.72); }
     background: none; color: var(--dim); -webkit-text-fill-color: currentColor;
   }
 }
+
+/* completion receipt — checkmarked steps + artifact rows */
+.receipt-steps { list-style: none; margin: 8px 0 2px; padding: 0; display: grid; gap: 5px; flex-basis: 100%; }
+.receipt-step { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--dim); }
+.receipt-step.done { color: var(--text); }
+.receipt-check {
+  width: 15px; height: 15px; flex-shrink: 0; align-self: center;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--border-strong); color: transparent;
+}
+.receipt-step.done .receipt-check {
+  background: var(--xavier-gradient); border-color: transparent; color: #fff;
+}
+.task-file-view { color: var(--xavier-violet, var(--text)); font-weight: 500; }

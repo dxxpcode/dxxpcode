@@ -46,7 +46,7 @@ export type Item =
   | { k: "error"; text: string; hint?: string; detail?: string; code?: string }
   | { k: "denied"; tool: string; reason: string }
   | { k: "checkpoint"; seq: number; paths: string[] }
-  | { k: "done"; status: string; summary: string; filesChanged: string[]; secs?: number; tokens?: number }
+  | { k: "done"; status: string; summary: string; filesChanged: string[]; secs?: number; tokens?: number; steps?: string[]; stepStatus?: string[] }
   | { k: "table"; title: string; rows: [string, string][] }
   | { k: "markdown"; title: string; text: string }
   | { k: "diffcard"; title: string; diff: string }

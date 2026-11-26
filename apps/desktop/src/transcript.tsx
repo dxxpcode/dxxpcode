@@ -11,7 +11,7 @@ export const Md = memo(function Md({ text, className }: { text: string; classNam
   return <div className={className} dangerouslySetInnerHTML={html} />;
 });
 
-function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: number; onCmd?: (name: string) => void }) {
+function ItemViewImpl({ item, toolCount, onCmd, onViewFile }: { item: Item; toolCount?: number; onCmd?: (name: string) => void; onViewFile?: (path: string) => void }) {
   switch (item.k) {
     case "user":
       return <div className="usermsg row">{item.text}</div>;
@@ -187,9 +187,22 @@ function ItemViewImpl({ item, toolCount, onCmd }: { item: Item; toolCount?: numb
           <span className="worked-dot" />
           <span className="worked-label">{label}{item.secs != null ? ` for ${fmtDuration(item.secs)}` : ""}</span>
           {meta && <span className="meta">{meta}</span>}
+          {ok && item.steps && item.steps.length > 0 && (
+            <ul className="receipt-steps">
+              {item.steps.map((step, i) => {
+                const done = item.stepStatus ? item.stepStatus[i] === "completed" : true;
+                return (
+                  <li key={i} className={`receipt-step${done ? " done" : ""}`}>
+                    <span className="receipt-check" aria-hidden="true">{done ? <Check size={12} /> : null}</span>
+                    <span>{step}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {item.filesChanged.length > 0 && (
             <div className="task-files">
-              {item.filesChanged.map((path) => <FileChip key={path} path={path} result />)}
+              {item.filesChanged.map((path) => <FileChip key={path} path={path} result onView={onViewFile} />)}
             </div>
           )}
         </div>
@@ -288,23 +301,24 @@ export const TGroup = memo(TGroupImpl, (a, b) =>
   a.seg.every((g, i) => g.idx === b.seg[i].idx && g.item === b.seg[i].item),
 );
 
-function FileChip({ path, result }: { path: string; result?: boolean }) {
+function FileChip({ path, result, onView }: { path: string; result?: boolean; onView?: (path: string) => void }) {
   const base = path.split("/").pop() ?? path;
   const dir = path.slice(0, path.length - base.length);
   const [copied, setCopied] = useState(false);
+  const view = result && onView;
   return (
     <button
       className={result ? "fchip task-file" : "fchip"}
-      title={`${path} — click to copy`}
-      aria-label={`Copy path: ${path}`}
-      onClick={() => void navigator.clipboard.writeText(path).then(() => setCopied(true))}
+      title={view ? `${path} — click to open` : `${path} — click to copy`}
+      aria-label={view ? `Open file: ${path}` : `Copy path: ${path}`}
+      onClick={() => view ? onView(path) : void navigator.clipboard.writeText(path).then(() => setCopied(true))}
     >
       {result && <FileText size={18} aria-hidden="true" />}
       <span className="dc-path">
         <span className="dc-base">{base}</span>
         {dir && <span className="dc-dir">{dir}</span>}
       </span>
-      {result && <span className="task-file-action" aria-live="polite">{copied ? <Check size={13} /> : <Copy size={13} />}<span>{copied ? "Copied" : "Copy path"}</span></span>}
+      {result && <span className="task-file-action" aria-live="polite">{view ? <span className="task-file-view">View File</span> : <>{copied ? <Check size={13} /> : <Copy size={13} />}<span>{copied ? "Copied" : "Copy path"}</span></>}</span>}
     </button>
   );
 }
