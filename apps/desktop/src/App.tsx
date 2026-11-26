@@ -111,7 +111,7 @@ export default function App() {
   const [obStep, setObStep] = useState<OnboardingStep>("welcome");
   const obTitleRef = useRef<HTMLHeadingElement>(null);
   const [obProvider, setObProvider] = useState<string>("anthropic");
-  const OB_MAIN = ["anthropic", "openai"];
+  const OB_MAIN = ["anthropic", "openai", "nvidia"];
   const [obMore, setObMore] = useState(false);
   const [obKey, setObKey] = useState("");
   const [obBase, setObBase] = useState("");
@@ -1946,7 +1946,7 @@ export default function App() {
                         disabled={obBusy}
                         aria-invalid={Boolean(obError)}
                         aria-describedby={obError ? "ob-key-hint ob-error" : "ob-key-hint"}
-                        placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…" }[obProvider] ?? "Paste your API key"}
+                        placeholder={{ anthropic: "sk-ant-…", openrouter: "sk-or-…", groq: "gsk_…", xai: "xai-…", nvidia: "nvapi-…" }[obProvider] ?? "Paste your API key"}
                         value={obKey}
                         onChange={(e) => { setObKey(e.target.value.trim()); setObError(null); }}
                       />

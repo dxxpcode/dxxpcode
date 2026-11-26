@@ -35,6 +35,7 @@ test("model search ignores case and surrounding whitespace without altering IDs"
 test("provider ids display with proper brand casing", () => {
   assert.equal(displayProvider("anthropic"), "Anthropic");
   assert.equal(displayProvider("openai"), "OpenAI");
+  assert.equal(displayProvider("nvidia"), "NVIDIA");
   assert.equal(displayProvider("openrouter"), "OpenRouter");
   assert.equal(displayProvider("xai"), "xAI");
   assert.equal(displayProvider("deepseek"), "DeepSeek");

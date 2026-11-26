@@ -65,6 +65,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   deepseek: "deepseek",
   xai: "xai",
   mistral: "mistral",
+  nvidia: "nvidia",
   ollama: "ollama",
 };
 

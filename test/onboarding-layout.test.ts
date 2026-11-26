@@ -38,6 +38,7 @@ test("compatible providers keep their existing endpoint mappings", () => {
     groq: "https://api.groq.com/openai/v1",
     deepseek: "https://api.deepseek.com/v1",
     xai: "https://api.x.ai/v1",
+    nvidia: "https://integrate.api.nvidia.com/v1",
     mistral: "https://api.mistral.ai/v1",
   };
   for (const [provider, base_url] of Object.entries(endpoints)) {
@@ -64,7 +65,7 @@ test("provider help opens only the exact HTTPS key pages allowed by Tauri", () =
   const capabilities = JSON.parse(readFileSync(new URL("../apps/desktop/src-tauri/capabilities/default.json", import.meta.url), "utf8"));
   const opener = capabilities.permissions.find((p: { identifier?: string }) => p.identifier === "opener:allow-open-url");
   const keyUrls = ONBOARDING_PROVIDERS.filter((p) => p.keyUrl).map((p) => p.keyUrl!);
-  assert.equal(keyUrls.length, 8);
+  assert.equal(keyUrls.length, 9);
   assert.deepEqual(opener.allow.map((p: { url: string }) => p.url).sort(), [...keyUrls].sort());
   for (const url of keyUrls) {
     assert.equal(new URL(url).protocol, "https:");

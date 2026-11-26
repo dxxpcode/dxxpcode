@@ -26,6 +26,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   deepseek: "DeepSeek",
   xai: "xAI",
   mistral: "Mistral",
+  nvidia: "NVIDIA",
   ollama: "Ollama",
   azure: "Azure",
   bedrock: "Bedrock",
