@@ -2256,12 +2256,17 @@ export default function App() {
             {commands.length === 0 && <p className="view-empty">No custom commands in this project.</p>}
             {commands.map((c) => (
               <button key={c.name} type="button" className="pg-card" onClick={() => {
-                setInput((v) => {
-                  const t = v.trim();
-                  if (!t) return c.name + " ";
-                  if (t.startsWith("/")) return c.name + " " + (t.split(/\s+/).slice(1).join(" ") || "");
-                  return c.name + " " + t;
-                });
+                const t = input.trim();
+                if (!t || t.startsWith("/")) {
+                  // Editing a command already — replace the token, nothing else at risk.
+                  setInput(t.startsWith("/") ? c.name + " " + (t.split(/\s+/).slice(1).join(" ") || "") : c.name + " ");
+                } else {
+                  // A real draft is in the composer: merging it into the command
+                  // would corrupt argumentless commands (/model saving the draft as
+                  // a model id), and replacing it would lose the draft — so run the
+                  // command directly and leave the composer untouched.
+                  cmd(c.name);
+                }
                 setNav("home"); taRef.current?.focus();
               }}>
                 <Sparkles size={15} className="pg-icon" />
