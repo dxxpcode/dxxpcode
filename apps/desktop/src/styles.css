@@ -2398,7 +2398,7 @@ html[data-theme="dark"] .selector-popover {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .selector-unified-popover { width: 318px; }
-.permission-popover { width: 296px; }
+.permission-popover { width: 320px; }
 .selector-heading {
   padding: 5px 8px 6px;
   color: var(--faint);

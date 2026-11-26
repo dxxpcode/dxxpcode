@@ -2,7 +2,7 @@ export type PermissionMode = "ask" | "smart" | "always-approve";
 
 export const PERMISSION_OPTIONS: { value: PermissionMode; label: string; short: string; description: string }[] = [
   { value: "ask", label: "Ask for approval", short: "Ask", description: "Review each edit and command." },
-  { value: "smart", label: "Approve for me", short: "Auto-review", description: "Jev reviews safe actions for you." },
+  { value: "smart", label: "Approve for me", short: "Auto-review", description: "Jev reviews safe actions. Requires a Jev key." },
   { value: "always-approve", label: "Full access", short: "Full access", description: "Run without approval prompts." },
 ];
 
